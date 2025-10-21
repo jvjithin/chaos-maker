@@ -1,0 +1,26 @@
+{
+  "name": "@chaos-maker/core",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/chaos-maker.umd.js",
+  "module": "./dist/chaos-maker.js",
+  "exports": {
+    ".": {
+      "import": "./dist/chaos-maker.js",
+      "require": "./dist/chaos-maker.umd.js"
+    }
+  },
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "tsc && vite build",
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-basic-ssl": "^1.1.0",
+    "jsdom": "^27.0.1",
+    "typescript": "^5.4.5",
+    "vite": "^5.3.1",
+    "vitest": "^1.6.0"
+  }
+}

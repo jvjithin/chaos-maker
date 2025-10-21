@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Chaos Utils",
+  "version": "1.0.0",
+  "description": "Injects chaos into web applications to test resilience.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://*/*",
+    "http://*/*"
+  ],
+  "action": {
+    "default_popup": "popup/popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [ "dist/chaos-maker.umd.js" ],
+      "matches": [ "<all_urls>" ]
+    }
+  ]
+}
