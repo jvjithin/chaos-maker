@@ -9,12 +9,13 @@
     #start { background-color: #4CAF50; color: white; border: none; }
     #stop { background-color: #f44336; color: white; border: none; margin-top: 5px; }
     .hidden { display: none; }
+    #error-message { color: #f44336; margin-top: 5px; }
   </style>
 </head>
 <body>
   <h3>Chaos Configuration</h3>
   <textarea id="config-json"></textarea>
-  <button id="start">Start Chaos</button>
+  <div id="error-message" class="hidden"></div> <button id="start">Start Chaos</button>
   <button id="stop" class="hidden">Stop Chaos</button>
   <script src="popup.js"></script>
 </body>

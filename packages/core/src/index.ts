@@ -1,24 +1,27 @@
 import { ChaosMaker } from './ChaosMaker';
 import { ChaosConfig } from './config';
 
-// --- FIX 1: Use 'export type' for ChaosConfig ---
 export { ChaosMaker };
 export type { ChaosConfig };
 
+// --- NEW INTERFACE ---
+interface ChaosUtilsApi {
+  instance: ChaosMaker | null;
+  start: (config: ChaosConfig) => { success: boolean; message: string };
+  stop: () => { success: boolean; message: string };
+}
+
 // --- Global API & Auto-Start Logic ---
 if (typeof window !== 'undefined') {
-  // 1. Expose the class for advanced usage
   (window as any).ChaosMaker = ChaosMaker;
   
-  // 2. Create the singleton API object
-  const chaosUtilsApi = {
-    // --- FIX 2: Explicitly type 'instance' ---
-    instance: null as ChaosMaker | null,
+  // Apply the interface
+  const chaosUtilsApi: ChaosUtilsApi = {
+    instance: null,
     
     start: (config: ChaosConfig) => {
       try {
         if (chaosUtilsApi.instance) {
-          // No casting needed now
           chaosUtilsApi.instance.stop();
         }
         chaosUtilsApi.instance = new ChaosMaker(config);
@@ -32,7 +35,6 @@ if (typeof window !== 'undefined') {
     
     stop: () => {
       if (chaosUtilsApi.instance) {
-        // No casting needed now
         chaosUtilsApi.instance.stop();
         chaosUtilsApi.instance = null;
         return { success: true, message: "Chaos stopped" };
@@ -41,16 +43,12 @@ if (typeof window !== 'undefined') {
     }
   };
   
-  // 3. Attach the API to the window
   (window as any).chaosUtils = chaosUtilsApi;
   
-  // 4. NOW, run the auto-start logic
   if ((window as any).__CHAOS_CONFIG__) {
     try {
       const config = (window as any).__CHAOS_CONFIG__;
-      
       chaosUtilsApi.start(config);
-      
       delete (window as any).__CHAOS_CONFIG__;
     } catch (e) {
       console.error('ChaosMaker auto-start failed:', e);

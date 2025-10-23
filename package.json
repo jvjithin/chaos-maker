@@ -5,7 +5,6 @@
   "type": "module",
   "description": "A lightweight toolkit for injecting chaos into web applications",
   "scripts": {
-    "husky:prepare": "echo \"#!/bin/sh\n\npnpm lint-staged\" > .husky/pre-commit && chmod +x .husky/pre-commit",
     "lint": "eslint .",
     "build:core": "pnpm --filter @chaos-maker/core build",
     "dev:core": "pnpm --filter @chaos-maker/core dev",

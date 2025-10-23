@@ -1,6 +1,7 @@
 const configEl = document.getElementById('config-json');
 const startBtn = document.getElementById('start');
 const stopBtn = document.getElementById('stop');
+const errorEl = document.getElementById('error-message');
 
 const defaultConfig = {
   "network": {
@@ -12,6 +13,18 @@ const defaultConfig = {
     ]
   }
 };
+
+// Function to show/hide error messages
+function setErrorMessage(message) {
+  errorEl.textContent = message;
+  if (message) {
+    errorEl.classList.remove('hidden');
+    configEl.style.borderColor = '#f44336';
+  } else {
+    errorEl.classList.add('hidden');
+    configEl.style.borderColor = '';
+  }
+}
 
 // Load saved state on popup open
 document.addEventListener('DOMContentLoaded', () => {
@@ -35,26 +48,24 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 startBtn.addEventListener('click', () => {
+  setErrorMessage('');
   try {
     const config = JSON.parse(configEl.value);
-    // Send message to background script to start
     chrome.runtime.sendMessage({ action: 'startChaos', config: config });
     
-    // Update UI immediately
     startBtn.classList.add('hidden');
     stopBtn.classList.remove('hidden');
     configEl.disabled = true;
 
   } catch {
-    alert('Invalid JSON configuration!');
+    setErrorMessage('Invalid JSON configuration!');
   }
 });
 
 stopBtn.addEventListener('click', () => {
-  // Send message to background script to stop
+  setErrorMessage('');
   chrome.runtime.sendMessage({ action: 'stopChaos' });
 
-  // Update UI immediately
   startBtn.classList.remove('hidden');
   stopBtn.classList.add('hidden');
   configEl.disabled = false;
