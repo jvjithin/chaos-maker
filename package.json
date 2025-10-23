@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "A lightweight toolkit for injecting chaos into web applications",
   "scripts": {
-    "lint": "eslint . --ext .ts",
+    "lint": "eslint .",
     "build:core": "pnpm --filter @chaos-maker/core build",
     "dev:core": "pnpm --filter @chaos-maker/core dev",
     "test": "pnpm --filter @chaos-maker/core test"
