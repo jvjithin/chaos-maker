@@ -5,10 +5,12 @@
   "type": "module",
   "description": "A lightweight toolkit for injecting chaos into web applications",
   "scripts": {
+    "husky:prepare": "echo \"#!/bin/sh\n\npnpm lint-staged\" > .husky/pre-commit && chmod +x .husky/pre-commit",
     "lint": "eslint .",
     "build:core": "pnpm --filter @chaos-maker/core build",
     "dev:core": "pnpm --filter @chaos-maker/core dev",
-    "test": "pnpm --filter @chaos-maker/core test"
+    "test": "pnpm --filter @chaos-maker/core test",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@types/node": "^20.14.2",
@@ -17,10 +19,15 @@
     "eslint": "^8.57.1",
     "eslint-plugin-vitest": "^0.5.4",
     "globals": "^16.4.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.6",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.46.2",
     "vite": "^5.3.1",
     "vitest": "^1.6.0"
+  },
+  "lint-staged": {
+    "**/*.ts": "eslint"
   }
 }
