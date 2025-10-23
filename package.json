@@ -1,8 +1,8 @@
 {
-  "name": "chaos-maker-monorepo",
+  "name": "chaos-maker",
   "private": true,
   "version": "1.0.0",
-  "description": "Monorepo for the Web Chaos Maker",
+  "description": "A lightweight toolkit for injecting chaos into web applications",
   "scripts": {
     "lint": "eslint . --ext .ts",
     "build:core": "pnpm --filter @chaos-maker/core build",
@@ -14,6 +14,7 @@
     "@typescript-eslint/eslint-plugin": "^8.46.2",
     "@typescript-eslint/parser": "^8.46.2",
     "eslint": "^8.57.1",
+    "eslint-plugin-vitest": "^0.5.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
     "vite": "^5.3.1",

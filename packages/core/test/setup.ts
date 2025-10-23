@@ -38,7 +38,7 @@ class MockXMLHttpRequest {
     mockXhrSend(body); // Call the exported mock
   }
 
-  dispatchEvent(event: Event) {
+  dispatchEvent(_event: Event) {
     return true;
   }
 }
