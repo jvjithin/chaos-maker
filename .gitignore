@@ -26,3 +26,7 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Test reports
+e2e-tests/playwright-report/
+e2e-tests/test-results/
