@@ -1,19 +1,30 @@
 {
   "name": "@chaos-maker/core",
-  "private": true,
+  "private": false,
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/chaos-maker.umd.js",
   "module": "./dist/chaos-maker.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "exports": {
     ".": {
-      "import": "./dist/chaos-maker.js",
-      "require": "./dist/chaos-maker.umd.js"
-    }
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/chaos-maker.js"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/chaos-maker.umd.js"
+      }
+    },
+    "./dist/chaos-maker.umd.js": "./dist/chaos-maker.umd.js"
   },
   "scripts": {
     "dev": "vite build --watch",
-    "build": "tsc && vite build",
+    "build": "vite build && tsc --emitDeclarationOnly --declarationDir dist --rootDir src",
     "test": "vitest"
   },
   "devDependencies": {

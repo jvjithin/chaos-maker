@@ -15,7 +15,7 @@ export default defineConfig({
           // This is the ES Module build
           format: 'es',
           entryFileNames: 'chaos-maker.js',
-          dir: '../extension/dist',
+          dir: './dist',
         },
         {
           // This is the UMD build
@@ -23,12 +23,12 @@ export default defineConfig({
           // UMD builds must have a 'name'
           name: 'ChaosMaker', 
           entryFileNames: 'chaos-maker.umd.js',
-          dir: '../extension/dist',
+          dir: './dist',
         },
       ],
     },
-    // We keep outDir pointing to the extension's dist
-    outDir: '../extension/dist',
+    // Build to core's own dist directory
+    outDir: './dist',
     emptyOutDir: true, 
   },
 });

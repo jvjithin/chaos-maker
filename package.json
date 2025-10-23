@@ -7,6 +7,9 @@
   "scripts": {
     "lint": "eslint .",
     "build:core": "pnpm --filter @chaos-maker/core build",
+    "build:playwright": "pnpm --filter @chaos-maker/playwright build",
+    "build:cypress": "pnpm --filter @chaos-maker/cypress build",
+    "build": "pnpm build:core && pnpm build:playwright && pnpm build:cypress",
     "dev:core": "pnpm --filter @chaos-maker/core dev",
     "test": "pnpm --filter @chaos-maker/core test",
     "prepare": "husky"

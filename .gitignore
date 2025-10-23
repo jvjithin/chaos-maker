@@ -8,13 +8,10 @@ pnpm-debug.log*
 .pnpm-store/
 
 # Vite
-dist/
-.vite/
-build/
+dist
+.vite
+build
 
-# Core library build artifacts
-# We build *into* the extension, but that 'dist' is still a build artifact
-packages/extension/dist/
 
 # OS
 .DS_Store

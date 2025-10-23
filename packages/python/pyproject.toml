@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chaos-maker-selenium"
+version = "1.0.0"
+description = "Chaos Maker integration for Selenium WebDriver"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "selenium>=4.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/jvjithin/chaos-maker"
+Repository = "https://github.com/jvjithin/chaos-maker"
+Issues = "https://github.com/jvjithin/chaos-maker/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["chaos_maker_selenium*"]
+
+[tool.setuptools.package-data]
+chaos_maker_selenium = ["chaos-maker.umd.js"]
