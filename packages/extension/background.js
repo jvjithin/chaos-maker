@@ -1,5 +1,5 @@
 // Listens for messages from the popup
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((request, _sender, _sendResponse) => {
   if (request.action === 'startChaos') {
     startChaos(request.config);
   } else if (request.action === 'stopChaos') {

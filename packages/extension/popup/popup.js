@@ -45,7 +45,7 @@ startBtn.addEventListener('click', () => {
     stopBtn.classList.remove('hidden');
     configEl.disabled = true;
 
-  } catch (e) {
+  } catch (_e) {
     alert('Invalid JSON configuration!');
   }
 });

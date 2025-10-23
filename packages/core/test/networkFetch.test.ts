@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { patchFetch } from '../src/interceptors/networkFetch';
 import { NetworkConfig } from '../src/config';
 // Import the mock from setup.ts
