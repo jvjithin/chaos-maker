@@ -15,7 +15,8 @@
     "prepare": "husky",
     "test:playwright": "pnpm --filter e2e-tests test:playwright",
     "report:playwright": "pnpm --filter e2e-tests report:playwright",
-    "test:cypress": "pnpm --filter e2e-tests test:cypress"
+    "test:cypress": "pnpm --filter e2e-tests test:cypress",
+    "start:http": "pnpm --filter e2e-tests start"
   },
   "devDependencies": {
     "@types/node": "^20.14.2",

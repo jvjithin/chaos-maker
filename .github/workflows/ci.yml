@@ -151,5 +151,5 @@ jobs:
         uses: cypress-io/github-action@v6
         with:
           project: ./e2e-tests
-          start: pnpm start
+          start: pnpm start:http
           wait-on: 'http://127.0.0.1:8080'
