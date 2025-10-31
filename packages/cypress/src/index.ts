@@ -21,7 +21,7 @@ export function getChaosScriptWithConfig(config: ChaosConfig): string {
   try {
     const serializedConfig = JSON.stringify(config).replace(/</g, '\\u003C');
     return `window.__CHAOS_CONFIG__ = ${serializedConfig}; ${scriptContent}`;
-  } catch (error) {
+  } catch {
     throw new Error('Failed to serialize chaos config for injection. Ensure the config is JSON-serializable.');
   }
 }
