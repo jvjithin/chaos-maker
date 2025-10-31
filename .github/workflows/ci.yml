@@ -141,6 +141,9 @@ jobs:
       - name: Install Dependencies
         run: pnpm install
 
+      - name: Install Cypress Binary
+        run: npx cypress install
+
       - name: Download Build Artifact
         uses: actions/download-artifact@v4
         with:
@@ -150,6 +153,7 @@ jobs:
       - name: Run Cypress E2E Tests
         uses: cypress-io/github-action@v6
         with:
-          project: ./e2e-tests
-          start: pnpm start:http
+          working-directory: e2e-tests
+          start: pnpm start
           wait-on: 'http://127.0.0.1:8080'
+          install: false
