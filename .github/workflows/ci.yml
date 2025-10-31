@@ -155,7 +155,6 @@ jobs:
       - name: Run Cypress E2E Tests
         uses: cypress-io/github-action@v6
         with:
-          working-directory: e2e-tests
-          install: false
+          project: ./e2e-tests
           start: pnpm start
           wait-on: 'http://127.0.0.1:8080'
