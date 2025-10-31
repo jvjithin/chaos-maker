@@ -143,9 +143,6 @@ jobs:
       - name: Install Dependencies
         run: pnpm install
 
-      - name: Install Cypress Binary
-        run: pnpm exec cypress install
-
       - name: Download Build Artifact
         uses: actions/download-artifact@v4
         with:
