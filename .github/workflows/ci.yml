@@ -34,7 +34,6 @@ jobs:
   test:
     name: Unit Tests
     runs-on: ubuntu-latest
-    needs: lint
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -59,7 +58,6 @@ jobs:
   build:
     name: Build Core
     runs-on: ubuntu-latest
-    needs: test
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
