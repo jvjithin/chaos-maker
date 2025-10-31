@@ -5,14 +5,7 @@ import * as fs from 'fs';
 const scriptPath = require.resolve('@chaos-maker/core/dist/chaos-maker.umd.js');
 const scriptContent = fs.readFileSync(scriptPath, 'utf-8');
 
-// Extend Cypress namespace to include our custom command
-declare global {
-  namespace Cypress {
-    interface Chainable {
-      injectChaos(config: ChaosConfig): void;
-    }
-  }
-}
+// Cypress command is typed via module augmentation in types.d.ts
 
 /**
  * Get the chaos script content for manual injection
