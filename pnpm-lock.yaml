@@ -53,6 +53,9 @@ importers:
       '@chaos-maker/cypress':
         specifier: workspace:*
         version: link:../packages/cypress
+      '@chaos-maker/playwright':
+        specifier: workspace:*
+        version: link:../packages/playwright
       '@playwright/test':
         specifier: ^1.56.0
         version: 1.56.1
