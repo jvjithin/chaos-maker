@@ -85,7 +85,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: chaos-maker-dist
-          path: packages/extension/dist/
+          path: packages/core/dist/
 
   e2e-test:
     name: E2E Tests
@@ -113,7 +113,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: chaos-maker-dist
-          path: packages/extension/dist/
+          path: packages/core/dist/
       
       - name: Install Playwright Browsers
         run: pnpm --filter e2e-tests exec playwright install --with-deps

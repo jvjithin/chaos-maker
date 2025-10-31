@@ -12,7 +12,9 @@
     "build": "pnpm --stream -r build",
     "dev:core": "pnpm --filter @chaos-maker/core dev",
     "test": "pnpm --filter @chaos-maker/core test",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:e2e": "pnpm --filter e2e-tests test",
+    "report:e2e": "pnpm --filter e2e-tests report"
   },
   "devDependencies": {
     "@types/node": "^20.14.2",
