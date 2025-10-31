@@ -5,7 +5,8 @@
     "rootDir": "src",
     "module": "CommonJS",
     "composite": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "types": ["cypress", "node"]
   },
   "include": ["src"],
   "references": [

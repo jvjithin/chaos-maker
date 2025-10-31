@@ -1,73 +1,79 @@
 import type { ChaosConfig } from '@chaos-maker/core';
 import * as fs from 'fs';
 
-// Read the UMD script content at build time
-const scriptPath = require.resolve('@chaos-maker/core/dist/chaos-maker.umd.js');
-const scriptContent = fs.readFileSync(scriptPath, 'utf-8');
-
-// Cypress command is typed via module augmentation in types.d.ts
-
 /**
- * Get the chaos script content for manual injection
+ * This is the Node.js part. It registers a Cypress task to read the
+ * chaos script from the file system. It must be called from cypress.config.ts.
  */
-export function getChaosScript(): string {
-  return scriptContent;
+export function chaosMaker(on: Cypress.PluginEvents) {
+  on('task', {
+    getChaosScript: () => {
+      try {
+        const scriptPath = require.resolve('@chaos-maker/core/dist/chaos-maker.umd.js');
+        return fs.readFileSync(scriptPath, 'utf-8');
+      } catch (err) {
+        console.error('Chaos Maker Cypress Task Error:', err);
+        return null;
+      }
+    },
+  });
 }
 
 /**
- * Get the chaos script with configuration injected
- */
-export function getChaosScriptWithConfig(config: ChaosConfig): string {
-  try {
-    const serializedConfig = JSON.stringify(config).replace(/</g, '\\u003C');
-    return `window.__CHAOS_CONFIG__ = ${serializedConfig}; ${scriptContent}`;
-  } catch {
-    throw new Error('Failed to serialize chaos config for injection. Ensure the config is JSON-serializable.');
-  }
-}
-
-/**
- * Register the injectChaos command with Cypress
- * Call this function in your cypress/support/commands.js file
+ * This is the browser-side part. It registers the cy.injectChaos() command.
+ * It must be called from your support file (e.g., cypress/support/e2e.ts).
  */
 export function registerChaosCommand(): void {
-  if (typeof (globalThis as any).Cypress !== 'undefined') {
-    // Shared config and one-time intercept registration
-    const globalObj = globalThis as any;
-    if (globalObj.__chaosMakerCurrentConfig === undefined) {
-      globalObj.__chaosMakerCurrentConfig = null as ChaosConfig | null;
-    }
-    if (!globalObj.__chaosMakerInterceptRegistered) {
-      globalObj.__chaosMakerInterceptRegistered = true;
-      (globalObj as any).cy?.intercept?.('*', (req: any) => {
-        req.reply((res: any) => {
-          // Guard: only act when a config has been set
-          const currentConfig: ChaosConfig | null = globalObj.__chaosMakerCurrentConfig;
-          if (!currentConfig) return res;
-          // Only inject into HTML responses
-          if (
-            res.body &&
-            typeof res.body === 'string' &&
-            res.headers?.['content-type']?.includes('text/html') &&
-            res.body.includes('<head>')
-          ) {
-            let serializedConfig: string;
-            try {
-              serializedConfig = JSON.stringify(currentConfig).replace(/</g, '\\u003C');
-            } catch {
-              throw new Error('Failed to serialize chaos config for injection. Ensure the config is JSON-serializable.');
-            }
-            const chaosScript = `<script>\n              window.__CHAOS_CONFIG__ = ${serializedConfig};\n              ${scriptContent}\n            </script>`;
-            res.body = res.body.replace('<head>', `<head>${chaosScript}`);
-          }
-          return res;
-        });
+  // Use closure variables to store state during the test run
+  let scriptContent: string | null = null;
+  let chaosConfig: ChaosConfig | null = null;
+
+  // Before all tests, fetch the chaos script from the Node task once and cache it.
+  before(() => {
+    // Check if it has already been fetched to prevent re-running in watch mode
+    if (!scriptContent) {
+      cy.task('getChaosScript').then((content) => {
+        if (typeof content !== 'string') {
+          throw new Error('Chaos Maker: Failed to fetch chaos script content via cy.task().');
+        }
+        scriptContent = content;
       });
     }
+  });
 
-    (globalThis as any).Cypress.Commands.add('injectChaos', (config: ChaosConfig) => {
-      // Update the shared config used by the single intercept
-      (globalThis as any).__chaosMakerCurrentConfig = config ?? null;
+  // Intercept all network requests. This will be active for all tests.
+  beforeEach(() => {
+    // Reset the config before each test to ensure a clean state
+    chaosConfig = null;
+
+    cy.intercept('*', (req) => {
+      // Let the request continue, but provide a callback to modify the response
+      req.continue((res) => {
+        // Check if conditions are right for injection
+        const isHtml = res.headers['content-type']?.includes('text/html');
+        const hasHead = typeof res.body === 'string' && res.body.includes('<head>');
+
+        if (chaosConfig && scriptContent && isHtml && hasHead) {
+          const serializedConfig = JSON.stringify(chaosConfig).replace(/</g, '\\u003C');
+          const chaosScriptTag = `
+            <script>
+              window.__CHAOS_CONFIG__ = ${serializedConfig};
+              ${scriptContent}
+            </script>
+          `;
+          
+          // Inject the script into the document's head
+          res.body = res.body.replace('<head>', `<head>${chaosScriptTag}`);
+          
+          // Reset the config so this injection only happens once per cy.injectChaos call
+          chaosConfig = null;
+        }
+      });
     });
-  }
+  });
+
+  // The actual command is now very simple: it just sets the config to be used by the interceptor.
+  Cypress.Commands.add('injectChaos', (config: ChaosConfig) => {
+    chaosConfig = config;
+  });
 }

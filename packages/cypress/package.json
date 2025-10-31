@@ -1,13 +1,13 @@
 {
   "name": "@chaos-maker/cypress",
   "version": "1.0.0",
-  "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
     }
   },
   "scripts": {
@@ -18,8 +18,8 @@
     "@chaos-maker/core": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "^5.4.5"
-    
+    "typescript": "^5.4.5",
+    "cypress": "^15.5.0"
   },
   "peerDependencies": {
     "cypress": "^15.5.0"

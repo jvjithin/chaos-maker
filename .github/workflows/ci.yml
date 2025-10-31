@@ -120,3 +120,39 @@ jobs:
 
       - name: Run E2E Tests
         run: pnpm --filter e2e-tests test
+
+  e2e-test-cypress:
+    name: E2E Tests (Cypress)
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: chaos-maker-dist
+          path: packages/core/dist/
+      
+      - name: Run Cypress E2E Tests
+        uses: cypress-io/github-action@v6
+        with:
+          working-directory: e2e-tests
+          start: pnpm exec http-server ./src -p 8080
+          command: pnpm test:cypress
+          wait-on: 'http://127.0.0.1:8080'

@@ -13,8 +13,9 @@
     "dev:core": "pnpm --filter @chaos-maker/core dev",
     "test": "pnpm --filter @chaos-maker/core test",
     "prepare": "husky",
-    "test:e2e": "pnpm --filter e2e-tests test",
-    "report:e2e": "pnpm --filter e2e-tests report"
+    "test:playwright": "pnpm --filter e2e-tests test:playwright",
+    "report:playwright": "pnpm --filter e2e-tests report:playwright",
+    "test:cypress": "pnpm --filter e2e-tests test:cypress"
   },
   "devDependencies": {
     "@types/node": "^20.14.2",

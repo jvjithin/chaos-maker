@@ -3,11 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "test": "playwright test",
-    "report": "playwright show-report"
+    "start": "http-server ./src -p 8080",
+    "test:playwright": "playwright test",
+    "test:cypress": "start-server-and-test 8080 'cypress run'",
+    "report:playwright": "playwright show-report"
   },
   "devDependencies": {
+    "@chaos-maker/cypress": "workspace:*",
     "@playwright/test": "^1.56.0",
-    "http-server": "^14.1.1"
+    "cypress": "^15.5.0",
+    "http-server": "^14.1.1",
+    "start-server-and-test": "^2.1.2"
   }
 }
