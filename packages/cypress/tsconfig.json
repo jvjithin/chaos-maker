@@ -4,7 +4,8 @@
     "outDir": "dist",
     "rootDir": "src",
     "module": "CommonJS",
-    "composite": true
+    "composite": true,
+    "skipLibCheck": true
   },
   "include": ["src"],
   "references": [

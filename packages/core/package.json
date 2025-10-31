@@ -24,7 +24,7 @@
   },
   "scripts": {
     "dev": "vite build --watch",
-    "build": "vite build && tsc --emitDeclarationOnly --declarationDir dist --rootDir src",
+    "build": "vite build && tsc",
     "test": "vitest"
   },
   "devDependencies": {

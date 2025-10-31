@@ -84,6 +84,9 @@ importers:
         specifier: ^13.0.0
         version: 13.17.0
     devDependencies:
+      '@types/cypress':
+        specifier: ^1.1.0
+        version: 1.1.6
       typescript:
         specifier: ^5.4.5
         version: 5.9.3
@@ -487,6 +490,10 @@ packages:
 
   '@tsconfig/node16@1.0.4':
     resolution: {integrity: sha512-vxhUy4J8lyeyinH7Azl1pdd43GJhZH/tP2weN8TntQblOY+A0XbT8DJk1/oCPuOOyg/Ja757rG0CgHcWC8OfMA==}
+
+  '@types/cypress@1.1.6':
+    resolution: {integrity: sha512-CfeLLD3+6vIWe2AO5hR63f1c8EbRzrp/j1ExubAwOTpwZFZvF3Nm9cOPQiUwzNmAUmZuhO0QVH98Qlujni6nPw==}
+    deprecated: This is a stub types definition. cypress provides its own type definitions, so you do not need this installed.
 
   '@types/estree@1.0.8':
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
@@ -2504,6 +2511,10 @@ snapshots:
   '@tsconfig/node14@1.0.3': {}
 
   '@tsconfig/node16@1.0.4': {}
+
+  '@types/cypress@1.1.6':
+    dependencies:
+      cypress: 13.17.0
 
   '@types/estree@1.0.8': {}
 

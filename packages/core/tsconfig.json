@@ -7,9 +7,10 @@
     "isolatedModules": true,
     "resolveJsonModule": true,
     "declaration": true,
-    "declarationDir": "dist",
+    "emitDeclarationOnly": true,
+    "outDir": "dist",
     "composite": true,
-    "outDir": "dist"
+    "rootDir": "src"
   },
   "include": ["src"]
 }
