@@ -98,6 +98,13 @@ jobs:
         with:
           node-version: 20
           cache: 'pnpm'
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-browsers-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            playwright-browsers-${{ runner.os }}-
       - name: Install Dependencies
         run: pnpm install
       - name: Download Core Build Artifact
@@ -131,6 +138,13 @@ jobs:
         with:
           node-version: 20
           cache: 'pnpm'
+      - name: Cache Cypress Binary
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/Cypress
+          key: cypress-binary-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            cypress-binary-${{ runner.os }}-
       - name: Install Dependencies
         run: pnpm install
       - name: Install Cypress Binary
