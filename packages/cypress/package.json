@@ -18,10 +18,10 @@
     "@chaos-maker/core": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "^5.4.5",
-    "@types/cypress": "^1.1.0"
+    "typescript": "^5.4.5"
+    
   },
   "peerDependencies": {
-    "cypress": "^13.0.0"
+    "cypress": "^15.5.0"
   }
 }

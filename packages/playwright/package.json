@@ -16,12 +16,12 @@
   },
   "dependencies": {
     "@chaos-maker/core": "workspace:*",
-    "@playwright/test": "^1.40.0"
+    "@playwright/test": "^1.56.0"
   },
   "devDependencies": {
     "typescript": "^5.4.5"
   },
   "peerDependencies": {
-    "@playwright/test": "^1.40.0"
+    "@playwright/test": "^1.56.0"
   }
 }
