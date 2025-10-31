@@ -153,6 +153,6 @@ jobs:
         uses: cypress-io/github-action@v6
         with:
           working-directory: e2e-tests
-          start: pnpm exec http-server ./src -p 8080
-          command: pnpm test:cypress
+          install: false
+          start: pnpm start
           wait-on: 'http://127.0.0.1:8080'
