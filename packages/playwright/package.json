@@ -1,0 +1,72 @@
+{
+  "name": "@chaos-maker/playwright",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Playwright adapter for @chaos-maker/core — one-line chaos injection in E2E tests",
+  "keywords": [
+    "chaos-engineering",
+    "playwright",
+    "testing",
+    "e2e-testing",
+    "resilience"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jvjithin/chaos-maker.git",
+    "directory": "packages/playwright"
+  },
+  "homepage": "https://github.com/jvjithin/chaos-maker",
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./fixture": {
+      "import": {
+        "types": "./dist/fixture.d.ts",
+        "default": "./dist/fixture.js"
+      },
+      "require": {
+        "types": "./dist/fixture.d.ts",
+        "default": "./dist/fixture.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@chaos-maker/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "@playwright/test": ">=1.40.0"
+  },
+  "peerDependenciesMeta": {
+    "@playwright/test": {
+      "optional": false
+    }
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.45.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  }
+}
