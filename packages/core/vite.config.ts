@@ -1,34 +1,34 @@
 import { defineConfig } from 'vite';
+import { resolve } from 'path';
+import { copyFileSync, mkdirSync } from 'fs';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   build: {
     lib: {
-      // We only define the entry and global name here
-      entry: 'src/index.ts',
+      entry: resolve(__dirname, 'src/index.ts'),
       name: 'ChaosMaker',
+      formats: ['es', 'umd'],
+      fileName: (format) => format === 'es' ? 'chaos-maker.js' : 'chaos-maker.umd.js',
     },
-    rollupOptions: {
-      // We explicitly define our two output formats as an array
-      output: [
-        {
-          // This is the ES Module build
-          format: 'es',
-          entryFileNames: 'chaos-maker.js',
-          dir: '../extension/dist',
-        },
-        {
-          // This is the UMD build
-          format: 'umd',
-          // UMD builds must have a 'name'
-          name: 'ChaosMaker', 
-          entryFileNames: 'chaos-maker.umd.js',
-          dir: '../extension/dist',
-        },
-      ],
-    },
-    // We keep outDir pointing to the extension's dist
-    outDir: '../extension/dist',
-    emptyOutDir: true, 
+    outDir: 'dist',
+    emptyOutDir: true,
   },
+  plugins: [
+    {
+      name: 'copy-to-extension',
+      closeBundle() {
+        const extDist = resolve(__dirname, '../extension/dist');
+        mkdirSync(extDist, { recursive: true });
+        copyFileSync(
+          resolve(__dirname, 'dist/chaos-maker.umd.js'),
+          resolve(extDist, 'chaos-maker.umd.js')
+        );
+        copyFileSync(
+          resolve(__dirname, 'dist/chaos-maker.js'),
+          resolve(extDist, 'chaos-maker.js')
+        );
+      },
+    },
+  ],
 });
