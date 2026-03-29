@@ -29,7 +29,7 @@ test('should display an error message when the API fails', async ({ page }) => {
 
   // 1. Read the content of the built library file into a string.
   //    The path is relative to the test file's location.
-  const scriptPath = path.resolve(__dirname, '../../packages/extension/dist/chaos-maker.umd.js');
+  const scriptPath = path.resolve(__dirname, '../../packages/core/dist/chaos-maker.umd.js');
   const scriptContent = fs.readFileSync(scriptPath, 'utf-8');
 
   // 2. Use a SINGLE addInitScript call to perform all setup atomically.

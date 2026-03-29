@@ -1,8 +1,5 @@
 import { UiConfig, UiAssaultConfig } from '../config';
-
-function shouldApplyChaos(probability: number): boolean {
-  return Math.random() < probability;
-}
+import { shouldApplyChaos } from '../utils';
 
 /**
  * Applies a specific chaos action to a given element.
