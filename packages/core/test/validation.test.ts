@@ -156,4 +156,18 @@ describe('validateConfig', () => {
     };
     expect(() => validateConfig(config)).toThrow(ChaosConfigError);
   });
+
+  it('should reject unknown keys (typos)', () => {
+    const config = {
+      network: {
+        failures: [{ urlPattern: '/api', statusCode: 500, probability: 1.0, delaayMs: 100 }],
+      },
+    };
+    expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+  });
+
+  it('should reject unknown top-level keys', () => {
+    const config = { networking: { failures: [] } };
+    expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+  });
 });

@@ -12,34 +12,34 @@ const networkFailureSchema = z.object({
   body: z.string().optional(),
   statusText: z.string().optional(),
   headers: z.record(z.string()).optional(),
-});
+}).strict();
 
 const networkLatencySchema = z.object({
   urlPattern: z.string().min(1, 'urlPattern must not be empty'),
   methods: z.array(z.string()).optional(),
   delayMs: z.number().min(0, 'delayMs must be >= 0'),
   probability,
-});
+}).strict();
 
 const networkConfigSchema = z.object({
   failures: z.array(networkFailureSchema).optional(),
   latencies: z.array(networkLatencySchema).optional(),
-});
+}).strict();
 
 const uiAssaultSchema = z.object({
   selector: z.string().min(1, 'selector must not be empty'),
   action: z.enum(['disable', 'hide', 'remove']),
   probability,
-});
+}).strict();
 
 const uiConfigSchema = z.object({
   assaults: z.array(uiAssaultSchema).optional(),
-});
+}).strict();
 
 const chaosConfigSchema = z.object({
   network: networkConfigSchema.optional(),
   ui: uiConfigSchema.optional(),
-});
+}).strict();
 
 export function validateConfig(config: unknown): ChaosConfig {
   const result = chaosConfigSchema.safeParse(config);
