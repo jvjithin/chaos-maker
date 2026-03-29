@@ -18,6 +18,21 @@ export function patchXHR(originalXhrSend: (body?: Document | XMLHttpRequestBodyI
             });
             const responseBody = failure.body ?? JSON.stringify({ error: 'Chaos Maker Attack!' });
             Object.defineProperty(this, 'responseText', { value: responseBody });
+            const responseHeaders = failure.headers ?? {};
+            Object.defineProperty(this, 'getResponseHeader', {
+              value: (name: string) => {
+                const key = Object.keys(responseHeaders).find(
+                  (k) => k.toLowerCase() === name.toLowerCase()
+                );
+                return key ? responseHeaders[key] : null;
+              },
+            });
+            Object.defineProperty(this, 'getAllResponseHeaders', {
+              value: () =>
+                Object.entries(responseHeaders)
+                  .map(([k, v]) => `${k}: ${v}`)
+                  .join('\r\n'),
+            });
             this.dispatchEvent(new Event('error'));
             this.dispatchEvent(new Event('load'));
             this.dispatchEvent(new Event('loadend'));
