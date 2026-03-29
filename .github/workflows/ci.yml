@@ -72,14 +72,16 @@ jobs:
       - name: Install Dependencies
         run: pnpm install
 
-      - name: Build Core Library
-        run: pnpm build:core
+      - name: Build All Packages
+        run: pnpm build
 
       - name: Archive Build Artifact
         uses: actions/upload-artifact@v4
         with:
           name: chaos-maker-dist
-          path: packages/core/dist/
+          path: |
+            packages/core/dist/
+            packages/playwright/dist/
 
   e2e-test:
     name: E2E Tests
@@ -105,7 +107,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: chaos-maker-dist
-          path: packages/core/dist/
+          path: packages
 
       - name: Cache Playwright Browsers
         id: playwright-cache

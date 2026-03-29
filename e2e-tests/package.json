@@ -7,6 +7,7 @@
     "report": "playwright show-report"
   },
   "devDependencies": {
+    "@chaos-maker/playwright": "workspace:*",
     "@playwright/test": "^1.45.0",
     "http-server": "^14.1.1"
   }

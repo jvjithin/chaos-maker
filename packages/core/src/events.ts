@@ -1,0 +1,64 @@
+export type ChaosEventType = 'network:failure' | 'network:latency' | 'ui:assault';
+
+export interface ChaosEvent {
+  type: ChaosEventType;
+  timestamp: number;
+  applied: boolean;
+  detail: {
+    url?: string;
+    method?: string;
+    statusCode?: number;
+    delayMs?: number;
+    selector?: string;
+    action?: string;
+  };
+}
+
+export type ChaosEventListener = (event: ChaosEvent) => void;
+
+export class ChaosEventEmitter {
+  private listeners: Map<string, Set<ChaosEventListener>> = new Map();
+  private log: ChaosEvent[] = [];
+
+  constructor(private readonly maxLogEntries = 2000) {}
+
+  on(type: ChaosEventType | '*', listener: ChaosEventListener): void {
+    if (!this.listeners.has(type)) {
+      this.listeners.set(type, new Set());
+    }
+    this.listeners.get(type)!.add(listener);
+  }
+
+  off(type: ChaosEventType | '*', listener: ChaosEventListener): void {
+    this.listeners.get(type)?.delete(listener);
+  }
+
+  emit(event: ChaosEvent): void {
+    this.log.push(event);
+    if (this.log.length > this.maxLogEntries) {
+      this.log.shift();
+    }
+
+    this.notify(this.listeners.get(event.type), event);
+    this.notify(this.listeners.get('*'), event);
+  }
+
+  getLog(): ChaosEvent[] {
+    return [...this.log];
+  }
+
+  clearLog(): void {
+    this.log = [];
+  }
+
+  private notify(listeners: Set<ChaosEventListener> | undefined, event: ChaosEvent): void {
+    if (!listeners) return;
+    for (const listener of listeners) {
+      try {
+        listener(event);
+      } catch {
+        // prevent listener errors from breaking emitter flow
+      }
+    }
+  }
+}
