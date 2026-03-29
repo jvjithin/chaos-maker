@@ -14,9 +14,11 @@ function getCoreUmdPath(): string {
     ? __dirname
     : dirname(fileURLToPath(import.meta.url));
   const req = createRequire(resolve(currentDir, 'package.json'));
-  const corePkg = req.resolve('@chaos-maker/core/package.json');
-  const coreDir = dirname(corePkg);
-  cachedUmdPath = resolve(coreDir, 'dist', 'chaos-maker.umd.js');
+  // Resolve the main entry point to find the dist directory — avoids
+  // requiring `./package.json` which isn't in the exports map.
+  const coreEntry = req.resolve('@chaos-maker/core');
+  const coreDistDir = dirname(coreEntry);
+  cachedUmdPath = resolve(coreDistDir, 'chaos-maker.umd.js');
   return cachedUmdPath;
 }
 
