@@ -20,6 +20,8 @@ export class ChaosEventEmitter {
   private listeners: Map<string, Set<ChaosEventListener>> = new Map();
   private log: ChaosEvent[] = [];
 
+  constructor(private readonly maxLogEntries = 2000) {}
+
   on(type: ChaosEventType | '*', listener: ChaosEventListener): void {
     if (!this.listeners.has(type)) {
       this.listeners.set(type, new Set());
@@ -33,20 +35,12 @@ export class ChaosEventEmitter {
 
   emit(event: ChaosEvent): void {
     this.log.push(event);
-
-    const typeListeners = this.listeners.get(event.type);
-    if (typeListeners) {
-      for (const listener of typeListeners) {
-        listener(event);
-      }
+    if (this.log.length > this.maxLogEntries) {
+      this.log.shift();
     }
 
-    const wildcardListeners = this.listeners.get('*');
-    if (wildcardListeners) {
-      for (const listener of wildcardListeners) {
-        listener(event);
-      }
-    }
+    this.notify(this.listeners.get(event.type), event);
+    this.notify(this.listeners.get('*'), event);
   }
 
   getLog(): ChaosEvent[] {
@@ -55,5 +49,16 @@ export class ChaosEventEmitter {
 
   clearLog(): void {
     this.log = [];
+  }
+
+  private notify(listeners: Set<ChaosEventListener> | undefined, event: ChaosEvent): void {
+    if (!listeners) return;
+    for (const listener of listeners) {
+      try {
+        listener(event);
+      } catch {
+        // prevent listener errors from breaking emitter flow
+      }
+    }
   }
 }

@@ -101,6 +101,42 @@ describe('ChaosEventEmitter', () => {
     expect(emitter.getLog()).toHaveLength(0);
   });
 
+  it('should cap the log at maxLogEntries', () => {
+    const emitter = new ChaosEventEmitter(3);
+
+    for (let i = 0; i < 5; i++) {
+      emitter.emit({
+        type: 'network:failure',
+        timestamp: i,
+        applied: true,
+        detail: { url: `/api/${i}` },
+      });
+    }
+
+    const log = emitter.getLog();
+    expect(log).toHaveLength(3);
+    expect(log[0].timestamp).toBe(2);
+    expect(log[2].timestamp).toBe(4);
+  });
+
+  it('should not break when a listener throws', () => {
+    const emitter = new ChaosEventEmitter();
+    const badListener = () => { throw new Error('boom'); };
+    const goodListener = vi.fn();
+
+    emitter.on('network:failure', badListener);
+    emitter.on('network:failure', goodListener);
+
+    emitter.emit({
+      type: 'network:failure',
+      timestamp: Date.now(),
+      applied: true,
+      detail: {},
+    });
+
+    expect(goodListener).toHaveBeenCalled();
+  });
+
   it('should remove listeners with off', () => {
     const emitter = new ChaosEventEmitter();
     const listener = vi.fn();
