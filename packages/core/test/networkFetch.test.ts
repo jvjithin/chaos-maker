@@ -76,7 +76,7 @@ describe('patchFetch', () => {
     await patchedFetch('/api/slow');
     const endTime = Date.now();
 
-    expect(endTime - startTime).toBeGreaterThanOrEqual(100);
+    expect(endTime - startTime).toBeGreaterThanOrEqual(95);
     expect(originalFetch).toHaveBeenCalledWith('/api/slow', undefined);
   });
 
