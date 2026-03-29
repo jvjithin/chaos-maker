@@ -1,8 +1,5 @@
 import { NetworkConfig } from '../config';
-
-function shouldApplyChaos(probability: number): boolean {
-  return Math.random() < probability;
-}
+import { shouldApplyChaos } from '../utils';
 
 export function patchFetch(originalFetch: typeof window.fetch, config: NetworkConfig) {
   return async (
@@ -18,9 +15,12 @@ export function patchFetch(originalFetch: typeof window.fetch, config: NetworkCo
         if (url.includes(failure.urlPattern) && shouldApplyChaos(failure.probability)) {
           if (!failure.methods || failure.methods.includes(method)) {
             console.warn(`CHAOS: Forcing ${failure.statusCode} for ${method} ${url}`);
-            return new Response(JSON.stringify({ error: 'Chaos Maker Attack!' }), {
+            const body = failure.body ?? JSON.stringify({ error: 'Chaos Maker Attack!' });
+            const headers = failure.headers ?? {};
+            return new Response(body, {
               status: failure.statusCode,
-              statusText: 'Service Unavailable (Chaos)',
+              statusText: failure.statusText ?? 'Service Unavailable (Chaos)',
+              headers,
             });
           }
         }

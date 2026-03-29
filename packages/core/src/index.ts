@@ -1,8 +1,10 @@
 import { ChaosMaker } from './ChaosMaker';
-import { ChaosConfig } from './config';
+import { ChaosConfig, NetworkFailureConfig, NetworkLatencyConfig, NetworkConfig, UiAssaultConfig, UiConfig } from './config';
+import { ChaosConfigError } from './errors';
+import { validateConfig } from './validation';
 
-export { ChaosMaker };
-export type { ChaosConfig };
+export { ChaosMaker, ChaosConfigError, validateConfig };
+export type { ChaosConfig, NetworkFailureConfig, NetworkLatencyConfig, NetworkConfig, UiAssaultConfig, UiConfig };
 
 // --- NEW INTERFACE ---
 interface ChaosUtilsApi {

@@ -1,7 +1,7 @@
 import { ChaosConfig } from './config';
+import { validateConfig } from './validation';
 import { patchFetch } from './interceptors/networkFetch';
 import { patchXHR, patchXHROpen } from './interceptors/networkXHR';
-// Import the new domAssailant
 import { attachDomAssailant } from './interceptors/domAssailant';
 
 export class ChaosMaker {
@@ -9,11 +9,10 @@ export class ChaosMaker {
   private originalFetch?: typeof window.fetch;
   private originalXhrSend?: (body?: Document | XMLHttpRequestBodyInit) => void;
   private originalXhrOpen?: (method: string, url: string | URL) => void;
-  // Add a property to hold our observer
   private domObserver?: MutationObserver;
 
   constructor(config: ChaosConfig) {
-    this.config = config;
+    this.config = validateConfig(config);
     console.log('Chaos Maker initialized with config:', config);
   }
 

@@ -3,6 +3,9 @@ export interface NetworkFailureConfig {
   methods?: string[];
   statusCode: number;
   probability: number;
+  body?: string;
+  statusText?: string;
+  headers?: Record<string, string>;
 }
 
 export interface NetworkLatencyConfig {
