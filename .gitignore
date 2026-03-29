@@ -1,3 +1,8 @@
+# Claude Code project files
+CLAUDE.md
+PROJECT_STATUS.md
+.claude/skills/
+
 # Node
 node_modules
 npm-debug.log*
