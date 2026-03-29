@@ -4,7 +4,7 @@ import vitest from "eslint-plugin-vitest";
 
 export default [
   {
-    ignores: ["node_modules", "packages/extension/dist", "**/*.cjs"],
+    ignores: ["node_modules", "**/dist", "**/*.cjs"],
   },
   ...tseslint.configs.recommended,
   {

@@ -27,7 +27,7 @@
   "engines": {
     "node": ">=18"
   },
-  "main": "./dist/chaos-maker.umd.js",
+  "main": "./dist/chaos-maker.cjs",
   "module": "./dist/chaos-maker.js",
   "types": "./dist/types/index.d.ts",
   "exports": {
@@ -38,7 +38,7 @@
       },
       "require": {
         "types": "./dist/types/index.d.ts",
-        "default": "./dist/chaos-maker.umd.js"
+        "default": "./dist/chaos-maker.cjs"
       }
     }
   },

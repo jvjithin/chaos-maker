@@ -8,8 +8,26 @@ export default defineConfig({
     lib: {
       entry: resolve(__dirname, 'src/index.ts'),
       name: 'ChaosMaker',
-      formats: ['es', 'umd'],
-      fileName: (format) => format === 'es' ? 'chaos-maker.js' : 'chaos-maker.umd.js',
+    },
+    rollupOptions: {
+      output: [
+        {
+          format: 'es',
+          entryFileNames: 'chaos-maker.js',
+          dir: 'dist',
+        },
+        {
+          format: 'cjs',
+          entryFileNames: 'chaos-maker.cjs',
+          dir: 'dist',
+        },
+        {
+          format: 'umd',
+          name: 'ChaosMaker',
+          entryFileNames: 'chaos-maker.umd.js',
+          dir: 'dist',
+        },
+      ],
     },
     outDir: 'dist',
     emptyOutDir: true,
