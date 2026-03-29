@@ -1,16 +1,22 @@
 import { UiConfig, UiAssaultConfig } from '../config';
 import { shouldApplyChaos } from '../utils';
+import { ChaosEventEmitter } from '../events';
 
-/**
- * Applies a specific chaos action to a given element.
- */
-function applyAssault(element: HTMLElement, assault: UiAssaultConfig) {
-  if (!shouldApplyChaos(assault.probability)) {
+function applyAssault(element: HTMLElement, assault: UiAssaultConfig, emitter?: ChaosEventEmitter) {
+  const applied = shouldApplyChaos(assault.probability);
+  emitter?.emit({
+    type: 'ui:assault',
+    timestamp: Date.now(),
+    applied,
+    detail: { selector: assault.selector, action: assault.action },
+  });
+
+  if (!applied) {
     return;
   }
 
   console.warn(`CHAOS: Applying action '${assault.action}' to element:`, element);
-  
+
   try {
     switch (assault.action) {
       case 'disable':
@@ -30,10 +36,7 @@ function applyAssault(element: HTMLElement, assault: UiAssaultConfig) {
   }
 }
 
-/**
- * Checks a given DOM node and its children against all UI assault rules.
- */
-function checkNode(node: Node, config: UiConfig) {
+function checkNode(node: Node, config: UiConfig, emitter?: ChaosEventEmitter) {
   if (node.nodeType !== Node.ELEMENT_NODE || !config.assaults) {
     return;
   }
@@ -43,47 +46,36 @@ function checkNode(node: Node, config: UiConfig) {
   for (const assault of config.assaults) {
     try {
       if (element.matches(assault.selector)) {
-        applyAssault(element, assault);
+        applyAssault(element, assault, emitter);
       }
     } catch (e) {
       console.error(`Chaos Maker: Invalid selector '${assault.selector}'`, e);
     }
 
     element.querySelectorAll(assault.selector).forEach(childEl => {
-      applyAssault(childEl as HTMLElement, assault);
+      applyAssault(childEl as HTMLElement, assault, emitter);
     });
   }
 }
 
-/**
- * Creates and returns a MutationObserver that applies UI assaults
- * based on the provided configuration.
- */
-export function attachDomAssailant(config: UiConfig): MutationObserver {
-  
-  // --- NEW LOGIC: Initial Scan ---
-  // Run a one-time scan for elements that *already* exist on the page.
+export function attachDomAssailant(config: UiConfig, emitter?: ChaosEventEmitter): MutationObserver {
   if (config.assaults) {
     console.log('CHAOS: Running initial DOM scan for existing elements...');
     for (const assault of config.assaults) {
       try {
-        // Find all elements on the page that match the selector
         document.querySelectorAll(assault.selector).forEach(element => {
-          applyAssault(element as HTMLElement, assault);
+          applyAssault(element as HTMLElement, assault, emitter);
         });
       } catch (e) {
-        // Handle invalid selectors gracefully
         console.error(`Chaos Maker: Invalid selector in initial scan '${assault.selector}'`, e);
       }
     }
   }
-  // --- END NEW LOGIC ---
 
-  // Create the observer to watch for *future* changes
   const observer = new MutationObserver((mutationsList) => {
     for (const mutation of mutationsList) {
       if (mutation.type === 'childList') {
-        mutation.addedNodes.forEach(node => checkNode(node, config));
+        mutation.addedNodes.forEach(node => checkNode(node, config, emitter));
       }
     }
   });

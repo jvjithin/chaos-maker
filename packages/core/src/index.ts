@@ -2,15 +2,17 @@ import { ChaosMaker } from './ChaosMaker';
 import { ChaosConfig, NetworkFailureConfig, NetworkLatencyConfig, NetworkConfig, UiAssaultConfig, UiConfig } from './config';
 import { ChaosConfigError } from './errors';
 import { validateConfig } from './validation';
+import { ChaosEvent, ChaosEventType, ChaosEventListener, ChaosEventEmitter } from './events';
 
-export { ChaosMaker, ChaosConfigError, validateConfig };
-export type { ChaosConfig, NetworkFailureConfig, NetworkLatencyConfig, NetworkConfig, UiAssaultConfig, UiConfig };
+export { ChaosMaker, ChaosConfigError, validateConfig, ChaosEventEmitter };
+export type { ChaosConfig, NetworkFailureConfig, NetworkLatencyConfig, NetworkConfig, UiAssaultConfig, UiConfig, ChaosEvent, ChaosEventType, ChaosEventListener };
 
 // --- NEW INTERFACE ---
 interface ChaosUtilsApi {
   instance: ChaosMaker | null;
   start: (config: ChaosConfig) => { success: boolean; message: string };
   stop: () => { success: boolean; message: string };
+  getLog: () => ChaosEvent[];
 }
 
 // --- Global API & Auto-Start Logic ---
@@ -42,6 +44,13 @@ if (typeof window !== 'undefined') {
         return { success: true, message: "Chaos stopped" };
       }
       return { success: false, message: "No chaos instance to stop" };
+    },
+
+    getLog: () => {
+      if (chaosUtilsApi.instance) {
+        return chaosUtilsApi.instance.getLog();
+      }
+      return [];
     }
   };
   
