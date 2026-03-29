@@ -1,14 +1,13 @@
 import type { Page } from '@playwright/test';
 import type { ChaosConfig, ChaosEvent } from '@chaos-maker/core';
-import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { createRequire } from 'module';
 import { fileURLToPath } from 'url';
 
-let cachedScript: string | null = null;
+let cachedUmdPath: string | null = null;
 
-function getCoreScript(): string {
-  if (cachedScript) return cachedScript;
+function getCoreUmdPath(): string {
+  if (cachedUmdPath) return cachedUmdPath;
 
   // Support both ESM and CJS module resolution
   const currentDir = typeof __dirname !== 'undefined'
@@ -17,9 +16,8 @@ function getCoreScript(): string {
   const req = createRequire(resolve(currentDir, 'package.json'));
   const corePkg = req.resolve('@chaos-maker/core/package.json');
   const coreDir = dirname(corePkg);
-  const umdPath = resolve(coreDir, 'dist', 'chaos-maker.umd.js');
-  cachedScript = readFileSync(umdPath, 'utf-8');
-  return cachedScript;
+  cachedUmdPath = resolve(coreDir, 'dist', 'chaos-maker.umd.js');
+  return cachedUmdPath;
 }
 
 /**
@@ -41,15 +39,17 @@ function getCoreScript(): string {
  * ```
  */
 export async function injectChaos(page: Page, config: ChaosConfig): Promise<void> {
-  const scriptContent = getCoreScript();
+  const umdPath = getCoreUmdPath();
 
-  await page.addInitScript((args: { config: unknown; scriptContent: string }) => {
+  // Set config before the UMD script runs so it auto-starts with this config
+  await page.addInitScript((cfg: unknown) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const win = globalThis as any;
-    win.__CHAOS_CONFIG__ = args.config;
-    // eval executes synchronously, ensuring fetch/XHR are patched before any app code
-    (0, eval)(args.scriptContent);
-  }, { config, scriptContent });
+    win.__CHAOS_CONFIG__ = cfg;
+  }, config);
+
+  // Load core UMD bundle by path — no eval needed
+  await page.addInitScript({ path: umdPath });
 }
 
 /**
