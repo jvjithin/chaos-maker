@@ -75,6 +75,21 @@ jobs:
       - name: Build All Packages
         run: pnpm build
 
+      - name: Report Bundle Size
+        run: |
+          echo "## Bundle Size Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| File | Size | Gzipped |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|------|---------|" >> $GITHUB_STEP_SUMMARY
+          for f in packages/core/dist/chaos-maker.js packages/core/dist/chaos-maker.cjs packages/core/dist/chaos-maker.umd.js; do
+            if [ -f "$f" ]; then
+              raw=$(wc -c < "$f" | tr -d ' ')
+              gz=$(gzip -c "$f" | wc -c | tr -d ' ')
+              name=$(basename "$f")
+              echo "| \`$name\` | ${raw}B | ${gz}B |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
       - name: Archive Build Artifact
         uses: actions/upload-artifact@v4
         with:
