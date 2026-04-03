@@ -8,6 +8,7 @@ import { attachDomAssailant } from './interceptors/domAssailant';
 export class ChaosMaker {
   private config: ChaosConfig;
   private emitter: ChaosEventEmitter;
+  private running = false;
   private originalFetch?: typeof window.fetch;
   private originalXhrSend?: (body?: Document | XMLHttpRequestBodyInit) => void;
   private originalXhrOpen?: (method: string, url: string | URL) => void;
@@ -36,6 +37,11 @@ export class ChaosMaker {
   }
 
   public start(): void {
+    if (this.running) {
+      console.warn('Chaos Maker is already running. Call stop() first.');
+      return;
+    }
+    this.running = true;
     console.log('🛠️ Chaos Maker ENGAGED 🛠️');
 
     if (this.config.network) {
@@ -60,6 +66,7 @@ export class ChaosMaker {
   }
 
   public stop(): void {
+    this.running = false;
     console.log('🛑 Chaos Maker DISENGAGED 🛑');
 
     if (this.originalFetch) {
