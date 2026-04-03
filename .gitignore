@@ -1,7 +1,10 @@
-# Claude Code project files
+# Claude Code & agents project files
 CLAUDE.md
 PROJECT_STATUS.md
+LEARNINGS.md
 .claude/skills/
+AGENTS.md
+GEMINI.md
 
 # Node
 node_modules
