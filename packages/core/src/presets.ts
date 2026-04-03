@@ -2,7 +2,17 @@ import { ChaosConfig } from './config';
 
 const MATCH_ALL_URLS = '/';
 
-export const presets: Record<string, ChaosConfig> = {
+function deepFreeze<T>(obj: T): Readonly<T> {
+  if (obj && typeof obj === 'object' && !Object.isFrozen(obj)) {
+    Object.freeze(obj);
+    for (const val of Object.values(obj as Record<string, unknown>)) {
+      deepFreeze(val);
+    }
+  }
+  return obj;
+}
+
+export const presets: Readonly<Record<string, ChaosConfig>> = deepFreeze({
   unstableApi: {
     network: {
       failures: [{ urlPattern: '/api/', statusCode: 500, probability: 0.1 }],
@@ -33,4 +43,4 @@ export const presets: Record<string, ChaosConfig> = {
       ],
     },
   },
-};
+});
