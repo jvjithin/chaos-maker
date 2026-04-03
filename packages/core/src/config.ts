@@ -15,9 +15,34 @@ export interface NetworkLatencyConfig {
   probability: number;
 }
 
+export interface NetworkAbortConfig {
+  urlPattern: string;
+  methods?: string[];
+  probability: number;
+  timeout?: number; // ms before abort; 0 or omitted = immediate
+}
+
+export type CorruptionStrategy = 'truncate' | 'malformed-json' | 'empty' | 'wrong-type';
+
+export interface NetworkCorruptionConfig {
+  urlPattern: string;
+  methods?: string[];
+  probability: number;
+  strategy: CorruptionStrategy;
+}
+
+export interface NetworkCorsConfig {
+  urlPattern: string;
+  methods?: string[];
+  probability: number;
+}
+
 export interface NetworkConfig {
   failures?: NetworkFailureConfig[];
   latencies?: NetworkLatencyConfig[];
+  aborts?: NetworkAbortConfig[];
+  corruptions?: NetworkCorruptionConfig[];
+  cors?: NetworkCorsConfig[];
 }
 
 export interface UiAssaultConfig {

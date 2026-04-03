@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { patchXHR, patchXHROpen } from '../src/interceptors/networkXHR';
 import { NetworkConfig } from '../src/config';
+import { ChaosEventEmitter } from '../src/events';
 // Import the mocks from setup.ts
-import { mockXhrOpen, mockXhrSend } from './setup';
+import { mockXhrAbort, mockXhrOpen, mockXhrSend } from './setup';
 
 // Get the original implementations
 const originalXhrOpen = global.XMLHttpRequest.prototype.open;
@@ -13,6 +14,7 @@ beforeEach(() => {
   // Now these are the correct vi.fn() objects
   mockXhrOpen.mockClear();
   mockXhrSend.mockClear();
+  mockXhrAbort.mockClear();
   
   // Restore originals before each test
   global.XMLHttpRequest.prototype.open = originalXhrOpen;
@@ -122,5 +124,213 @@ describe('patchXHR (send)', () => {
     expect(mockXhrSend).toHaveBeenCalled();
 
     vi.useRealTimers(); // Restore real timers
+  });
+
+  it('should force a CORS error for a matching URL', () => {
+    const config: NetworkConfig = {
+      cors: [{ urlPattern: '/api/cors', probability: 1.0 }]
+    };
+    const patchedSend = patchXHR(originalXhrSend, config);
+    global.XMLHttpRequest.prototype.send = patchedSend;
+
+    const xhr = new global.XMLHttpRequest();
+    const errorSpy = vi.spyOn(xhr, 'dispatchEvent');
+    (xhr as any)._chaos_url = '/api/cors';
+    (xhr as any)._chaos_method = 'GET';
+
+    xhr.send();
+
+    expect(mockXhrSend).not.toHaveBeenCalled();
+    expect(xhr.status).toBe(0);
+    expect(errorSpy).toHaveBeenCalledWith(new Event('error'));
+  });
+
+  it('should force an abort for a matching URL immediately', () => {
+    const config: NetworkConfig = {
+      aborts: [{ urlPattern: '/api/abort', probability: 1.0 }]
+    };
+    const patchedSend = patchXHR(originalXhrSend, config);
+    global.XMLHttpRequest.prototype.send = patchedSend;
+
+    const xhr = new global.XMLHttpRequest();
+    const abortSpy = vi.spyOn(xhr, 'dispatchEvent');
+    (xhr as any)._chaos_url = '/api/abort';
+    (xhr as any)._chaos_method = 'GET';
+
+    xhr.send();
+
+    expect(mockXhrSend).toHaveBeenCalled();
+    expect(mockXhrAbort).toHaveBeenCalledTimes(1);
+    expect(xhr.status).toBe(0);
+    expect(abortSpy).toHaveBeenCalledWith(new Event('abort'));
+  });
+
+  it('should force an abort for a matching URL after timeout', () => {
+    vi.useFakeTimers();
+    const config: NetworkConfig = {
+      aborts: [{ urlPattern: '/api/abort', probability: 1.0, timeout: 100 }]
+    };
+    const patchedSend = patchXHR(originalXhrSend, config);
+    global.XMLHttpRequest.prototype.send = patchedSend;
+
+    const xhr = new global.XMLHttpRequest();
+    const abortSpy = vi.spyOn(xhr, 'dispatchEvent');
+    (xhr as any)._chaos_url = '/api/abort';
+    (xhr as any)._chaos_method = 'GET';
+
+    xhr.send();
+
+    expect(mockXhrSend).toHaveBeenCalled();
+    expect(mockXhrAbort).not.toHaveBeenCalled();
+    expect(abortSpy).not.toHaveBeenCalledWith(new Event('abort'));
+
+    vi.advanceTimersByTime(100);
+
+    expect(mockXhrAbort).toHaveBeenCalledTimes(1);
+    expect(xhr.status).toBe(0);
+    expect(abortSpy).toHaveBeenCalledWith(new Event('abort'));
+    vi.useRealTimers();
+  });
+
+  it('should corrupt response text according to truncate strategy', () => {
+    const config: NetworkConfig = {
+      corruptions: [{ urlPattern: '/api/corrupt', strategy: 'truncate', probability: 1.0 }]
+    };
+    const patchedSend = patchXHR(originalXhrSend, config);
+    global.XMLHttpRequest.prototype.send = patchedSend;
+
+    const xhr = new global.XMLHttpRequest();
+    (xhr as any)._chaos_url = '/api/corrupt';
+    (xhr as any)._chaos_method = 'GET';
+
+    // Original property (simulate it loading)
+    (xhr as any)._responseText = 'HelloWorld';
+
+    xhr.send();
+
+    expect(xhr.responseText).toBe('Hello');
+  });
+
+  it('should corrupt response text according to malformed-json strategy', () => {
+    const config: NetworkConfig = {
+      corruptions: [{ urlPattern: '/api/corrupt', strategy: 'malformed-json', probability: 1.0 }]
+    };
+    const patchedSend = patchXHR(originalXhrSend, config);
+    global.XMLHttpRequest.prototype.send = patchedSend;
+
+    const xhr = new global.XMLHttpRequest();
+    (xhr as any)._chaos_url = '/api/corrupt';
+    (xhr as any)._chaos_method = 'GET';
+
+    (xhr as any)._responseText = '{"key":"value"}';
+
+    xhr.send();
+
+    expect(xhr.responseText).toBe('{"key":"value"}"}');
+  });
+
+  it('should corrupt response text according to empty strategy', () => {
+    const config: NetworkConfig = {
+      corruptions: [{ urlPattern: '/api/corrupt', strategy: 'empty', probability: 1.0 }]
+    };
+    const patchedSend = patchXHR(originalXhrSend, config);
+    global.XMLHttpRequest.prototype.send = patchedSend;
+
+    const xhr = new global.XMLHttpRequest();
+    (xhr as any)._chaos_url = '/api/corrupt';
+    (xhr as any)._chaos_method = 'GET';
+
+    (xhr as any)._responseText = 'HelloWorld';
+
+    xhr.send();
+
+    expect(xhr.responseText).toBe('');
+  });
+
+  it('should corrupt response text according to wrong-type strategy', () => {
+    const config: NetworkConfig = {
+      corruptions: [{ urlPattern: '/api/corrupt', strategy: 'wrong-type', probability: 1.0 }]
+    };
+    const patchedSend = patchXHR(originalXhrSend, config);
+    global.XMLHttpRequest.prototype.send = patchedSend;
+
+    const xhr = new global.XMLHttpRequest();
+    (xhr as any)._chaos_url = '/api/corrupt';
+    (xhr as any)._chaos_method = 'GET';
+
+    (xhr as any)._responseText = '{"key":"value"}';
+
+    xhr.send();
+
+    expect(xhr.responseText).toBe('<html><body>Unexpected HTML</body></html>');
+  });
+
+  it('should log corruption as not applied when XHR errors before response text is available', () => {
+    const emitter = new ChaosEventEmitter();
+    const config: NetworkConfig = {
+      corruptions: [{ urlPattern: '/api/corrupt', strategy: 'truncate', probability: 1.0 }]
+    };
+    const failingSend = function (this: XMLHttpRequest) {
+      this.dispatchEvent(new Event('error'));
+      this.dispatchEvent(new Event('loadend'));
+    };
+    const patchedSend = patchXHR(failingSend, config, emitter);
+    global.XMLHttpRequest.prototype.send = patchedSend;
+
+    const xhr = new global.XMLHttpRequest();
+    (xhr as any)._chaos_url = '/api/corrupt';
+    (xhr as any)._chaos_method = 'GET';
+
+    xhr.send();
+
+    expect(emitter.getLog()).toEqual([
+      expect.objectContaining({
+        type: 'network:corruption',
+        applied: false,
+        detail: expect.objectContaining({
+          url: '/api/corrupt',
+          method: 'GET',
+          strategy: 'truncate',
+        }),
+      }),
+    ]);
+  });
+
+  it('should log abort as not applied when XHR completes before the timeout fires', () => {
+    vi.useFakeTimers();
+    const emitter = new ChaosEventEmitter();
+    const config: NetworkConfig = {
+      aborts: [{ urlPattern: '/api/fast', timeout: 100, probability: 1.0 }]
+    };
+    const successfulSend = function (this: XMLHttpRequest) {
+      this.dispatchEvent(new Event('load'));
+      this.dispatchEvent(new Event('loadend'));
+    };
+    const patchedSend = patchXHR(successfulSend, config, emitter);
+    global.XMLHttpRequest.prototype.send = patchedSend;
+
+    const xhr = new global.XMLHttpRequest();
+    (xhr as any)._chaos_url = '/api/fast';
+    (xhr as any)._chaos_method = 'GET';
+
+    xhr.send();
+
+    // Advance past the timeout to prove the timer was cancelled
+    vi.advanceTimersByTime(200);
+
+    expect(mockXhrAbort).not.toHaveBeenCalled();
+    expect(emitter.getLog()).toHaveLength(1);
+    expect(emitter.getLog()).toEqual([
+      expect.objectContaining({
+        type: 'network:abort',
+        applied: false,
+        detail: expect.objectContaining({
+          url: '/api/fast',
+          method: 'GET',
+          timeoutMs: 100,
+        }),
+      }),
+    ]);
+    vi.useRealTimers();
   });
 });

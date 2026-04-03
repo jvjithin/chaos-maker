@@ -1,11 +1,13 @@
 import { ChaosMaker } from './ChaosMaker';
-import { ChaosConfig, NetworkFailureConfig, NetworkLatencyConfig, NetworkConfig, UiAssaultConfig, UiConfig } from './config';
+import { ChaosConfig, CorruptionStrategy, NetworkFailureConfig, NetworkLatencyConfig, NetworkAbortConfig, NetworkCorruptionConfig, NetworkCorsConfig, NetworkConfig, UiAssaultConfig, UiConfig } from './config';
 import { ChaosConfigError } from './errors';
 import { validateConfig } from './validation';
 import { ChaosEvent, ChaosEventType, ChaosEventListener, ChaosEventEmitter } from './events';
+import { ChaosConfigBuilder } from './builder';
+import { presets } from './presets';
 
-export { ChaosMaker, ChaosConfigError, validateConfig, ChaosEventEmitter };
-export type { ChaosConfig, NetworkFailureConfig, NetworkLatencyConfig, NetworkConfig, UiAssaultConfig, UiConfig, ChaosEvent, ChaosEventType, ChaosEventListener };
+export { ChaosMaker, ChaosConfigError, validateConfig, ChaosEventEmitter, ChaosConfigBuilder, presets };
+export type { ChaosConfig, CorruptionStrategy, NetworkFailureConfig, NetworkLatencyConfig, NetworkAbortConfig, NetworkCorruptionConfig, NetworkCorsConfig, NetworkConfig, UiAssaultConfig, UiConfig, ChaosEvent, ChaosEventType, ChaosEventListener };
 
 // --- NEW INTERFACE ---
 interface ChaosUtilsApi {

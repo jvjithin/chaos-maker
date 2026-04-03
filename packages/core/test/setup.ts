@@ -4,16 +4,19 @@ import { vi } from 'vitest';
 export const mockFetch = vi.fn();
 export const mockXhrOpen = vi.fn();
 export const mockXhrSend = vi.fn();
+export const mockXhrAbort = vi.fn();
 
 vi.stubGlobal('fetch', mockFetch);
 
-class MockXMLHttpRequest {
+class MockXMLHttpRequest extends EventTarget {
   _chaos_url: string = '';
   _chaos_method: string = '';
+  _responseText: string = '';
 
   // Add getters/setters that were implicitly used by the patcher
   // This is a more robust mock.
   constructor() {
+    super();
     Object.defineProperties(this, {
       status: {
         writable: true,
@@ -28,6 +31,14 @@ class MockXMLHttpRequest {
     });
   }
 
+  get responseText() {
+    return this._responseText;
+  }
+
+  set responseText(val) {
+    this._responseText = val;
+  }
+
   open(method: string, url: string) {
     this._chaos_url = url;
     this._chaos_method = method;
@@ -38,8 +49,16 @@ class MockXMLHttpRequest {
     mockXhrSend(body); // Call the exported mock
   }
 
-  dispatchEvent(_event: Event) {
-    return true;
+  abort() {
+    mockXhrAbort();
+    this.status = 0;
+    this.statusText = '';
+    this.dispatchEvent(new Event('abort'));
+    this.dispatchEvent(new Event('loadend'));
+  }
+
+  dispatchEvent(event: Event) {
+    return super.dispatchEvent(event);
   }
 }
 
@@ -49,14 +68,20 @@ vi.stubGlobal('Response', class MockResponse {
   status: number;
   statusText: string;
   body: any;
+  headers: any;
 
   constructor(body: any, init: any) {
     this.body = body;
     this.status = init?.status || 200;
     this.statusText = init?.statusText || 'OK';
+    this.headers = init?.headers || {};
   }
 
   json() {
     return Promise.resolve(JSON.parse(this.body));
+  }
+
+  text() {
+    return Promise.resolve(String(this.body));
   }
 } as any);
