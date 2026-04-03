@@ -66,23 +66,38 @@ describe('ChaosConfigBuilder', () => {
     expect(config.ui?.assaults?.[0].action).toBe('disable');
   });
 
-  it('should chain methods', () => {
+  it('should chain all methods', () => {
     const config = new ChaosConfigBuilder()
       .failRequests('/api/1', 500, 1.0)
       .addLatency('/api/2', 500, 1.0)
+      .abortRequests('/api/3', 1.0, 50)
+      .corruptResponses('/api/4', 'truncate', 1.0)
+      .simulateCors('/api/5', 1.0)
+      .assaultUi('button', 'disable', 1.0)
       .build();
-    
+
     expect(config.network?.failures).toHaveLength(1);
     expect(config.network?.latencies).toHaveLength(1);
+    expect(config.network?.aborts).toHaveLength(1);
+    expect(config.network?.corruptions).toHaveLength(1);
+    expect(config.network?.cors).toHaveLength(1);
+    expect(config.ui?.assaults).toHaveLength(1);
   });
 
-  it('should return a snapshot from build()', () => {
-    const builder = new ChaosConfigBuilder();
+  it('should return a snapshot from build() that is unaffected by later mutations', () => {
+    const builder = new ChaosConfigBuilder()
+      .failRequests('/api/1', 500, 1.0);
+
     const firstConfig = builder.build();
 
-    builder.addLatency('/api/', 1000, 1.0);
+    builder.addLatency('/api/2', 1000, 1.0);
+    builder.abortRequests('/api/3', 1.0);
+    builder.corruptResponses('/api/4', 'empty', 1.0);
 
-    expect(firstConfig).toEqual({ network: {}, ui: {} });
+    expect(firstConfig.network?.failures).toHaveLength(1);
+    expect(firstConfig.network?.latencies).toBeUndefined();
+    expect(firstConfig.network?.aborts).toBeUndefined();
+    expect(firstConfig.network?.corruptions).toBeUndefined();
   });
 });
 

@@ -297,6 +297,7 @@ describe('patchXHR (send)', () => {
   });
 
   it('should log abort as not applied when XHR completes before the timeout fires', () => {
+    vi.useFakeTimers();
     const emitter = new ChaosEventEmitter();
     const config: NetworkConfig = {
       aborts: [{ urlPattern: '/api/fast', timeout: 100, probability: 1.0 }]
@@ -314,7 +315,11 @@ describe('patchXHR (send)', () => {
 
     xhr.send();
 
+    // Advance past the timeout to prove the timer was cancelled
+    vi.advanceTimersByTime(200);
+
     expect(mockXhrAbort).not.toHaveBeenCalled();
+    expect(emitter.getLog()).toHaveLength(1);
     expect(emitter.getLog()).toEqual([
       expect.objectContaining({
         type: 'network:abort',
@@ -326,5 +331,6 @@ describe('patchXHR (send)', () => {
         }),
       }),
     ]);
+    vi.useRealTimers();
   });
 });

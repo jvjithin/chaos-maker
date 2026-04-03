@@ -240,6 +240,7 @@ describe('patchFetch', () => {
   });
 
   it('should log abort as not applied when the request completes before the timeout fires', async () => {
+    vi.useFakeTimers();
     const emitter = new ChaosEventEmitter();
     const fastFetch = vi.fn().mockResolvedValue(new global.Response('{}', { status: 200 }));
     const config: NetworkConfig = {
@@ -248,8 +249,12 @@ describe('patchFetch', () => {
     const patchedFetch = patchFetch(fastFetch as typeof global.fetch, config, emitter);
 
     const response = await patchedFetch('/api/fast');
-
     expect(response.status).toBe(200);
+
+    // Advance past the timeout to prove the timer was cancelled
+    await vi.advanceTimersByTimeAsync(200);
+
+    expect(emitter.getLog()).toHaveLength(1);
     expect(emitter.getLog()).toEqual([
       expect.objectContaining({
         type: 'network:abort',
@@ -261,5 +266,6 @@ describe('patchFetch', () => {
         }),
       }),
     ]);
+    vi.useRealTimers();
   });
 });
