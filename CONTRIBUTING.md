@@ -30,7 +30,7 @@ pnpm --filter e2e-tests exec playwright test --project=chromium  # e2e tests
 
 ### Project Structure
 
-```
+```text
 packages/
   core/           # @chaos-maker/core — chaos engine (TypeScript, Vite)
   playwright/     # @chaos-maker/playwright — Playwright adapter (tsup)
@@ -59,7 +59,7 @@ All checks must pass. CI runs these same steps on every PR.
 
 Use [conventional commits](https://www.conventionalcommits.org/):
 
-```
+```text
 feat(core): add WebSocket chaos support
 fix(playwright): handle page close during injection
 test(core): add abort timeout edge case test

@@ -60,6 +60,7 @@ test('handles slow network', async ({ page, chaos }) => {
 ### With Presets
 
 ```ts
+import { test, expect } from '@playwright/test';
 import { presets } from '@chaos-maker/core';
 import { injectChaos } from '@chaos-maker/playwright';
 
@@ -73,6 +74,7 @@ test('app works offline', async ({ page }) => {
 ### With Config Builder
 
 ```ts
+import { test } from '@playwright/test';
 import { ChaosConfigBuilder } from '@chaos-maker/core';
 import { injectChaos } from '@chaos-maker/playwright';
 

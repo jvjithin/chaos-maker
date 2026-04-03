@@ -50,7 +50,7 @@ chaos.stop(); // restores original fetch/XHR
 ### Presets
 
 ```ts
-import { presets } from '@chaos-maker/core';
+import { ChaosMaker, presets } from '@chaos-maker/core';
 
 // Available: unstableApi, slowNetwork, offlineMode, flakyConnection, degradedUi
 const chaos = new ChaosMaker(presets.slowNetwork);
