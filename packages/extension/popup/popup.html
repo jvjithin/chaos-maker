@@ -2,21 +2,48 @@
 <html>
 <head>
   <title>Chaos Maker</title>
-  <style>
-    body { font-family: sans-serif; width: 350px; padding: 10px; }
-    textarea { width: 100%; height: 200px; box-sizing: border-box; }
-    button { width: 100%; padding: 10px; font-size: 16px; cursor: pointer; }
-    #start { background-color: #4CAF50; color: white; border: none; }
-    #stop { background-color: #f44336; color: white; border: none; margin-top: 5px; }
-    .hidden { display: none; }
-    #error-message { color: #f44336; margin-top: 5px; }
-  </style>
+  <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <h3>Chaos Configuration</h3>
-  <textarea id="config-json"></textarea>
-  <div id="error-message" class="hidden"></div> <button id="start">Start Chaos</button>
-  <button id="stop" class="hidden">Stop Chaos</button>
+  <header>
+    <h1>Chaos Maker</h1>
+    <div id="status" class="status status-inactive">
+      <span class="status-dot"></span>
+      <span id="status-text">Inactive</span>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="presets">Presets</button>
+    <button class="tab" data-tab="custom">Custom JSON</button>
+  </div>
+
+  <div id="presets-panel" class="panel active">
+    <select id="preset-select">
+      <option value="unstableApi">Unstable API</option>
+      <option value="slowNetwork">Slow Network</option>
+      <option value="offlineMode">Offline Mode</option>
+      <option value="flakyConnection">Flaky Connection</option>
+      <option value="degradedUi">Degraded UI</option>
+    </select>
+    <div id="preset-preview" class="config-preview"></div>
+  </div>
+
+  <div id="custom-panel" class="panel">
+    <textarea id="config-json" spellcheck="false" placeholder="Paste your chaos config JSON here..."></textarea>
+  </div>
+
+  <div id="error-message" class="error hidden"></div>
+
+  <div class="actions">
+    <button id="start" class="btn btn-start">Start Chaos</button>
+    <button id="stop" class="btn btn-stop hidden">Stop Chaos</button>
+  </div>
+
+  <footer>
+    <a href="https://github.com/jvjithin/chaos-maker" target="_blank">Docs</a>
+  </footer>
+
   <script src="popup.js"></script>
 </body>
 </html>
