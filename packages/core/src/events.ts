@@ -1,4 +1,4 @@
-export type ChaosEventType = 'network:failure' | 'network:latency' | 'ui:assault';
+export type ChaosEventType = 'network:failure' | 'network:latency' | 'network:abort' | 'network:corruption' | 'network:cors' | 'ui:assault';
 
 export interface ChaosEvent {
   type: ChaosEventType;
@@ -9,6 +9,8 @@ export interface ChaosEvent {
     method?: string;
     statusCode?: number;
     delayMs?: number;
+    timeoutMs?: number;
+    strategy?: string;
     selector?: string;
     action?: string;
   };

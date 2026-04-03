@@ -21,9 +21,32 @@ const networkLatencySchema = z.object({
   probability,
 }).strict();
 
+const networkAbortSchema = z.object({
+  urlPattern: z.string().min(1, 'urlPattern must not be empty'),
+  methods: z.array(z.string()).optional(),
+  probability,
+  timeout: z.number().min(0, 'timeout must be >= 0').optional(),
+}).strict();
+
+const networkCorruptionSchema = z.object({
+  urlPattern: z.string().min(1, 'urlPattern must not be empty'),
+  methods: z.array(z.string()).optional(),
+  probability,
+  strategy: z.enum(['truncate', 'malformed-json', 'empty', 'wrong-type']),
+}).strict();
+
+const networkCorsSchema = z.object({
+  urlPattern: z.string().min(1, 'urlPattern must not be empty'),
+  methods: z.array(z.string()).optional(),
+  probability,
+}).strict();
+
 const networkConfigSchema = z.object({
   failures: z.array(networkFailureSchema).optional(),
   latencies: z.array(networkLatencySchema).optional(),
+  aborts: z.array(networkAbortSchema).optional(),
+  corruptions: z.array(networkCorruptionSchema).optional(),
+  cors: z.array(networkCorsSchema).optional(),
 }).strict();
 
 const uiAssaultSchema = z.object({
