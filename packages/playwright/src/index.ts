@@ -45,8 +45,7 @@ export async function injectChaos(page: Page, config: ChaosConfig): Promise<void
 
   // Set config before the UMD script runs so it auto-starts with this config
   await page.addInitScript((cfg: unknown) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const win = globalThis as any;
+const win = globalThis as any;
     win.__CHAOS_CONFIG__ = cfg;
   }, config);
 
@@ -59,8 +58,7 @@ export async function injectChaos(page: Page, config: ChaosConfig): Promise<void
  */
 export async function removeChaos(page: Page): Promise<void> {
   await page.evaluate(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const win = globalThis as any;
+const win = globalThis as any;
     if (win.chaosUtils) {
       win.chaosUtils.stop();
     }
@@ -73,8 +71,7 @@ export async function removeChaos(page: Page): Promise<void> {
  */
 export async function getChaosLog(page: Page): Promise<ChaosEvent[]> {
   return page.evaluate(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const win = globalThis as any;
+const win = globalThis as any;
     if (win.chaosUtils) {
       return win.chaosUtils.getLog();
     }
