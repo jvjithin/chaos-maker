@@ -121,7 +121,7 @@ describe('domAssailant', () => {
     el.textContent = 'Dynamic content';
     document.body.appendChild(el);
 
-    // MutationObserver fires asynchronously — flush microtasks
+    // MutationObserver fires asynchronously — wait for callback to execute
     await new Promise((r) => setTimeout(r, 0));
 
     expect(el.style.display).toBe('none');
@@ -207,7 +207,7 @@ describe('domAssailant', () => {
     expect(() => startObserver(config)).not.toThrow();
   });
 
-  it('should handle disconnect correctly', () => {
+  it('should handle disconnect correctly', async () => {
     const config: UiConfig = {
       assaults: [{ selector: 'button', action: 'disable', probability: 1.0 }],
     };
@@ -219,7 +219,9 @@ describe('domAssailant', () => {
     btn.textContent = 'After disconnect';
     document.body.appendChild(btn);
 
-    // Even after a tick, the observer is disconnected
+    // Wait to confirm no deferred callback fires
+    await new Promise((r) => setTimeout(r, 0));
+
     expect(btn.disabled).toBe(false);
   });
 });

@@ -91,7 +91,8 @@ function setActive(active) {
 
 // --- Get config from active tab ---
 function getActiveConfig() {
-  const activeTab = document.querySelector('.tab.active').dataset.tab;
+  const activeTabEl = document.querySelector('.tab.active');
+  const activeTab = activeTabEl ? activeTabEl.dataset.tab : 'presets';
   if (activeTab === 'presets') {
     return presets[presetSelect.value];
   }
@@ -122,9 +123,11 @@ startBtn.addEventListener('click', () => {
   setError('');
   try {
     const config = getActiveConfig();
-    const activeTab = document.querySelector('.tab.active').dataset.tab;
+    const activeTabEl = document.querySelector('.tab.active');
+    const activeTab = activeTabEl ? activeTabEl.dataset.tab : 'presets';
     chrome.runtime.sendMessage({ action: 'startChaos', config });
     chrome.storage.local.set({
+      chaosActive: true,
       mode: activeTab,
       preset: activeTab === 'presets' ? presetSelect.value : null,
     });
@@ -138,5 +141,6 @@ startBtn.addEventListener('click', () => {
 stopBtn.addEventListener('click', () => {
   setError('');
   chrome.runtime.sendMessage({ action: 'stopChaos' });
+  chrome.storage.local.set({ chaosActive: false });
   setActive(false);
 });
