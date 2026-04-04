@@ -51,7 +51,8 @@ function activateTab(tab) {
   document.querySelectorAll('.panel').forEach((p) => p.classList.remove('active'));
   tab.classList.add('active');
   tab.setAttribute('aria-selected', 'true');
-  document.getElementById(`${tab.dataset.tab}-panel`).classList.add('active');
+  const panel = document.getElementById(`${tab.dataset.tab}-panel`);
+  if (panel) panel.classList.add('active');
 }
 
 document.querySelectorAll('.tab').forEach((tab) => {
