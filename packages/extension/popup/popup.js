@@ -132,6 +132,7 @@ startBtn.addEventListener('click', () => {
       chaosActive: true,
       mode: activeTab,
       preset: activeTab === 'presets' ? presetSelect.value : null,
+      config: activeTab === 'custom' ? config : null,
     });
     setActive(true);
   } catch {
