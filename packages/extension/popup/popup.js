@@ -43,6 +43,7 @@ const presets = {
 
 // --- Tab switching ---
 function activateTab(tab) {
+  if (!tab) return;
   document.querySelectorAll('.tab').forEach((t) => {
     t.classList.remove('active');
     t.setAttribute('aria-selected', 'false');
