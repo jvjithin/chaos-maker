@@ -50,7 +50,7 @@ export function patchXHR(originalXhrSend: (body?: Document | XMLHttpRequestBodyI
               detail: { url, method },
             });
             if (applied) {
-              console.warn(`CHAOS: Forcing CORS error for ${method} ${url}`);
+              console.debug(`[chaos-maker] CORS block: ${method} ${url}`);
               Object.defineProperty(this, 'status', { value: 0 });
               Object.defineProperty(this, 'statusText', { value: '' });
               this.dispatchEvent(new Event('error'));
