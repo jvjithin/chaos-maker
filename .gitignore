@@ -2,9 +2,10 @@
 CLAUDE.md
 PROJECT_STATUS.md
 LEARNINGS.md
-.claude/skills/
+.claude/
 AGENTS.md
 GEMINI.md
+RELEASE_PLAN_*.md
 
 # Node
 node_modules
