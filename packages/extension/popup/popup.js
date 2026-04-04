@@ -109,9 +109,9 @@ function getActiveConfig() {
 
 // --- Load saved state ---
 document.addEventListener('DOMContentLoaded', () => {
-  chrome.storage.local.get(['chaosActive', 'config', 'mode', 'preset'], (result) => {
-    if (result.mode === 'custom' && result.config) {
-      configEl.value = JSON.stringify(result.config, null, 2);
+  chrome.storage.local.get(['chaosActive', 'mode', 'preset', 'customConfig'], (result) => {
+    if (result.mode === 'custom' && result.customConfig) {
+      configEl.value = result.customConfig;
       activateTab(document.querySelector('[data-tab="custom"]'));
     }
     if (result.preset && presets[result.preset]) {
@@ -128,15 +128,22 @@ startBtn.addEventListener('click', () => {
   try {
     const config = getActiveConfig();
     const activeTabEl = document.querySelector('.tab.active');
-    const activeTab = activeTabEl ? activeTabEl.dataset.tab : 'presets';
-    chrome.runtime.sendMessage({ action: 'startChaos', config });
-    chrome.storage.local.set({
-      chaosActive: true,
-      mode: activeTab,
-      preset: activeTab === 'presets' ? presetSelect.value : null,
-      config: activeTab === 'custom' ? config : null,
+    const mode = activeTabEl ? activeTabEl.dataset.tab : 'presets';
+
+    startBtn.disabled = true;
+    chrome.runtime.sendMessage({ action: 'startChaos', config }, (response) => {
+      startBtn.disabled = false;
+      if (response?.success) {
+        chrome.storage.local.set({
+          mode,
+          preset: mode === 'presets' ? presetSelect.value : null,
+          customConfig: mode === 'custom' ? configEl.value : null,
+        });
+        setActive(true);
+      } else {
+        setError('Failed to inject chaos. Make sure you are on a web page.');
+      }
     });
-    setActive(true);
   } catch {
     setError('Invalid JSON configuration. Check your syntax.');
   }
@@ -145,7 +152,9 @@ startBtn.addEventListener('click', () => {
 // --- Stop ---
 stopBtn.addEventListener('click', () => {
   setError('');
-  chrome.runtime.sendMessage({ action: 'stopChaos' });
-  chrome.storage.local.set({ chaosActive: false });
-  setActive(false);
+  stopBtn.disabled = true;
+  chrome.runtime.sendMessage({ action: 'stopChaos' }, () => {
+    stopBtn.disabled = false;
+    setActive(false);
+  });
 });
