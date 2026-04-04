@@ -13,12 +13,13 @@
     </div>
   </header>
 
-  <div class="tabs">
-    <button class="tab active" data-tab="presets">Presets</button>
-    <button class="tab" data-tab="custom">Custom JSON</button>
+  <div class="tabs" role="tablist" aria-label="Configuration mode">
+    <button id="tab-presets" class="tab active" data-tab="presets" role="tab" aria-selected="true" aria-controls="presets-panel">Presets</button>
+    <button id="tab-custom" class="tab" data-tab="custom" role="tab" aria-selected="false" aria-controls="custom-panel">Custom JSON</button>
   </div>
 
-  <div id="presets-panel" class="panel active">
+  <div id="presets-panel" class="panel active" role="tabpanel" aria-labelledby="tab-presets">
+    <label for="preset-select" class="sr-only">Preset</label>
     <select id="preset-select">
       <option value="unstableApi">Unstable API</option>
       <option value="slowNetwork">Slow Network</option>
@@ -29,7 +30,8 @@
     <div id="preset-preview" class="config-preview"></div>
   </div>
 
-  <div id="custom-panel" class="panel">
+  <div id="custom-panel" class="panel" role="tabpanel" aria-labelledby="tab-custom">
+    <label for="config-json" class="sr-only">Custom config JSON</label>
     <textarea id="config-json" spellcheck="false" placeholder="Paste your chaos config JSON here..."></textarea>
   </div>
 

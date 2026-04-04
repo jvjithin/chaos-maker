@@ -42,13 +42,19 @@ const presets = {
 };
 
 // --- Tab switching ---
-document.querySelectorAll('.tab').forEach((tab) => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
-    document.querySelectorAll('.panel').forEach((p) => p.classList.remove('active'));
-    tab.classList.add('active');
-    document.getElementById(`${tab.dataset.tab}-panel`).classList.add('active');
+function activateTab(tab) {
+  document.querySelectorAll('.tab').forEach((t) => {
+    t.classList.remove('active');
+    t.setAttribute('aria-selected', 'false');
   });
+  document.querySelectorAll('.panel').forEach((p) => p.classList.remove('active'));
+  tab.classList.add('active');
+  tab.setAttribute('aria-selected', 'true');
+  document.getElementById(`${tab.dataset.tab}-panel`).classList.add('active');
+}
+
+document.querySelectorAll('.tab').forEach((tab) => {
+  tab.addEventListener('click', () => activateTab(tab));
 });
 
 // --- Preset preview ---
@@ -104,11 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
   chrome.storage.local.get(['chaosActive', 'config', 'mode', 'preset'], (result) => {
     if (result.mode === 'custom' && result.config) {
       configEl.value = JSON.stringify(result.config, null, 2);
-      // Switch to custom tab
-      document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
-      document.querySelectorAll('.panel').forEach((p) => p.classList.remove('active'));
-      document.querySelector('[data-tab="custom"]').classList.add('active');
-      document.getElementById('custom-panel').classList.add('active');
+      activateTab(document.querySelector('[data-tab="custom"]'));
     }
     if (result.preset && presets[result.preset]) {
       presetSelect.value = result.preset;
