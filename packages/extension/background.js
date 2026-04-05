@@ -18,6 +18,34 @@ async function getActiveTab() {
   return tab;
 }
 
+// --- Scope wildcard patterns to the active tab's origin ---
+// When presets use '*' (match all), replace with the tab's hostname so chaos
+// only affects the page under test — not third-party analytics/tracking.
+function scopeConfigToOrigin(config, origin) {
+  if (!config.network || !origin) return config;
+  const scoped = JSON.parse(JSON.stringify(config));
+  let hostname;
+  try {
+    hostname = new URL(origin).hostname;
+  } catch {
+    return config;
+  }
+  const replaceWildcard = (items) => {
+    if (!items) return;
+    for (const item of items) {
+      if (item.urlPattern === '*') {
+        item.urlPattern = hostname;
+      }
+    }
+  };
+  replaceWildcard(scoped.network.cors);
+  replaceWildcard(scoped.network.failures);
+  replaceWildcard(scoped.network.latencies);
+  replaceWildcard(scoped.network.aborts);
+  replaceWildcard(scoped.network.corruptions);
+  return scoped;
+}
+
 // --- declarativeNetRequest: network-level blocking ---
 // Session rules support tabIds (dynamic rules do not).
 // Used for CORS/offline chaos with probability 1.0 so that
@@ -41,7 +69,7 @@ function buildBlockRules(config, tabId) {
       priority: 1,
       action: { type: 'block' },
       condition: {
-        urlFilter: cors.urlPattern === '/' ? '*' : `*${cors.urlPattern}*`,
+        urlFilter: cors.urlPattern === '*' ? '*' : `*${cors.urlPattern}*`,
         tabIds: [tabId],
         resourceTypes: [
           'main_frame',
@@ -124,6 +152,13 @@ async function injectChaos(tabId, config) {
 }
 
 async function removeChaos(tabId) {
+  // Error pages (e.g. from declarativeNetRequest blocking navigation) reject
+  // script injection. The JS cleanup is unnecessary there anyway.
+  if (hasNavigationBlock) {
+    console.log(`Tab ${tabId} showing error page — skipping JS cleanup`);
+    return;
+  }
+
   try {
     await chrome.scripting.executeScript({
       target: { tabId },
@@ -147,16 +182,20 @@ async function startChaos(config) {
 
   chaosTabId = tab.id;
 
+  // Scope wildcard ('*') patterns to the active tab's origin so chaos
+  // doesn't bleed into third-party analytics/tracking requests.
+  const scopedConfig = scopeConfigToOrigin(config, tab.url);
+
   // Network-level blocking (offline / CORS with probability 1.0)
-  await applyBlockRules(config, tab.id);
+  await applyBlockRules(scopedConfig, tab.id);
 
   // JS-level chaos (fetch/XHR patching, DOM assaults)
-  const success = await injectChaos(tab.id, config);
+  const success = await injectChaos(tab.id, scopedConfig);
 
   if (success) {
     chrome.storage.local.set({
       chaosActive: true,
-      chaosConfig: config,
+      chaosConfig: scopedConfig,
       chaosTabId: tab.id,
     });
   } else {

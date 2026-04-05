@@ -1,5 +1,5 @@
 import { NetworkAbortConfig, NetworkConfig, NetworkCorruptionConfig } from '../config';
-import { shouldApplyChaos, corruptText } from '../utils';
+import { shouldApplyChaos, corruptText, matchUrl } from '../utils';
 import { ChaosEventEmitter } from '../events';
 
 function isRequest(input: RequestInfo | URL): input is Request {
@@ -130,7 +130,7 @@ export function patchFetch(originalFetch: typeof window.fetch, config: NetworkCo
     // 1. Check for CORS
     if (config.cors) {
       for (const cors of config.cors) {
-        if (url.includes(cors.urlPattern)) {
+        if (matchUrl(url, cors.urlPattern)) {
           if (!cors.methods || cors.methods.includes(method)) {
             const applied = shouldApplyChaos(cors.probability);
             emitter?.emit({
@@ -172,7 +172,7 @@ export function patchFetch(originalFetch: typeof window.fetch, config: NetworkCo
 
     if (config.aborts) {
       for (const abort of config.aborts) {
-        if (url.includes(abort.urlPattern)) {
+        if (matchUrl(url, abort.urlPattern)) {
           if (!abort.methods || abort.methods.includes(method)) {
             const applied = shouldApplyChaos(abort.probability);
             if (!applied) {
@@ -219,7 +219,7 @@ export function patchFetch(originalFetch: typeof window.fetch, config: NetworkCo
     // 3. Check for Failures
     if (config.failures) {
       for (const failure of config.failures) {
-        if (url.includes(failure.urlPattern)) {
+        if (matchUrl(url, failure.urlPattern)) {
           if (!failure.methods || failure.methods.includes(method)) {
             const applied = shouldApplyChaos(failure.probability);
             emitter?.emit({
@@ -246,7 +246,7 @@ export function patchFetch(originalFetch: typeof window.fetch, config: NetworkCo
     // 4. Check for Latency
     if (config.latencies) {
       for (const latency of config.latencies) {
-        if (url.includes(latency.urlPattern)) {
+        if (matchUrl(url, latency.urlPattern)) {
           if (!latency.methods || latency.methods.includes(method)) {
             const applied = shouldApplyChaos(latency.probability);
             emitter?.emit({
@@ -268,7 +268,7 @@ export function patchFetch(originalFetch: typeof window.fetch, config: NetworkCo
     let selectedCorruption: NetworkCorruptionConfig | null = null;
     if (config.corruptions) {
       for (const corruption of config.corruptions) {
-        if (url.includes(corruption.urlPattern)) {
+        if (matchUrl(url, corruption.urlPattern)) {
           if (!corruption.methods || corruption.methods.includes(method)) {
             const applied = shouldApplyChaos(corruption.probability);
             if (!applied) {

@@ -17,18 +17,18 @@ const presets = {
   },
   slowNetwork: {
     network: {
-      latencies: [{ urlPattern: '/', delayMs: 2000, probability: 1.0 }],
+      latencies: [{ urlPattern: '*', delayMs: 2000, probability: 1.0 }],
     },
   },
   offlineMode: {
     network: {
-      cors: [{ urlPattern: '/', probability: 1.0 }],
+      cors: [{ urlPattern: '*', probability: 1.0 }],
     },
   },
   flakyConnection: {
     network: {
-      aborts: [{ urlPattern: '/', probability: 0.05 }],
-      latencies: [{ urlPattern: '/', delayMs: 3000, probability: 0.1 }],
+      aborts: [{ urlPattern: '*', probability: 0.05 }],
+      latencies: [{ urlPattern: '*', delayMs: 3000, probability: 0.1 }],
     },
   },
   degradedUi: {
