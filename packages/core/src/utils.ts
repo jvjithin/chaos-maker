@@ -4,6 +4,11 @@ export function shouldApplyChaos(probability: number): boolean {
   return Math.random() < probability;
 }
 
+export function matchUrl(url: string, pattern: string): boolean {
+  if (pattern === '*') return true;
+  return url.includes(pattern);
+}
+
 export function corruptText(text: string, strategy: CorruptionStrategy): string {
   switch (strategy) {
     case 'truncate':

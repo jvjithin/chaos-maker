@@ -1,6 +1,6 @@
 import { ChaosConfig } from './config';
 
-const MATCH_ALL_URLS = '/';
+const MATCH_ALL_URLS = '*';
 
 function deepFreeze<T>(obj: T): Readonly<T> {
   if (obj && typeof obj === 'object' && !Object.isFrozen(obj)) {
