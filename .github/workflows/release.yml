@@ -29,7 +29,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version-file: '.nvmrc'
           cache: 'pnpm'
 
       - name: Install Dependencies
@@ -79,7 +79,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version-file: '.nvmrc'
           cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
 
@@ -88,9 +88,6 @@ jobs:
 
       - name: Build Core
         run: pnpm build:core
-
-      - name: Upgrade npm for Trusted Publishing
-        run: npm install -g npm@^11.5.1
 
       - name: Publish Core
         run: pnpm --filter @chaos-maker/core publish --no-git-checks --access public
@@ -112,7 +109,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version-file: '.nvmrc'
           cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
 
@@ -121,9 +118,6 @@ jobs:
 
       - name: Build Playwright
         run: pnpm build:core && pnpm build:playwright
-
-      - name: Upgrade npm for Trusted Publishing
-        run: npm install -g npm@^11.5.1
 
       - name: Publish Playwright Adapter
         run: pnpm --filter @chaos-maker/playwright publish --no-git-checks --access public
