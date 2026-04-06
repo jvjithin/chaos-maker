@@ -25,9 +25,10 @@ export default defineConfig({
       use: { ...devices['Desktop Edge'] },
     },
   ],
-  // This is the key part: it starts a local web server before running tests
   webServer: {
-    command: 'pnpm exec http-server ./src -p 8080',
+    command: process.env.CI
+      ? 'npx http-server ./src -p 8080 -s'
+      : 'python3 -m http.server 8080 -d ./src',
     url: 'http://127.0.0.1:8080',
     reuseExistingServer: !process.env.CI,
   },
