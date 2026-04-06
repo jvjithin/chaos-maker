@@ -89,10 +89,11 @@ jobs:
       - name: Build Core
         run: pnpm build:core
 
+      - name: Upgrade npm for Trusted Publishing
+        run: npm install -g npm@^11.5.1
+
       - name: Publish Core
         run: pnpm --filter @chaos-maker/core publish --no-git-checks --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish-playwright:
     name: Publish @chaos-maker/playwright
@@ -121,7 +122,8 @@ jobs:
       - name: Build Playwright
         run: pnpm build:core && pnpm build:playwright
 
+      - name: Upgrade npm for Trusted Publishing
+        run: npm install -g npm@^11.5.1
+
       - name: Publish Playwright Adapter
         run: pnpm --filter @chaos-maker/playwright publish --no-git-checks --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
