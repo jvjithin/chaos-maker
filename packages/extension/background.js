@@ -33,7 +33,7 @@ function scopeConfigToOrigin(config, origin) {
   const replaceWildcard = (items) => {
     if (!items) return;
     for (const item of items) {
-      if (item.urlPattern === '*') {
+      if (item.urlPattern === '*' || item.urlPattern === '/') {
         item.urlPattern = hostname;
       }
     }
@@ -151,10 +151,10 @@ async function injectChaos(tabId, config) {
   }
 }
 
-async function removeChaos(tabId) {
+async function removeChaos(tabId, skipJsCleanup) {
   // Error pages (e.g. from declarativeNetRequest blocking navigation) reject
   // script injection. The JS cleanup is unnecessary there anyway.
-  if (hasNavigationBlock) {
+  if (skipJsCleanup) {
     console.log(`Tab ${tabId} showing error page — skipping JS cleanup`);
     return;
   }
@@ -207,11 +207,15 @@ async function startChaos(config) {
 }
 
 async function stopChaos() {
+  // Capture before clearBlockRules() resets it — removeChaos needs to know
+  // whether the tab is on an error page to skip script injection.
+  const wasNavigationBlocked = hasNavigationBlock;
+
   await clearBlockRules();
 
   // Stop JS chaos on the tracked tab — not just whichever tab is focused
   if (chaosTabId !== null) {
-    await removeChaos(chaosTabId);
+    await removeChaos(chaosTabId, wasNavigationBlocked);
     chaosTabId = null;
   }
 
