@@ -141,8 +141,7 @@ export function patchFetch(originalFetch: typeof window.fetch, config: NetworkCo
             });
             if (applied) {
               console.debug(`[chaos-maker] CORS block: ${method} ${url}`);
-              // Mimic a real browser network error. Sanitize the stack so
-              // Chrome doesn't attribute the rejection to the extension.
+              // Mimic a real browser network error with a clean stack trace.
               const error = new TypeError('Failed to fetch');
               error.stack = '';
               throw error;

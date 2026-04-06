@@ -3,7 +3,7 @@
 [![Build Status](https://github.com/jvjithin/chaos-maker/actions/workflows/ci.yml/badge.svg)](https://github.com/jvjithin/chaos-maker/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Inject controlled chaos into web applications. Test your frontend's resilience to network failures, latency spikes, connection drops, corrupted responses, and UI disruptions — in E2E tests or manually via the Chrome extension.
+Inject controlled chaos into web applications. Test your frontend's resilience to network failures, latency spikes, connection drops, corrupted responses, and UI disruptions.
 
 ## Why
 
@@ -236,17 +236,6 @@ const log = await getChaosLog(page);
 // }
 ```
 
-## Chrome Extension
-
-For manual exploratory testing:
-
-1. Build: `pnpm build:core`
-2. Open `chrome://extensions`, enable Developer Mode
-3. Click "Load unpacked", select `packages/extension/`
-4. Click the Chaos Maker icon, paste a JSON config, click "Start Chaos"
-
-The extension reinjects chaos on every page navigation until you click "Stop Chaos".
-
 ## Integration with Other Frameworks
 
 ### Cypress
@@ -298,7 +287,6 @@ await driver.get('http://localhost:3000');
 |---------|-------------|
 | [`@chaos-maker/core`](./packages/core/) | Core chaos engine. Framework-agnostic. ESM + CJS + UMD. |
 | [`@chaos-maker/playwright`](./packages/playwright/) | Playwright adapter with `injectChaos`, `removeChaos`, `getChaosLog`, and test fixture. |
-| [`@chaos-maker/extension`](./packages/extension/) | Chrome Manifest V3 extension for manual chaos injection. |
 
 ## Development
 

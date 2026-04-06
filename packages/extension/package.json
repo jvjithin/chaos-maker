@@ -1,6 +1,0 @@
-{
-  "name": "@chaos-maker/extension",
-  "private": true,
-  "version": "1.0.0",
-  "description": "Browser extension wrapper for the Chaos Maker"
-}

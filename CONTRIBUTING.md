@@ -34,7 +34,6 @@ pnpm --filter e2e-tests exec playwright test --project=chromium  # e2e tests
 packages/
   core/           # @chaos-maker/core — chaos engine (TypeScript, Vite)
   playwright/     # @chaos-maker/playwright — Playwright adapter (tsup)
-  extension/      # Chrome extension (Manifest V3)
 e2e-tests/        # Playwright E2E test suite
 ```
 
