@@ -49,6 +49,12 @@ export class ChaosConfigBuilder {
     return this;
   }
 
+  /** Set the PRNG seed for reproducible chaos. */
+  withSeed(seed: number) {
+    this.config.seed = seed;
+    return this;
+  }
+
   build(): ChaosConfig {
     return cloneConfig(this.config);
   }

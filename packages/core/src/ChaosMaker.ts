@@ -1,5 +1,6 @@
 import { ChaosConfig } from './config';
 import { validateConfig } from './validation';
+import { createPrng } from './prng';
 import { ChaosEventEmitter, ChaosEvent, ChaosEventType, ChaosEventListener } from './events';
 import { patchFetch } from './interceptors/networkFetch';
 import { patchXHR, patchXHROpen } from './interceptors/networkXHR';
@@ -8,6 +9,8 @@ import { attachDomAssailant } from './interceptors/domAssailant';
 export class ChaosMaker {
   private config: ChaosConfig;
   private emitter: ChaosEventEmitter;
+  private random: () => number;
+  private seed: number;
   private running = false;
   private originalFetch?: typeof window.fetch;
   private originalXhrSend?: (body?: Document | XMLHttpRequestBodyInit) => void;
@@ -17,7 +20,15 @@ export class ChaosMaker {
   constructor(config: ChaosConfig) {
     this.config = validateConfig(config);
     this.emitter = new ChaosEventEmitter();
-    console.log('Chaos Maker initialized with config:', config);
+    const prng = createPrng(config.seed);
+    this.random = prng.random;
+    this.seed = prng.seed;
+    console.log(`Chaos Maker initialized (seed: ${this.seed})`);
+  }
+
+  /** Get the seed used by this instance. Log this on failure to reproduce exact chaos decisions. */
+  public getSeed(): number {
+    return this.seed;
   }
 
   public on(type: ChaosEventType | '*', listener: ChaosEventListener): void {
@@ -46,17 +57,17 @@ export class ChaosMaker {
 
     if (this.config.network) {
       this.originalFetch = window.fetch;
-      window.fetch = patchFetch(this.originalFetch.bind(window), this.config.network, this.emitter);
+      window.fetch = patchFetch(this.originalFetch.bind(window), this.config.network, this.emitter, this.random);
 
       this.originalXhrOpen = window.XMLHttpRequest.prototype.open;
       window.XMLHttpRequest.prototype.open = patchXHROpen(this.originalXhrOpen);
 
       this.originalXhrSend = window.XMLHttpRequest.prototype.send;
-      window.XMLHttpRequest.prototype.send = patchXHR(this.originalXhrSend, this.config.network, this.emitter);
+      window.XMLHttpRequest.prototype.send = patchXHR(this.originalXhrSend, this.config.network, this.emitter, this.random);
     }
 
     if (this.config.ui) {
-      this.domObserver = attachDomAssailant(this.config.ui, this.emitter);
+      this.domObserver = attachDomAssailant(this.config.ui, this.emitter, this.random);
       this.domObserver.observe(document.body, {
         childList: true,
         subtree: true,

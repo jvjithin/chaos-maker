@@ -62,6 +62,7 @@ const uiConfigSchema = z.object({
 const chaosConfigSchema = z.object({
   network: networkConfigSchema.optional(),
   ui: uiConfigSchema.optional(),
+  seed: z.number().int('Seed must be an integer').optional(),
 }).strict();
 
 export function validateConfig(config: unknown): ChaosConfig {

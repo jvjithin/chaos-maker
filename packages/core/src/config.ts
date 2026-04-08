@@ -58,4 +58,6 @@ export interface UiConfig {
 export interface ChaosConfig {
   network?: NetworkConfig;
   ui?: UiConfig;
+  /** Seed for the PRNG. When provided, all probability rolls become deterministic and replayable. */
+  seed?: number;
 }

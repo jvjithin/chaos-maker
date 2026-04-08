@@ -84,6 +84,25 @@ describe('ChaosConfigBuilder', () => {
     expect(config.ui?.assaults).toHaveLength(1);
   });
 
+  it('should set seed via withSeed()', () => {
+    const config = new ChaosConfigBuilder()
+      .failRequests('/api/', 500, 1.0)
+      .withSeed(42)
+      .build();
+
+    expect(config.seed).toBe(42);
+  });
+
+  it('should include seed in chained builds', () => {
+    const config = new ChaosConfigBuilder()
+      .withSeed(12345)
+      .addLatency('/api/', 1000, 1.0)
+      .build();
+
+    expect(config.seed).toBe(12345);
+    expect(config.network?.latencies).toHaveLength(1);
+  });
+
   it('should return a snapshot from build() that is unaffected by later mutations', () => {
     const builder = new ChaosConfigBuilder()
       .failRequests('/api/1', 500, 1.0);

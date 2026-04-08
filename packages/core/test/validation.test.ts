@@ -170,4 +170,29 @@ describe('validateConfig', () => {
     const config = { networking: { failures: [] } };
     expect(() => validateConfig(config)).toThrow(ChaosConfigError);
   });
+
+  it('should accept a valid integer seed', () => {
+    const config = { seed: 42 };
+    expect(() => validateConfig(config)).not.toThrow();
+  });
+
+  it('should accept seed of 0', () => {
+    const config = { seed: 0 };
+    expect(() => validateConfig(config)).not.toThrow();
+  });
+
+  it('should reject a non-integer seed', () => {
+    const config = { seed: 3.14 };
+    expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+  });
+
+  it('should accept config with seed and network rules', () => {
+    const config = {
+      seed: 12345,
+      network: {
+        failures: [{ urlPattern: '/api', statusCode: 500, probability: 1.0 }],
+      },
+    };
+    expect(() => validateConfig(config)).not.toThrow();
+  });
 });
