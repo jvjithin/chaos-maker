@@ -43,6 +43,72 @@ export class ChaosConfigBuilder {
     return this;
   }
 
+  // --- onNth shortcuts ---
+
+  failRequestsOnNth(urlPattern: string, statusCode: number, n: number, methods?: string[]) {
+    return this.failRequests(urlPattern, statusCode, 1, methods, undefined, undefined, { onNth: n });
+  }
+
+  addLatencyOnNth(urlPattern: string, delayMs: number, n: number, methods?: string[]) {
+    return this.addLatency(urlPattern, delayMs, 1, methods, { onNth: n });
+  }
+
+  abortRequestsOnNth(urlPattern: string, n: number, timeout?: number, methods?: string[]) {
+    return this.abortRequests(urlPattern, 1, timeout, methods, { onNth: n });
+  }
+
+  corruptResponsesOnNth(urlPattern: string, strategy: CorruptionStrategy, n: number, methods?: string[]) {
+    return this.corruptResponses(urlPattern, strategy, 1, methods, { onNth: n });
+  }
+
+  simulateCorsOnNth(urlPattern: string, n: number, methods?: string[]) {
+    return this.simulateCors(urlPattern, 1, methods, { onNth: n });
+  }
+
+  // --- everyNth shortcuts ---
+
+  failRequestsEveryNth(urlPattern: string, statusCode: number, n: number, methods?: string[]) {
+    return this.failRequests(urlPattern, statusCode, 1, methods, undefined, undefined, { everyNth: n });
+  }
+
+  addLatencyEveryNth(urlPattern: string, delayMs: number, n: number, methods?: string[]) {
+    return this.addLatency(urlPattern, delayMs, 1, methods, { everyNth: n });
+  }
+
+  abortRequestsEveryNth(urlPattern: string, n: number, timeout?: number, methods?: string[]) {
+    return this.abortRequests(urlPattern, 1, timeout, methods, { everyNth: n });
+  }
+
+  corruptResponsesEveryNth(urlPattern: string, strategy: CorruptionStrategy, n: number, methods?: string[]) {
+    return this.corruptResponses(urlPattern, strategy, 1, methods, { everyNth: n });
+  }
+
+  simulateCorsEveryNth(urlPattern: string, n: number, methods?: string[]) {
+    return this.simulateCors(urlPattern, 1, methods, { everyNth: n });
+  }
+
+  // --- afterN shortcuts ---
+
+  failRequestsAfterN(urlPattern: string, statusCode: number, n: number, methods?: string[]) {
+    return this.failRequests(urlPattern, statusCode, 1, methods, undefined, undefined, { afterN: n });
+  }
+
+  addLatencyAfterN(urlPattern: string, delayMs: number, n: number, methods?: string[]) {
+    return this.addLatency(urlPattern, delayMs, 1, methods, { afterN: n });
+  }
+
+  abortRequestsAfterN(urlPattern: string, n: number, timeout?: number, methods?: string[]) {
+    return this.abortRequests(urlPattern, 1, timeout, methods, { afterN: n });
+  }
+
+  corruptResponsesAfterN(urlPattern: string, strategy: CorruptionStrategy, n: number, methods?: string[]) {
+    return this.corruptResponses(urlPattern, strategy, 1, methods, { afterN: n });
+  }
+
+  simulateCorsAfterN(urlPattern: string, n: number, methods?: string[]) {
+    return this.simulateCors(urlPattern, 1, methods, { afterN: n });
+  }
+
   assaultUi(selector: string, action: 'disable' | 'hide' | 'remove', probability: number) {
     if (!this.config.ui!.assaults) this.config.ui!.assaults = [];
     this.config.ui!.assaults.push({ selector, action, probability });
