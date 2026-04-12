@@ -4,6 +4,23 @@ import type { ChaosConfig } from './config';
 
 const probability = z.number().min(0, 'Probability must be >= 0').max(1, 'Probability must be <= 1');
 
+const positiveInt = z.number().int().min(1);
+
+/** Shared counting fields for network chaos rules. At most one may be set. */
+const countingFields = {
+  onNth: positiveInt.optional(),
+  everyNth: positiveInt.optional(),
+  afterN: z.number().int().min(0).optional(),
+};
+
+const mutuallyExclusiveCounting = (data: { onNth?: number; everyNth?: number; afterN?: number }) =>
+  [data.onNth, data.everyNth, data.afterN].filter(v => v !== undefined).length <= 1;
+
+const countingRefinement = [
+  mutuallyExclusiveCounting,
+  { message: 'Only one of onNth, everyNth, or afterN may be set on a single rule' },
+] as const;
+
 const networkFailureSchema = z.object({
   urlPattern: z.string().min(1, 'urlPattern must not be empty'),
   methods: z.array(z.string()).optional(),
@@ -12,34 +29,39 @@ const networkFailureSchema = z.object({
   body: z.string().optional(),
   statusText: z.string().optional(),
   headers: z.record(z.string()).optional(),
-}).strict();
+  ...countingFields,
+}).strict().refine(...countingRefinement);
 
 const networkLatencySchema = z.object({
   urlPattern: z.string().min(1, 'urlPattern must not be empty'),
   methods: z.array(z.string()).optional(),
   delayMs: z.number().min(0, 'delayMs must be >= 0'),
   probability,
-}).strict();
+  ...countingFields,
+}).strict().refine(...countingRefinement);
 
 const networkAbortSchema = z.object({
   urlPattern: z.string().min(1, 'urlPattern must not be empty'),
   methods: z.array(z.string()).optional(),
   probability,
   timeout: z.number().min(0, 'timeout must be >= 0').optional(),
-}).strict();
+  ...countingFields,
+}).strict().refine(...countingRefinement);
 
 const networkCorruptionSchema = z.object({
   urlPattern: z.string().min(1, 'urlPattern must not be empty'),
   methods: z.array(z.string()).optional(),
   probability,
   strategy: z.enum(['truncate', 'malformed-json', 'empty', 'wrong-type']),
-}).strict();
+  ...countingFields,
+}).strict().refine(...countingRefinement);
 
 const networkCorsSchema = z.object({
   urlPattern: z.string().min(1, 'urlPattern must not be empty'),
   methods: z.array(z.string()).optional(),
   probability,
-}).strict();
+  ...countingFields,
+}).strict().refine(...countingRefinement);
 
 const networkConfigSchema = z.object({
   failures: z.array(networkFailureSchema).optional(),

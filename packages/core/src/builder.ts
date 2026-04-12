@@ -1,4 +1,4 @@
-import { ChaosConfig, CorruptionStrategy } from './config';
+import { ChaosConfig, CorruptionStrategy, RequestCountingOptions } from './config';
 
 function cloneConfig(config: ChaosConfig): ChaosConfig {
   return JSON.parse(JSON.stringify(config));
@@ -13,33 +13,33 @@ export class ChaosConfigBuilder {
     if (!this.config.ui) this.config.ui = {};
   }
 
-  failRequests(urlPattern: string, statusCode: number, probability: number, methods?: string[], body?: string, headers?: Record<string, string>) {
+  failRequests(urlPattern: string, statusCode: number, probability: number, methods?: string[], body?: string, headers?: Record<string, string>, counting?: RequestCountingOptions) {
     if (!this.config.network!.failures) this.config.network!.failures = [];
-    this.config.network!.failures.push({ urlPattern, statusCode, probability, methods, body, headers });
+    this.config.network!.failures.push({ urlPattern, statusCode, probability, methods, body, headers, ...counting });
     return this;
   }
 
-  addLatency(urlPattern: string, delayMs: number, probability: number, methods?: string[]) {
+  addLatency(urlPattern: string, delayMs: number, probability: number, methods?: string[], counting?: RequestCountingOptions) {
     if (!this.config.network!.latencies) this.config.network!.latencies = [];
-    this.config.network!.latencies.push({ urlPattern, delayMs, probability, methods });
+    this.config.network!.latencies.push({ urlPattern, delayMs, probability, methods, ...counting });
     return this;
   }
 
-  abortRequests(urlPattern: string, probability: number, timeout?: number, methods?: string[]) {
+  abortRequests(urlPattern: string, probability: number, timeout?: number, methods?: string[], counting?: RequestCountingOptions) {
     if (!this.config.network!.aborts) this.config.network!.aborts = [];
-    this.config.network!.aborts.push({ urlPattern, probability, timeout, methods });
+    this.config.network!.aborts.push({ urlPattern, probability, timeout, methods, ...counting });
     return this;
   }
 
-  corruptResponses(urlPattern: string, strategy: CorruptionStrategy, probability: number, methods?: string[]) {
+  corruptResponses(urlPattern: string, strategy: CorruptionStrategy, probability: number, methods?: string[], counting?: RequestCountingOptions) {
     if (!this.config.network!.corruptions) this.config.network!.corruptions = [];
-    this.config.network!.corruptions.push({ urlPattern, strategy, probability, methods });
+    this.config.network!.corruptions.push({ urlPattern, strategy, probability, methods, ...counting });
     return this;
   }
 
-  simulateCors(urlPattern: string, probability: number, methods?: string[]) {
+  simulateCors(urlPattern: string, probability: number, methods?: string[], counting?: RequestCountingOptions) {
     if (!this.config.network!.cors) this.config.network!.cors = [];
-    this.config.network!.cors.push({ urlPattern, probability, methods });
+    this.config.network!.cors.push({ urlPattern, probability, methods, ...counting });
     return this;
   }
 

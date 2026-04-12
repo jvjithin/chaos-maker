@@ -16,6 +16,8 @@ export class ChaosMaker {
   private originalXhrSend?: (body?: Document | XMLHttpRequestBodyInit) => void;
   private originalXhrOpen?: (method: string, url: string | URL) => void;
   private domObserver?: MutationObserver;
+  /** Shared request counters keyed by config rule object reference. Shared across fetch + XHR. */
+  private requestCounters: Map<object, number> = new Map();
 
   constructor(config: ChaosConfig) {
     this.config = validateConfig(config);
@@ -57,13 +59,13 @@ export class ChaosMaker {
 
     if (this.config.network) {
       this.originalFetch = window.fetch;
-      window.fetch = patchFetch(this.originalFetch.bind(window), this.config.network, this.emitter, this.random);
+      window.fetch = patchFetch(this.originalFetch.bind(window), this.config.network, this.emitter, this.random, this.requestCounters);
 
       this.originalXhrOpen = window.XMLHttpRequest.prototype.open;
       window.XMLHttpRequest.prototype.open = patchXHROpen(this.originalXhrOpen);
 
       this.originalXhrSend = window.XMLHttpRequest.prototype.send;
-      window.XMLHttpRequest.prototype.send = patchXHR(this.originalXhrSend, this.config.network, this.emitter, this.random);
+      window.XMLHttpRequest.prototype.send = patchXHR(this.originalXhrSend, this.config.network, this.emitter, this.random, this.requestCounters);
     }
 
     if (this.config.ui) {

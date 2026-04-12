@@ -1,4 +1,16 @@
-export interface NetworkFailureConfig {
+/** Counting options shared by all network chaos config types.
+ *  At most one of `onNth`, `everyNth`, or `afterN` may be set on a single rule.
+ *  - `onNth`   – apply chaos only on the Nth matching request (1-based).
+ *  - `everyNth` – apply chaos on every Nth matching request (1st, N+1th, 2N+1th, …).
+ *  - `afterN`  – apply chaos only after the first N matching requests have passed through.
+ */
+export interface RequestCountingOptions {
+  onNth?: number;
+  everyNth?: number;
+  afterN?: number;
+}
+
+export interface NetworkFailureConfig extends RequestCountingOptions {
   urlPattern: string;
   methods?: string[];
   statusCode: number;
@@ -8,14 +20,14 @@ export interface NetworkFailureConfig {
   headers?: Record<string, string>;
 }
 
-export interface NetworkLatencyConfig {
+export interface NetworkLatencyConfig extends RequestCountingOptions {
   urlPattern: string;
   methods?: string[];
   delayMs: number;
   probability: number;
 }
 
-export interface NetworkAbortConfig {
+export interface NetworkAbortConfig extends RequestCountingOptions {
   urlPattern: string;
   methods?: string[];
   probability: number;
@@ -24,14 +36,14 @@ export interface NetworkAbortConfig {
 
 export type CorruptionStrategy = 'truncate' | 'malformed-json' | 'empty' | 'wrong-type';
 
-export interface NetworkCorruptionConfig {
+export interface NetworkCorruptionConfig extends RequestCountingOptions {
   urlPattern: string;
   methods?: string[];
   probability: number;
   strategy: CorruptionStrategy;
 }
 
-export interface NetworkCorsConfig {
+export interface NetworkCorsConfig extends RequestCountingOptions {
   urlPattern: string;
   methods?: string[];
   probability: number;
