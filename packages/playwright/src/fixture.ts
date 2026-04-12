@@ -1,12 +1,13 @@
 import { test as base } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import type { ChaosConfig, ChaosEvent } from '@chaos-maker/core';
-import { injectChaos, removeChaos, getChaosLog } from './index';
+import { injectChaos, removeChaos, getChaosLog, getChaosSeed } from './index';
 
 export interface ChaosFixture {
   inject: (config: ChaosConfig) => Promise<void>;
   remove: () => Promise<void>;
   getLog: () => Promise<ChaosEvent[]>;
+  getSeed: () => Promise<number | null>;
 }
 
 /**
@@ -34,6 +35,7 @@ export const test = base.extend<{ chaos: ChaosFixture }>({
       inject: (config: ChaosConfig) => injectChaos(page, config),
       remove: () => removeChaos(page),
       getLog: () => getChaosLog(page),
+      getSeed: () => getChaosSeed(page),
     };
     await use(fixture);
     await removeChaos(page);

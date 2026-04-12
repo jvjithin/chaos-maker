@@ -5,8 +5,9 @@ import { validateConfig } from './validation';
 import { ChaosEvent, ChaosEventType, ChaosEventListener, ChaosEventEmitter } from './events';
 import { ChaosConfigBuilder } from './builder';
 import { presets } from './presets';
+import { createPrng, generateSeed } from './prng';
 
-export { ChaosMaker, ChaosConfigError, validateConfig, ChaosEventEmitter, ChaosConfigBuilder, presets };
+export { ChaosMaker, ChaosConfigError, validateConfig, ChaosEventEmitter, ChaosConfigBuilder, presets, createPrng, generateSeed };
 export type { ChaosConfig, CorruptionStrategy, NetworkFailureConfig, NetworkLatencyConfig, NetworkAbortConfig, NetworkCorruptionConfig, NetworkCorsConfig, NetworkConfig, UiAssaultConfig, UiConfig, ChaosEvent, ChaosEventType, ChaosEventListener };
 
 // --- NEW INTERFACE ---
@@ -15,6 +16,7 @@ interface ChaosUtilsApi {
   start: (config: ChaosConfig) => { success: boolean; message: string };
   stop: () => { success: boolean; message: string };
   getLog: () => ChaosEvent[];
+  getSeed: () => number | null;
 }
 
 // --- Global API & Auto-Start Logic ---
@@ -53,6 +55,13 @@ if (typeof window !== 'undefined') {
         return chaosUtilsApi.instance.getLog();
       }
       return [];
+    },
+
+    getSeed: () => {
+      if (chaosUtilsApi.instance) {
+        return chaosUtilsApi.instance.getSeed();
+      }
+      return null;
     }
   };
   

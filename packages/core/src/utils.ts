@@ -1,7 +1,7 @@
 import type { CorruptionStrategy } from './config';
 
-export function shouldApplyChaos(probability: number): boolean {
-  return Math.random() < probability;
+export function shouldApplyChaos(probability: number, random: () => number = Math.random): boolean {
+  return random() < probability;
 }
 
 export function matchUrl(url: string, pattern: string): boolean {

@@ -79,4 +79,18 @@ const win = globalThis as any;
   });
 }
 
+/**
+ * Retrieve the PRNG seed from a Playwright page.
+ * Log this value on test failure to replay exact chaos decisions.
+ */
+export async function getChaosSeed(page: Page): Promise<number | null> {
+  return page.evaluate(() => {
+const win = globalThis as any;
+    if (win.chaosUtils) {
+      return win.chaosUtils.getSeed();
+    }
+    return null;
+  });
+}
+
 export type { ChaosConfig, ChaosEvent } from '@chaos-maker/core';
