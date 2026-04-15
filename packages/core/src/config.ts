@@ -1,8 +1,10 @@
 /** Counting options shared by all network chaos config types.
  *  At most one of `onNth`, `everyNth`, or `afterN` may be set on a single rule.
- *  - `onNth`   – apply chaos only on the Nth matching request (1-based).
- *  - `everyNth` – apply chaos on every Nth matching request (1st, N+1th, 2N+1th, …).
- *  - `afterN`  – apply chaos only after the first N matching requests have passed through.
+ *  Counting is per-rule and shared across fetch + XHR (only increments when a
+ *  request matches `urlPattern` + `methods`).
+ *  - `onNth`    – apply chaos only on the Nth matching request (1-based). e.g. `onNth: 3` fires on the 3rd request only.
+ *  - `everyNth` – apply chaos on every Nth matching request. e.g. `everyNth: 3` fires on the 3rd, 6th, 9th, …
+ *  - `afterN`   – apply chaos only after the first N matching requests have passed through. e.g. `afterN: 3` fires from the 4th request onward.
  */
 export interface RequestCountingOptions {
   onNth?: number;

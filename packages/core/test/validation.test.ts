@@ -195,4 +195,106 @@ describe('validateConfig', () => {
     };
     expect(() => validateConfig(config)).not.toThrow();
   });
+
+  // -------------------------------------------------------------------------
+  // Counting fields (onNth / everyNth / afterN)
+  // -------------------------------------------------------------------------
+  describe('counting fields', () => {
+    it('accepts a single onNth', () => {
+      const config = {
+        network: {
+          failures: [{ urlPattern: '/api', statusCode: 500, probability: 1, onNth: 3 }],
+        },
+      };
+      expect(() => validateConfig(config)).not.toThrow();
+    });
+
+    it('accepts a single everyNth', () => {
+      const config = {
+        network: {
+          latencies: [{ urlPattern: '/api', delayMs: 100, probability: 1, everyNth: 2 }],
+        },
+      };
+      expect(() => validateConfig(config)).not.toThrow();
+    });
+
+    it('accepts afterN of 0', () => {
+      const config = {
+        network: {
+          failures: [{ urlPattern: '/api', statusCode: 500, probability: 1, afterN: 0 }],
+        },
+      };
+      expect(() => validateConfig(config)).not.toThrow();
+    });
+
+    it('rejects onNth of 0', () => {
+      const config = {
+        network: {
+          failures: [{ urlPattern: '/api', statusCode: 500, probability: 1, onNth: 0 }],
+        },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+
+    it('rejects everyNth of 0', () => {
+      const config = {
+        network: {
+          failures: [{ urlPattern: '/api', statusCode: 500, probability: 1, everyNth: 0 }],
+        },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+
+    it('rejects negative afterN', () => {
+      const config = {
+        network: {
+          failures: [{ urlPattern: '/api', statusCode: 500, probability: 1, afterN: -1 }],
+        },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+
+    it('rejects non-integer onNth', () => {
+      const config = {
+        network: {
+          failures: [{ urlPattern: '/api', statusCode: 500, probability: 1, onNth: 1.5 }],
+        },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+
+    it('rejects combining onNth with everyNth', () => {
+      const config = {
+        network: {
+          failures: [{ urlPattern: '/api', statusCode: 500, probability: 1, onNth: 2, everyNth: 3 }],
+        },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+
+    it('rejects combining all three counting fields', () => {
+      const config = {
+        network: {
+          failures: [{
+            urlPattern: '/api', statusCode: 500, probability: 1,
+            onNth: 1, everyNth: 2, afterN: 3,
+          }],
+        },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+
+    it('accepts counting on all network chaos types', () => {
+      const config = {
+        network: {
+          failures: [{ urlPattern: '/api', statusCode: 500, probability: 1, onNth: 2 }],
+          latencies: [{ urlPattern: '/api', delayMs: 50, probability: 1, everyNth: 2 }],
+          aborts: [{ urlPattern: '/api', probability: 1, afterN: 1 }],
+          corruptions: [{ urlPattern: '/api', strategy: 'empty' as const, probability: 1, onNth: 1 }],
+          cors: [{ urlPattern: '/api', probability: 1, everyNth: 4 }],
+        },
+      };
+      expect(() => validateConfig(config)).not.toThrow();
+    });
+  });
 });
