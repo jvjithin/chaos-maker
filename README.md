@@ -58,7 +58,7 @@ test('app handles slow network gracefully', async ({ page }) => {
 });
 ```
 
-Available presets: `unstableApi`, `slowNetwork`, `offlineMode`, `flakyConnection`, `degradedUi`
+Available presets: `unstableApi`, `slowNetwork`, `offlineMode`, `flakyConnection`, `degradedUi`, `unreliableWebSocket`
 
 ### Using the Config Builder
 
@@ -196,6 +196,33 @@ Simulates CORS failures. Fetch throws `TypeError('Failed to fetch')`, XHR fires 
 }
 ```
 
+### WebSocket Chaos
+
+Intercept `window.WebSocket` connections to drop, delay, corrupt, or force-close messages. Works without server cooperation — the chaos layer sits between the page and the real socket.
+
+```ts
+{
+  websocket: {
+    drops: [
+      { urlPattern: 'wss://chat', direction: 'outbound', probability: 0.1 }
+    ],
+    delays: [
+      { urlPattern: 'wss://chat', direction: 'inbound', delayMs: 500, probability: 1.0 }
+    ],
+    corruptions: [
+      { urlPattern: 'wss://chat', direction: 'inbound', strategy: 'truncate', probability: 0.05 }
+    ],
+    closes: [
+      { urlPattern: 'wss://chat', probability: 1.0, afterMs: 30000, code: 4000, reason: 'chaos' }
+    ]
+  }
+}
+```
+
+`direction` is `'inbound' | 'outbound' | 'both'`. Corruption strategies are the same four as network responses (`truncate`, `malformed-json`, `empty`, `wrong-type`); JSON-specific strategies are skipped on binary frames and logged with `applied: false, reason: 'incompatible-payload-type'`. Per-rule counting (`onNth`, `everyNth`, `afterN`) works on every WS rule — for example, `{ drops: [{ urlPattern: 'wss://', direction: 'outbound', probability: 1, everyNth: 2 }] }` drops every 2nd outbound message.
+
+Presets include `unreliableWebSocket` for a realistic flaky-socket profile.
+
 ### UI Assaults
 
 Manipulate DOM elements by CSS selector. Works on elements present at page load and dynamically added elements (via `MutationObserver`).
@@ -229,10 +256,12 @@ const log = await getChaosLog(page);
 // Each event has:
 // {
 //   type: 'network:failure' | 'network:latency' | 'network:abort' |
-//         'network:corruption' | 'network:cors' | 'ui:assault',
+//         'network:corruption' | 'network:cors' | 'ui:assault' |
+//         'websocket:drop' | 'websocket:delay' | 'websocket:corrupt' | 'websocket:close',
 //   timestamp: number,
-//   applied: boolean,       // true = chaos was applied, false = probability skipped it
-//   detail: { url?, method?, statusCode?, delayMs?, strategy?, ... }
+//   applied: boolean,       // true = chaos was applied, false = probability/compat skipped it
+//   detail: { url?, method?, statusCode?, delayMs?, strategy?,
+//             direction?, payloadType?, closeCode?, closeReason?, reason?, ... }
 // }
 ```
 
@@ -293,7 +322,7 @@ await driver.get('http://localhost:3000');
 ```bash
 pnpm install              # install dependencies
 pnpm build                # build core + playwright
-pnpm test                 # unit tests (72 tests)
+pnpm test                 # unit tests (178 tests)
 pnpm lint                 # eslint
 pnpm --filter e2e-tests exec playwright test  # e2e tests
 ```
