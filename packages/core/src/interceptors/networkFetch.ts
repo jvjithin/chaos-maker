@@ -1,5 +1,5 @@
 import { NetworkAbortConfig, NetworkConfig, NetworkCorruptionConfig } from '../config';
-import { shouldApplyChaos, corruptText, matchUrl } from '../utils';
+import { shouldApplyChaos, corruptText, matchUrl, incrementCounter, checkCountingCondition } from '../utils';
 import { ChaosEventEmitter } from '../events';
 
 function isRequest(input: RequestInfo | URL): input is Request {
@@ -118,7 +118,7 @@ function emitCorruptionEvent(
   });
 }
 
-export function patchFetch(originalFetch: typeof window.fetch, config: NetworkConfig, emitter?: ChaosEventEmitter, random: () => number = Math.random) {
+export function patchFetch(originalFetch: typeof window.fetch, config: NetworkConfig, emitter?: ChaosEventEmitter, random: () => number = Math.random, counters: Map<object, number> = new Map()) {
   return async (
     input: RequestInfo | URL,
     init?: RequestInit
@@ -132,6 +132,8 @@ export function patchFetch(originalFetch: typeof window.fetch, config: NetworkCo
       for (const cors of config.cors) {
         if (matchUrl(url, cors.urlPattern)) {
           if (!cors.methods || cors.methods.includes(method)) {
+            const count = incrementCounter(cors, counters);
+            if (!checkCountingCondition(cors, count)) continue;
             const applied = shouldApplyChaos(cors.probability, random);
             emitter?.emit({
               type: 'network:cors',
@@ -173,6 +175,8 @@ export function patchFetch(originalFetch: typeof window.fetch, config: NetworkCo
       for (const abort of config.aborts) {
         if (matchUrl(url, abort.urlPattern)) {
           if (!abort.methods || abort.methods.includes(method)) {
+            const count = incrementCounter(abort, counters);
+            if (!checkCountingCondition(abort, count)) continue;
             const applied = shouldApplyChaos(abort.probability, random);
             if (!applied) {
               emitAbortEvent(emitter, abort, url, method, false);
@@ -220,6 +224,8 @@ export function patchFetch(originalFetch: typeof window.fetch, config: NetworkCo
       for (const failure of config.failures) {
         if (matchUrl(url, failure.urlPattern)) {
           if (!failure.methods || failure.methods.includes(method)) {
+            const count = incrementCounter(failure, counters);
+            if (!checkCountingCondition(failure, count)) continue;
             const applied = shouldApplyChaos(failure.probability, random);
             emitter?.emit({
               type: 'network:failure',
@@ -247,6 +253,8 @@ export function patchFetch(originalFetch: typeof window.fetch, config: NetworkCo
       for (const latency of config.latencies) {
         if (matchUrl(url, latency.urlPattern)) {
           if (!latency.methods || latency.methods.includes(method)) {
+            const count = incrementCounter(latency, counters);
+            if (!checkCountingCondition(latency, count)) continue;
             const applied = shouldApplyChaos(latency.probability, random);
             emitter?.emit({
               type: 'network:latency',
@@ -269,6 +277,8 @@ export function patchFetch(originalFetch: typeof window.fetch, config: NetworkCo
       for (const corruption of config.corruptions) {
         if (matchUrl(url, corruption.urlPattern)) {
           if (!corruption.methods || corruption.methods.includes(method)) {
+            const count = incrementCounter(corruption, counters);
+            if (!checkCountingCondition(corruption, count)) continue;
             const applied = shouldApplyChaos(corruption.probability, random);
             if (!applied) {
               emitCorruptionEvent(emitter, corruption, url, method, false);

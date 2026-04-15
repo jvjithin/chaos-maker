@@ -16,6 +16,8 @@ export class ChaosMaker {
   private originalXhrSend?: (body?: Document | XMLHttpRequestBodyInit) => void;
   private originalXhrOpen?: (method: string, url: string | URL) => void;
   private domObserver?: MutationObserver;
+  /** Shared request counters keyed by config rule object reference. Shared across fetch + XHR. */
+  private requestCounters: Map<object, number> = new Map();
 
   constructor(config: ChaosConfig) {
     this.config = validateConfig(config);
@@ -52,18 +54,21 @@ export class ChaosMaker {
       console.warn('Chaos Maker is already running. Call stop() first.');
       return;
     }
+    // Reset per-run state so counting rules (onNth / everyNth / afterN)
+    // restart from request 1 on every start() — not just on first construction.
+    this.requestCounters.clear();
     this.running = true;
     console.log('🛠️ Chaos Maker ENGAGED 🛠️');
 
     if (this.config.network) {
       this.originalFetch = window.fetch;
-      window.fetch = patchFetch(this.originalFetch.bind(window), this.config.network, this.emitter, this.random);
+      window.fetch = patchFetch(this.originalFetch.bind(window), this.config.network, this.emitter, this.random, this.requestCounters);
 
       this.originalXhrOpen = window.XMLHttpRequest.prototype.open;
       window.XMLHttpRequest.prototype.open = patchXHROpen(this.originalXhrOpen);
 
       this.originalXhrSend = window.XMLHttpRequest.prototype.send;
-      window.XMLHttpRequest.prototype.send = patchXHR(this.originalXhrSend, this.config.network, this.emitter, this.random);
+      window.XMLHttpRequest.prototype.send = patchXHR(this.originalXhrSend, this.config.network, this.emitter, this.random, this.requestCounters);
     }
 
     if (this.config.ui) {
