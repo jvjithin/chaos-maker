@@ -63,6 +63,28 @@ describe('ChaosMaker', () => {
     expect(global.XMLHttpRequest.prototype.send).toBe(originalXhrSend);
   });
 
+  it('resets counting state on restart so onNth:1 fires again after stop/start', async () => {
+    const config: ChaosConfig = {
+      network: {
+        failures: [{ urlPattern: '/api/test', statusCode: 500, probability: 1.0, onNth: 1 }],
+      },
+    };
+    chaosMaker = new ChaosMaker(config);
+
+    // First run: 1st request should fail (counter=1 matches onNth:1).
+    chaosMaker.start();
+    const r1 = await global.fetch('/api/test');
+    expect(r1.status).toBe(500);
+    chaosMaker.stop();
+
+    // If counters weren't reset on restart, counter would already be past 1
+    // and this request would NOT fail. We expect it to fail — counter is fresh.
+    chaosMaker.start();
+    const r2 = await global.fetch('/api/test');
+    expect(r2.status).toBe(500);
+    chaosMaker.stop();
+  });
+
   it('should correctly use the config to fail a fetch call', async () => {
     const config: ChaosConfig = {
       network: {

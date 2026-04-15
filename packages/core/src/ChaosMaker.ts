@@ -54,6 +54,9 @@ export class ChaosMaker {
       console.warn('Chaos Maker is already running. Call stop() first.');
       return;
     }
+    // Reset per-run state so counting rules (onNth / everyNth / afterN)
+    // restart from request 1 on every start() — not just on first construction.
+    this.requestCounters.clear();
     this.running = true;
     console.log('🛠️ Chaos Maker ENGAGED 🛠️');
 
