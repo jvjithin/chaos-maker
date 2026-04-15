@@ -123,33 +123,37 @@ test.describe('everyNth counting', () => {
   });
 
   test('fetch: latency applied on every 2nd request', async ({ page }) => {
+    // Use a large delay so the injected latency dominates CI cold-start /
+    // scheduler jitter (uninjected requests can cost 100–300ms on first hit
+    // in firefox/webkit). 800ms vs a ~500ms threshold leaves comfortable headroom.
+    const DELAY = 800;
+    const THRESHOLD = 500;
+
     await injectChaos(page, {
       network: {
-        latencies: [{ urlPattern: API_PATTERN, delayMs: 200, probability: 1.0, everyNth: 2 }],
+        latencies: [{ urlPattern: API_PATTERN, delayMs: DELAY, probability: 1.0, everyNth: 2 }],
       },
     });
     await page.goto(BASE_URL);
 
-    // Request 1: no latency
+    // Request 1: no latency (counter=1)
     const t1Start = Date.now();
     await makeRequest(page);
     const t1 = Date.now() - t1Start;
 
-    // Request 2: 200ms latency
+    // Request 2: latency injected (counter=2)
     const t2Start = Date.now();
     await makeRequest(page);
     const t2 = Date.now() - t2Start;
 
-    // Request 3: no latency again
+    // Request 3: no latency again (counter=3)
     const t3Start = Date.now();
     await makeRequest(page);
     const t3 = Date.now() - t3Start;
 
-    // Relative comparison avoids flakes from cold-start / CI jitter:
-    // the latency-injected request must be at least ~150ms slower than each uninjected one.
-    expect(t2).toBeGreaterThanOrEqual(200);
-    expect(t2 - t1).toBeGreaterThanOrEqual(150);
-    expect(t2 - t3).toBeGreaterThanOrEqual(150);
+    expect(t2).toBeGreaterThanOrEqual(DELAY);
+    expect(t2 - t1).toBeGreaterThanOrEqual(THRESHOLD);
+    expect(t2 - t3).toBeGreaterThanOrEqual(THRESHOLD);
   });
 });
 
