@@ -145,9 +145,11 @@ test.describe('everyNth counting', () => {
     await makeRequest(page);
     const t3 = Date.now() - t3Start;
 
-    expect(t1).toBeLessThan(200);
+    // Relative comparison avoids flakes from cold-start / CI jitter:
+    // the latency-injected request must be at least ~150ms slower than each uninjected one.
     expect(t2).toBeGreaterThanOrEqual(200);
-    expect(t3).toBeLessThan(200);
+    expect(t2 - t1).toBeGreaterThanOrEqual(150);
+    expect(t2 - t3).toBeGreaterThanOrEqual(150);
   });
 });
 
