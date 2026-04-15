@@ -10,6 +10,8 @@
     "@chaos-maker/core": "workspace:*",
     "@chaos-maker/playwright": "workspace:*",
     "@playwright/test": "^1.45.0",
-    "http-server": "^14.1.1"
+    "@types/ws": "^8.18.1",
+    "http-server": "^14.1.1",
+    "ws": "^8.20.0"
   }
 }

@@ -42,6 +42,17 @@
     <div id="dynamic-container"></div>
   </section>
 
+  <!-- WebSocket -->
+  <section>
+    <h2>WebSocket</h2>
+    <button id="ws-connect">Connect</button>
+    <button id="ws-send">Send "ping"</button>
+    <button id="ws-close">Close</button>
+    <div id="ws-status">idle</div>
+    <div id="ws-inbound-count">0</div>
+    <pre id="ws-log"></pre>
+  </section>
+
   <script>
     var API_URL = '/api/data.json';
 
@@ -149,6 +160,54 @@
       btn.className = 'dynamic-btn';
       btn.textContent = 'Dynamic Button';
       container.appendChild(btn);
+    });
+
+    // --- WebSocket ---
+    var WS_URL = 'ws://127.0.0.1:8081';
+    var ws = null;
+    var wsInboundCount = 0;
+
+    function wsLog(line) {
+      var pre = document.getElementById('ws-log');
+      pre.textContent += line + '\n';
+    }
+
+    function setWsStatus(text) {
+      document.getElementById('ws-status').textContent = text;
+    }
+
+    function setWsInboundCount(n) {
+      document.getElementById('ws-inbound-count').textContent = String(n);
+    }
+
+    document.getElementById('ws-connect').addEventListener('click', function () {
+      if (ws && ws.readyState !== WebSocket.CLOSED) return;
+      wsInboundCount = 0;
+      setWsInboundCount(0);
+      setWsStatus('connecting');
+      ws = new WebSocket(WS_URL);
+      ws.addEventListener('open', function () { setWsStatus('open'); });
+      ws.addEventListener('message', function (evt) {
+        wsInboundCount += 1;
+        setWsInboundCount(wsInboundCount);
+        wsLog('in ' + Date.now() + ' ' + String(evt.data));
+      });
+      ws.addEventListener('close', function (evt) {
+        setWsStatus('closed ' + evt.code + ' ' + (evt.reason || ''));
+      });
+      ws.addEventListener('error', function () { setWsStatus('error'); });
+    });
+
+    document.getElementById('ws-send').addEventListener('click', function () {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      var msg = 'ping';
+      wsLog('out ' + Date.now() + ' ' + msg);
+      ws.send(msg);
+    });
+
+    document.getElementById('ws-close').addEventListener('click', function () {
+      if (!ws) return;
+      ws.close();
     });
   </script>
 </body>

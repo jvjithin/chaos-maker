@@ -25,11 +25,18 @@ export default defineConfig({
       use: { ...devices['Desktop Edge'] },
     },
   ],
-  webServer: {
-    command: process.env.CI
-      ? 'npx http-server ./src -p 8080 -s'
-      : 'python3 -m http.server 8080 -d ./src',
-    url: 'http://127.0.0.1:8080',
-    reuseExistingServer: !process.env.CI,
-  },
+  webServer: [
+    {
+      command: process.env.CI
+        ? 'npx http-server ./src -p 8080 -s'
+        : 'python3 -m http.server 8080 -d ./src',
+      url: 'http://127.0.0.1:8080',
+      reuseExistingServer: !process.env.CI,
+    },
+    {
+      command: 'node ./src/ws-echo-server.js',
+      port: 8081,
+      reuseExistingServer: !process.env.CI,
+    },
+  ],
 });
