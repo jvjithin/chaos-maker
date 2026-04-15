@@ -1,5 +1,5 @@
 import { ChaosMaker } from './ChaosMaker';
-import { ChaosConfig, CorruptionStrategy, NetworkFailureConfig, NetworkLatencyConfig, NetworkAbortConfig, NetworkCorruptionConfig, NetworkCorsConfig, NetworkConfig, UiAssaultConfig, UiConfig } from './config';
+import { ChaosConfig, CorruptionStrategy, NetworkFailureConfig, NetworkLatencyConfig, NetworkAbortConfig, NetworkCorruptionConfig, NetworkCorsConfig, NetworkConfig, UiAssaultConfig, UiConfig, WebSocketConfig, WebSocketDropConfig, WebSocketDelayConfig, WebSocketCorruptConfig, WebSocketCloseConfig, WebSocketDirection, WebSocketCorruptionStrategy } from './config';
 import { ChaosConfigError } from './errors';
 import { validateConfig } from './validation';
 import { ChaosEvent, ChaosEventType, ChaosEventListener, ChaosEventEmitter } from './events';
@@ -8,7 +8,7 @@ import { presets } from './presets';
 import { createPrng, generateSeed } from './prng';
 
 export { ChaosMaker, ChaosConfigError, validateConfig, ChaosEventEmitter, ChaosConfigBuilder, presets, createPrng, generateSeed };
-export type { ChaosConfig, CorruptionStrategy, NetworkFailureConfig, NetworkLatencyConfig, NetworkAbortConfig, NetworkCorruptionConfig, NetworkCorsConfig, NetworkConfig, UiAssaultConfig, UiConfig, ChaosEvent, ChaosEventType, ChaosEventListener };
+export type { ChaosConfig, CorruptionStrategy, NetworkFailureConfig, NetworkLatencyConfig, NetworkAbortConfig, NetworkCorruptionConfig, NetworkCorsConfig, NetworkConfig, UiAssaultConfig, UiConfig, WebSocketConfig, WebSocketDropConfig, WebSocketDelayConfig, WebSocketCorruptConfig, WebSocketCloseConfig, WebSocketDirection, WebSocketCorruptionStrategy, ChaosEvent, ChaosEventType, ChaosEventListener };
 
 // --- NEW INTERFACE ---
 interface ChaosUtilsApi {

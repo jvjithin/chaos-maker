@@ -43,4 +43,11 @@ export const presets: Readonly<Record<string, ChaosConfig>> = deepFreeze({
       ],
     },
   },
+  unreliableWebSocket: {
+    websocket: {
+      drops: [{ urlPattern: MATCH_ALL_URLS, direction: 'both', probability: 0.1 }],
+      delays: [{ urlPattern: MATCH_ALL_URLS, direction: 'inbound', delayMs: 500, probability: 1.0 }],
+      corruptions: [{ urlPattern: MATCH_ALL_URLS, direction: 'inbound', strategy: 'truncate', probability: 0.05 }],
+    },
+  },
 });
