@@ -1,0 +1,412 @@
+/**
+ * WebSocket chaos interceptor.
+ *
+ * Design decisions (see V2_PHASE3_WEBSOCKET_PLAN.md §4, §9):
+ * - Patch `window.WebSocket` with a wrapper constructor. Real socket is returned
+ *   so `instanceof WebSocket` continues to work. `.send` is overridden on the
+ *   instance; inbound messages are intercepted via a listener installed *before*
+ *   user code runs.
+ * - Ordering of primitives on a matched message: drop → corrupt → delay.
+ *   A dropped message short-circuits the remaining primitives.
+ * - Counting for drop/delay/corrupt is per-rule, per-message. Counting for
+ *   close is per-rule, per-connection.
+ * - On `stop()`, all pending-delay timers are cleared and a `websocket:drop`
+ *   event is emitted for each with `detail.reason: 'stop-during-delay'`.
+ * - Close chaos clears pending-delay timers for the socket before closing.
+ * - Binary corruption runs `truncate` / `empty` natively; `malformed-json` and
+ *   `wrong-type` emit `applied: false` with `reason: 'incompatible-payload-type'`.
+ */
+
+import {
+  WebSocketConfig,
+  WebSocketDropConfig,
+  WebSocketDelayConfig,
+  WebSocketCorruptConfig,
+  WebSocketDirection,
+  WebSocketCorruptionStrategy,
+  RequestCountingOptions,
+} from '../config';
+import { ChaosEventEmitter } from '../events';
+import { shouldApplyChaos, matchUrl, incrementCounter, checkCountingCondition } from '../utils';
+
+type Direction = 'inbound' | 'outbound';
+type PayloadType = 'text' | 'binary';
+
+const INTERCEPT_MARKER = Symbol.for('chaos-maker.websocket.intercepted');
+
+interface PendingTimer {
+  handle: ReturnType<typeof setTimeout>;
+  url: string;
+  direction: Direction;
+  payloadType: PayloadType;
+}
+
+export interface WebSocketPatchHandle {
+  /** Wrapped WebSocket constructor suitable for `window.WebSocket = …`. */
+  readonly Wrapped: typeof WebSocket;
+  /** Clear all pending delay timers and emit drop events for them. Call on ChaosMaker.stop(). */
+  uninstall(): void;
+}
+
+function directionApplies(configDir: WebSocketDirection, actual: Direction): boolean {
+  if (configDir === 'both') return true;
+  return configDir === actual;
+}
+
+function getPayloadType(data: unknown): PayloadType {
+  return typeof data === 'string' ? 'text' : 'binary';
+}
+
+function corruptTextPayload(text: string, strategy: WebSocketCorruptionStrategy): string {
+  switch (strategy) {
+    case 'truncate':
+      return text.slice(0, Math.max(0, Math.floor(text.length / 2)));
+    case 'malformed-json':
+      return `${text}"}`;
+    case 'empty':
+      return '';
+    case 'wrong-type':
+      return '<html><body>Unexpected HTML</body></html>';
+  }
+}
+
+function corruptBinaryPayload(
+  data: ArrayBuffer | ArrayBufferView | Blob,
+  strategy: WebSocketCorruptionStrategy,
+): ArrayBuffer | ArrayBufferView | Blob | null {
+  if (strategy === 'malformed-json' || strategy === 'wrong-type') return null;
+  if (strategy === 'empty') {
+    if (typeof Blob !== 'undefined' && data instanceof Blob) return new Blob([]);
+    if (data instanceof ArrayBuffer) return new ArrayBuffer(0);
+    return new Uint8Array(0);
+  }
+  // truncate
+  if (typeof Blob !== 'undefined' && data instanceof Blob) {
+    return data.slice(0, Math.max(0, Math.floor(data.size / 2)));
+  }
+  if (data instanceof ArrayBuffer) {
+    return data.slice(0, Math.max(0, Math.floor(data.byteLength / 2)));
+  }
+  const view = data as ArrayBufferView;
+  const end = Math.max(0, Math.floor(view.byteLength / 2));
+  return new Uint8Array(view.buffer, view.byteOffset, end);
+}
+
+function findFiringRule<T extends RequestCountingOptions & { urlPattern: string; direction: WebSocketDirection; probability: number }>(
+  rules: T[] | undefined,
+  url: string,
+  direction: Direction,
+  random: () => number,
+  counters: Map<object, number>,
+): T | null {
+  if (!rules) return null;
+  for (const rule of rules) {
+    if (!matchUrl(url, rule.urlPattern)) continue;
+    if (!directionApplies(rule.direction, direction)) continue;
+    const count = incrementCounter(rule, counters);
+    if (!checkCountingCondition(rule, count)) continue;
+    if (!shouldApplyChaos(rule.probability, random)) continue;
+    return rule;
+  }
+  return null;
+}
+
+function emitDrop(
+  emitter: ChaosEventEmitter,
+  url: string,
+  direction: Direction,
+  payloadType: PayloadType,
+  reason?: string,
+): void {
+  emitter.emit({
+    type: 'websocket:drop',
+    timestamp: Date.now(),
+    applied: true,
+    detail: { url, direction, payloadType, ...(reason ? { reason } : {}) },
+  });
+}
+
+function emitDelay(
+  emitter: ChaosEventEmitter,
+  url: string,
+  direction: Direction,
+  payloadType: PayloadType,
+  delayMs: number,
+): void {
+  emitter.emit({
+    type: 'websocket:delay',
+    timestamp: Date.now(),
+    applied: true,
+    detail: { url, direction, payloadType, delayMs },
+  });
+}
+
+function emitCorrupt(
+  emitter: ChaosEventEmitter,
+  url: string,
+  direction: Direction,
+  payloadType: PayloadType,
+  strategy: string,
+  applied: boolean,
+  reason?: string,
+): void {
+  emitter.emit({
+    type: 'websocket:corrupt',
+    timestamp: Date.now(),
+    applied,
+    detail: { url, direction, payloadType, strategy, ...(reason ? { reason } : {}) },
+  });
+}
+
+function emitClose(
+  emitter: ChaosEventEmitter,
+  url: string,
+  code: number,
+  reason: string,
+): void {
+  emitter.emit({
+    type: 'websocket:close',
+    timestamp: Date.now(),
+    applied: true,
+    detail: { url, closeCode: code, closeReason: reason },
+  });
+}
+
+export function patchWebSocket(
+  OriginalWebSocket: typeof WebSocket,
+  config: WebSocketConfig,
+  emitter: ChaosEventEmitter,
+  random: () => number,
+  counters: Map<object, number>,
+): WebSocketPatchHandle {
+  const pendingTimersBySocket = new Map<WebSocket, Set<PendingTimer>>();
+
+  const trackTimer = (socket: WebSocket, timer: PendingTimer): void => {
+    let set = pendingTimersBySocket.get(socket);
+    if (!set) {
+      set = new Set();
+      pendingTimersBySocket.set(socket, set);
+    }
+    set.add(timer);
+  };
+
+  const untrackTimer = (socket: WebSocket, timer: PendingTimer): void => {
+    pendingTimersBySocket.get(socket)?.delete(timer);
+  };
+
+  const clearSocketTimers = (socket: WebSocket, reason: string): void => {
+    const set = pendingTimersBySocket.get(socket);
+    if (!set) return;
+    for (const timer of set) {
+      clearTimeout(timer.handle);
+      emitDrop(emitter, timer.url, timer.direction, timer.payloadType, reason);
+    }
+    pendingTimersBySocket.delete(socket);
+  };
+
+  const redispatch = (socket: WebSocket, original: MessageEvent, data: unknown): void => {
+    const newEvent = new MessageEvent('message', {
+      data,
+      origin: original.origin,
+      lastEventId: original.lastEventId,
+      source: original.source,
+      ports: Array.from(original.ports ?? []),
+    });
+    (newEvent as unknown as Record<symbol, unknown>)[INTERCEPT_MARKER] = true;
+    socket.dispatchEvent(newEvent);
+  };
+
+  const handleOutbound = (
+    socket: WebSocket,
+    url: string,
+    data: string | ArrayBuffer | ArrayBufferView | Blob,
+    originalSend: (d: string | ArrayBuffer | ArrayBufferView | Blob) => void,
+  ): { handled: boolean; data: string | ArrayBuffer | ArrayBufferView | Blob } => {
+    const direction: Direction = 'outbound';
+    const payloadType = getPayloadType(data);
+
+    if (findFiringRule<WebSocketDropConfig>(config.drops, url, direction, random, counters)) {
+      emitDrop(emitter, url, direction, payloadType);
+      return { handled: true, data };
+    }
+
+    let payload = data;
+    const corruptRule = findFiringRule<WebSocketCorruptConfig>(config.corruptions, url, direction, random, counters);
+    if (corruptRule) {
+      if (payloadType === 'text') {
+        payload = corruptTextPayload(payload as string, corruptRule.strategy);
+        emitCorrupt(emitter, url, direction, payloadType, corruptRule.strategy, true);
+      } else {
+        const corrupted = corruptBinaryPayload(payload as ArrayBuffer | ArrayBufferView | Blob, corruptRule.strategy);
+        if (corrupted === null) {
+          emitCorrupt(emitter, url, direction, payloadType, corruptRule.strategy, false, 'incompatible-payload-type');
+        } else {
+          payload = corrupted;
+          emitCorrupt(emitter, url, direction, payloadType, corruptRule.strategy, true);
+        }
+      }
+    }
+
+    const delayRule = findFiringRule<WebSocketDelayConfig>(config.delays, url, direction, random, counters);
+    if (delayRule) {
+      emitDelay(emitter, url, direction, payloadType, delayRule.delayMs);
+      const timer: PendingTimer = {
+        handle: setTimeout(() => {
+          untrackTimer(socket, timer);
+          try {
+            originalSend(payload);
+          } catch {
+            // socket may have closed; matches real lost-message semantics
+          }
+        }, delayRule.delayMs),
+        url, direction, payloadType,
+      };
+      trackTimer(socket, timer);
+      return { handled: true, data: payload };
+    }
+
+    return { handled: false, data: payload };
+  };
+
+  const attachInboundListener = (socket: WebSocket, url: string): void => {
+    socket.addEventListener('message', (evt: Event) => {
+      const msgEvt = evt as MessageEvent;
+      if ((msgEvt as unknown as Record<symbol, unknown>)[INTERCEPT_MARKER]) return;
+
+      const direction: Direction = 'inbound';
+      const payloadType = getPayloadType(msgEvt.data);
+
+      if (findFiringRule<WebSocketDropConfig>(config.drops, url, direction, random, counters)) {
+        msgEvt.stopImmediatePropagation();
+        emitDrop(emitter, url, direction, payloadType);
+        return;
+      }
+
+      let payload: unknown = msgEvt.data;
+      let wasCorrupted = false;
+      const corruptRule = findFiringRule<WebSocketCorruptConfig>(config.corruptions, url, direction, random, counters);
+      if (corruptRule) {
+        if (payloadType === 'text') {
+          payload = corruptTextPayload(payload as string, corruptRule.strategy);
+          wasCorrupted = true;
+          emitCorrupt(emitter, url, direction, payloadType, corruptRule.strategy, true);
+        } else {
+          const corrupted = corruptBinaryPayload(payload as ArrayBuffer | ArrayBufferView | Blob, corruptRule.strategy);
+          if (corrupted === null) {
+            emitCorrupt(emitter, url, direction, payloadType, corruptRule.strategy, false, 'incompatible-payload-type');
+          } else {
+            payload = corrupted;
+            wasCorrupted = true;
+            emitCorrupt(emitter, url, direction, payloadType, corruptRule.strategy, true);
+          }
+        }
+      }
+
+      const delayRule = findFiringRule<WebSocketDelayConfig>(config.delays, url, direction, random, counters);
+      if (delayRule) {
+        msgEvt.stopImmediatePropagation();
+        emitDelay(emitter, url, direction, payloadType, delayRule.delayMs);
+        const timer: PendingTimer = {
+          handle: setTimeout(() => {
+            untrackTimer(socket, timer);
+            redispatch(socket, msgEvt, payload);
+          }, delayRule.delayMs),
+          url, direction, payloadType,
+        };
+        trackTimer(socket, timer);
+        return;
+      }
+
+      if (wasCorrupted) {
+        msgEvt.stopImmediatePropagation();
+        redispatch(socket, msgEvt, payload);
+      }
+    });
+  };
+
+  const scheduleCloseChaos = (socket: WebSocket, url: string): void => {
+    if (!config.closes) return;
+    for (const rule of config.closes) {
+      if (!matchUrl(url, rule.urlPattern)) continue;
+      const count = incrementCounter(rule, counters);
+      if (!checkCountingCondition(rule, count)) continue;
+      if (!shouldApplyChaos(rule.probability, random)) continue;
+      const code = rule.code ?? 1006;
+      const reason = rule.reason ?? 'Chaos Maker close';
+      const afterMs = rule.afterMs ?? 0;
+
+      const fire = () => {
+        clearSocketTimers(socket, 'close-interrupt');
+        emitClose(emitter, url, code, reason);
+        try {
+          socket.close(code, reason);
+        } catch {
+          try { socket.close(); } catch { /* already closing */ }
+        }
+      };
+
+      if (afterMs <= 0) {
+        if (socket.readyState === socket.OPEN) {
+          fire();
+        } else {
+          socket.addEventListener('open', fire, { once: true });
+        }
+      } else {
+        const scheduleDeferred = () => {
+          const timer: PendingTimer = {
+            handle: setTimeout(fire, afterMs),
+            url, direction: 'outbound', payloadType: 'text',
+          };
+          trackTimer(socket, timer);
+        };
+        if (socket.readyState === socket.OPEN) {
+          scheduleDeferred();
+        } else {
+          socket.addEventListener('open', scheduleDeferred, { once: true });
+        }
+      }
+      return; // one close rule per socket
+    }
+  };
+
+  function ChaosWebSocket(this: unknown, url: string | URL, protocols?: string | string[]): WebSocket {
+    const socket = new OriginalWebSocket(url, protocols);
+    const urlStr = typeof url === 'string' ? url : url.toString();
+
+    const boundOriginalSend = socket.send.bind(socket) as (
+      d: string | ArrayBuffer | ArrayBufferView | Blob,
+    ) => void;
+    socket.send = function patchedSend(data: string | ArrayBuffer | ArrayBufferView | Blob): void {
+      const result = handleOutbound(socket, urlStr, data, boundOriginalSend);
+      if (!result.handled) boundOriginalSend(result.data);
+    };
+
+    attachInboundListener(socket, urlStr);
+    scheduleCloseChaos(socket, urlStr);
+
+    return socket;
+  }
+
+  // `instanceof` compatibility + static constants.
+  Object.defineProperty(ChaosWebSocket, 'prototype', {
+    value: OriginalWebSocket.prototype,
+    writable: false,
+  });
+  for (const key of ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'] as const) {
+    (ChaosWebSocket as unknown as Record<string, unknown>)[key] =
+      (OriginalWebSocket as unknown as Record<string, unknown>)[key];
+  }
+
+  return {
+    Wrapped: ChaosWebSocket as unknown as typeof WebSocket,
+    uninstall(): void {
+      for (const [, timers] of pendingTimersBySocket) {
+        for (const timer of timers) {
+          clearTimeout(timer.handle);
+          emitDrop(emitter, timer.url, timer.direction, timer.payloadType, 'stop-during-delay');
+        }
+      }
+      pendingTimersBySocket.clear();
+    },
+  };
+}
