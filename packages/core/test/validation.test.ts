@@ -297,4 +297,54 @@ describe('validateConfig', () => {
       expect(() => validateConfig(config)).not.toThrow();
     });
   });
+
+  describe('websocket config', () => {
+    it('accepts valid drop/delay/corrupt/close rules', () => {
+      const config = {
+        websocket: {
+          drops: [{ urlPattern: '/ws', direction: 'inbound' as const, probability: 0.5 }],
+          delays: [{ urlPattern: '/ws', direction: 'outbound' as const, delayMs: 100, probability: 1 }],
+          corruptions: [{ urlPattern: '/ws', direction: 'both' as const, strategy: 'truncate' as const, probability: 0.2 }],
+          closes: [{ urlPattern: '/ws', code: 4000, reason: 'chaos', afterMs: 500, probability: 1 }],
+        },
+      };
+      expect(() => validateConfig(config)).not.toThrow();
+    });
+
+    it('rejects invalid direction', () => {
+      const config = {
+        websocket: {
+          drops: [{ urlPattern: '/ws', direction: 'sideways' as unknown as 'inbound', probability: 1 }],
+        },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+
+    it('rejects empty urlPattern', () => {
+      const config = {
+        websocket: {
+          drops: [{ urlPattern: '', direction: 'both' as const, probability: 1 }],
+        },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+
+    it('rejects negative afterMs on close', () => {
+      const config = {
+        websocket: {
+          closes: [{ urlPattern: '/ws', probability: 1, afterMs: -5 }],
+        },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+
+    it('rejects multiple counting fields on a single ws rule', () => {
+      const config = {
+        websocket: {
+          drops: [{ urlPattern: '/ws', direction: 'both' as const, probability: 1, onNth: 1, everyNth: 2 }],
+        },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+  });
 });
