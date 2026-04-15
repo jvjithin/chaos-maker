@@ -1,4 +1,14 @@
-export type ChaosEventType = 'network:failure' | 'network:latency' | 'network:abort' | 'network:corruption' | 'network:cors' | 'ui:assault';
+export type ChaosEventType =
+  | 'network:failure'
+  | 'network:latency'
+  | 'network:abort'
+  | 'network:corruption'
+  | 'network:cors'
+  | 'ui:assault'
+  | 'websocket:drop'
+  | 'websocket:delay'
+  | 'websocket:corrupt'
+  | 'websocket:close';
 
 export interface ChaosEvent {
   type: ChaosEventType;
@@ -13,6 +23,16 @@ export interface ChaosEvent {
     strategy?: string;
     selector?: string;
     action?: string;
+    /** WebSocket message direction (for `websocket:*` events). */
+    direction?: 'inbound' | 'outbound';
+    /** WebSocket payload kind (for `websocket:*` events). */
+    payloadType?: 'text' | 'binary';
+    /** WebSocket close code (for `websocket:close` events). */
+    closeCode?: number;
+    /** WebSocket close reason (for `websocket:close` events). */
+    closeReason?: string;
+    /** Reason string for diagnostic `applied: false` events. */
+    reason?: string;
   };
 }
 
