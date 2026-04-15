@@ -81,9 +81,51 @@ const uiConfigSchema = z.object({
   assaults: z.array(uiAssaultSchema).optional(),
 }).strict();
 
+const webSocketDirection = z.enum(['inbound', 'outbound', 'both']);
+
+const webSocketDropSchema = z.object({
+  urlPattern: z.string().min(1, 'urlPattern must not be empty'),
+  direction: webSocketDirection,
+  probability,
+  ...countingFields,
+}).strict().refine(...countingRefinement);
+
+const webSocketDelaySchema = z.object({
+  urlPattern: z.string().min(1, 'urlPattern must not be empty'),
+  direction: webSocketDirection,
+  delayMs: z.number().min(0, 'delayMs must be >= 0'),
+  probability,
+  ...countingFields,
+}).strict().refine(...countingRefinement);
+
+const webSocketCorruptSchema = z.object({
+  urlPattern: z.string().min(1, 'urlPattern must not be empty'),
+  direction: webSocketDirection,
+  strategy: z.enum(['truncate', 'malformed-json', 'empty', 'wrong-type']),
+  probability,
+  ...countingFields,
+}).strict().refine(...countingRefinement);
+
+const webSocketCloseSchema = z.object({
+  urlPattern: z.string().min(1, 'urlPattern must not be empty'),
+  code: z.number().int().optional(),
+  reason: z.string().optional(),
+  afterMs: z.number().min(0, 'afterMs must be >= 0').optional(),
+  probability,
+  ...countingFields,
+}).strict().refine(...countingRefinement);
+
+const webSocketConfigSchema = z.object({
+  drops: z.array(webSocketDropSchema).optional(),
+  delays: z.array(webSocketDelaySchema).optional(),
+  corruptions: z.array(webSocketCorruptSchema).optional(),
+  closes: z.array(webSocketCloseSchema).optional(),
+}).strict();
+
 const chaosConfigSchema = z.object({
   network: networkConfigSchema.optional(),
   ui: uiConfigSchema.optional(),
+  websocket: webSocketConfigSchema.optional(),
   seed: z.number().int('Seed must be an integer').optional(),
 }).strict();
 
