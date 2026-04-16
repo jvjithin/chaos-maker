@@ -93,4 +93,14 @@ const win = globalThis as any;
   });
 }
 
-export type { ChaosConfig, ChaosEvent } from '@chaos-maker/core';
+export type {
+  ChaosConfig,
+  ChaosEvent,
+  WebSocketConfig,
+  WebSocketDropConfig,
+  WebSocketDelayConfig,
+  WebSocketCorruptConfig,
+  WebSocketCloseConfig,
+  WebSocketDirection,
+  WebSocketCorruptionStrategy,
+} from '@chaos-maker/core';

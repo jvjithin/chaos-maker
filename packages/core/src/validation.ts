@@ -81,9 +81,66 @@ const uiConfigSchema = z.object({
   assaults: z.array(uiAssaultSchema).optional(),
 }).strict();
 
+const webSocketDirection = z.enum(['inbound', 'outbound', 'both']);
+
+const webSocketDropSchema = z.object({
+  urlPattern: z.string().min(1, 'urlPattern must not be empty'),
+  direction: webSocketDirection,
+  probability,
+  ...countingFields,
+}).strict().refine(...countingRefinement);
+
+const webSocketDelaySchema = z.object({
+  urlPattern: z.string().min(1, 'urlPattern must not be empty'),
+  direction: webSocketDirection,
+  delayMs: z.number().min(0, 'delayMs must be >= 0'),
+  probability,
+  ...countingFields,
+}).strict().refine(...countingRefinement);
+
+const webSocketCorruptSchema = z.object({
+  urlPattern: z.string().min(1, 'urlPattern must not be empty'),
+  direction: webSocketDirection,
+  strategy: z.enum(['truncate', 'malformed-json', 'empty', 'wrong-type']),
+  probability,
+  ...countingFields,
+}).strict().refine(...countingRefinement);
+
+// WebSocket close code spec: only 1000 or the 3000–4999 range are valid as input
+// to `WebSocket.close(code, reason)`. Codes 1001–1015 are reserved for the
+// browser/protocol; passing them throws `InvalidAccessError` at runtime.
+const webSocketCloseCode = z.number().int().refine(
+  (code) => code === 1000 || (code >= 3000 && code <= 4999),
+  { message: 'code must be 1000 or in the range 3000-4999' },
+);
+
+// WebSocket close reason: the UTF-8 encoded string must be <= 123 bytes.
+// Control frame payload is 125 bytes; 2 are reserved for the code.
+const webSocketCloseReason = z.string().refine(
+  (reason) => new TextEncoder().encode(reason).length <= 123,
+  { message: 'reason must be <= 123 UTF-8 bytes' },
+);
+
+const webSocketCloseSchema = z.object({
+  urlPattern: z.string().min(1, 'urlPattern must not be empty'),
+  code: webSocketCloseCode.optional(),
+  reason: webSocketCloseReason.optional(),
+  afterMs: z.number().min(0, 'afterMs must be >= 0').optional(),
+  probability,
+  ...countingFields,
+}).strict().refine(...countingRefinement);
+
+const webSocketConfigSchema = z.object({
+  drops: z.array(webSocketDropSchema).optional(),
+  delays: z.array(webSocketDelaySchema).optional(),
+  corruptions: z.array(webSocketCorruptSchema).optional(),
+  closes: z.array(webSocketCloseSchema).optional(),
+}).strict();
+
 const chaosConfigSchema = z.object({
   network: networkConfigSchema.optional(),
   ui: uiConfigSchema.optional(),
+  websocket: webSocketConfigSchema.optional(),
   seed: z.number().int('Seed must be an integer').optional(),
 }).strict();
 

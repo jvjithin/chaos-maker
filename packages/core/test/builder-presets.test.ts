@@ -118,6 +118,49 @@ describe('ChaosConfigBuilder', () => {
     expect(firstConfig.network?.aborts).toBeUndefined();
     expect(firstConfig.network?.corruptions).toBeUndefined();
   });
+
+  it('should add websocket drop rules', () => {
+    const config = new ChaosConfigBuilder()
+      .dropMessages('/ws', 'inbound', 0.5)
+      .build();
+    expect(config.websocket?.drops).toEqual([
+      { urlPattern: '/ws', direction: 'inbound', probability: 0.5 },
+    ]);
+  });
+
+  it('should add websocket delay rules with counting', () => {
+    const config = new ChaosConfigBuilder()
+      .delayMessages('/ws', 'outbound', 100, 1.0, { everyNth: 3 })
+      .build();
+    expect(config.websocket?.delays?.[0]).toMatchObject({
+      urlPattern: '/ws', direction: 'outbound', delayMs: 100, probability: 1, everyNth: 3,
+    });
+  });
+
+  it('should add websocket corrupt rules', () => {
+    const config = new ChaosConfigBuilder()
+      .corruptMessages('/ws', 'both', 'truncate', 0.2)
+      .build();
+    expect(config.websocket?.corruptions?.[0].strategy).toBe('truncate');
+  });
+
+  it('should add websocket close rules with code and reason', () => {
+    const config = new ChaosConfigBuilder()
+      .closeConnection('/ws', 1.0, { code: 4001, reason: 'kick', afterMs: 1000 })
+      .build();
+    expect(config.websocket?.closes?.[0]).toMatchObject({
+      urlPattern: '/ws', probability: 1, code: 4001, reason: 'kick', afterMs: 1000,
+    });
+  });
+
+  it('dropMessagesOnNth and delayMessagesOnNth set onNth', () => {
+    const config = new ChaosConfigBuilder()
+      .dropMessagesOnNth('/ws', 'outbound', 3)
+      .delayMessagesOnNth('/ws', 'inbound', 200, 2)
+      .build();
+    expect(config.websocket?.drops?.[0]).toMatchObject({ onNth: 3, probability: 1 });
+    expect(config.websocket?.delays?.[0]).toMatchObject({ onNth: 2, probability: 1 });
+  });
 });
 
 describe('Presets', () => {
@@ -127,6 +170,14 @@ describe('Presets', () => {
     expect(presets.offlineMode).toBeDefined();
     expect(presets.flakyConnection).toBeDefined();
     expect(presets.degradedUi).toBeDefined();
+    expect(presets.unreliableWebSocket).toBeDefined();
+  });
+
+  it('unreliableWebSocket has drop/delay/corrupt rules', () => {
+    const cfg = presets.unreliableWebSocket;
+    expect(cfg.websocket?.drops?.length).toBeGreaterThan(0);
+    expect(cfg.websocket?.delays?.length).toBeGreaterThan(0);
+    expect(cfg.websocket?.corruptions?.length).toBeGreaterThan(0);
   });
 
   it('unstableApi should have failures and latencies', () => {

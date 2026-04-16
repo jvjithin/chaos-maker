@@ -5,6 +5,7 @@ import { ChaosEventEmitter, ChaosEvent, ChaosEventType, ChaosEventListener } fro
 import { patchFetch } from './interceptors/networkFetch';
 import { patchXHR, patchXHROpen } from './interceptors/networkXHR';
 import { attachDomAssailant } from './interceptors/domAssailant';
+import { patchWebSocket, WebSocketPatchHandle } from './interceptors/websocket';
 
 export class ChaosMaker {
   private config: ChaosConfig;
@@ -16,7 +17,9 @@ export class ChaosMaker {
   private originalXhrSend?: (body?: Document | XMLHttpRequestBodyInit) => void;
   private originalXhrOpen?: (method: string, url: string | URL) => void;
   private domObserver?: MutationObserver;
-  /** Shared request counters keyed by config rule object reference. Shared across fetch + XHR. */
+  private originalWebSocket?: typeof WebSocket;
+  private webSocketHandle?: WebSocketPatchHandle;
+  /** Shared counters keyed by config rule object reference. Shared across fetch + XHR + WS. */
   private requestCounters: Map<object, number> = new Map();
 
   constructor(config: ChaosConfig) {
@@ -79,6 +82,18 @@ export class ChaosMaker {
       });
       console.log('UI Assailant is now observing the DOM.');
     }
+
+    if (this.config.websocket && typeof window !== 'undefined' && typeof window.WebSocket !== 'undefined') {
+      this.originalWebSocket = window.WebSocket;
+      this.webSocketHandle = patchWebSocket(
+        this.originalWebSocket,
+        this.config.websocket,
+        this.emitter,
+        this.random,
+        this.requestCounters,
+      );
+      window.WebSocket = this.webSocketHandle.Wrapped;
+    }
   }
 
   public stop(): void {
@@ -97,6 +112,14 @@ export class ChaosMaker {
     if (this.domObserver) {
       this.domObserver.disconnect();
       console.log('UI Assailant has stopped observing.');
+    }
+    if (this.originalWebSocket) {
+      window.WebSocket = this.originalWebSocket;
+      this.originalWebSocket = undefined;
+    }
+    if (this.webSocketHandle) {
+      this.webSocketHandle.uninstall();
+      this.webSocketHandle = undefined;
     }
   }
 }

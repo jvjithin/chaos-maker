@@ -69,9 +69,71 @@ export interface UiConfig {
   assaults?: UiAssaultConfig[];
 }
 
+/** Direction of a WebSocket message relative to the client.
+ *  - `outbound` = client → server (intercepted at `.send()`).
+ *  - `inbound`  = server → client (intercepted at `message` event dispatch).
+ *  - `both`     = apply independently in either direction.
+ */
+export type WebSocketDirection = 'inbound' | 'outbound' | 'both';
+
+export interface WebSocketDropConfig extends RequestCountingOptions {
+  urlPattern: string;
+  direction: WebSocketDirection;
+  probability: number;
+}
+
+export interface WebSocketDelayConfig extends RequestCountingOptions {
+  urlPattern: string;
+  direction: WebSocketDirection;
+  delayMs: number;
+  probability: number;
+}
+
+/** Strategies for corrupting WebSocket payloads.
+ *  `truncate` and `empty` apply to both text and binary payloads.
+ *  `malformed-json` and `wrong-type` apply to text payloads only; when the
+ *  actual payload at runtime is binary, corruption is skipped and an event is
+ *  emitted with `applied: false`.
+ */
+export type WebSocketCorruptionStrategy = 'truncate' | 'malformed-json' | 'empty' | 'wrong-type';
+
+export interface WebSocketCorruptConfig extends RequestCountingOptions {
+  urlPattern: string;
+  direction: WebSocketDirection;
+  strategy: WebSocketCorruptionStrategy;
+  probability: number;
+}
+
+export interface WebSocketCloseConfig extends RequestCountingOptions {
+  urlPattern: string;
+  /**
+   * WebSocket close code. Must be either `1000` (Normal Closure) or in the
+   * `3000–4999` range per the WebSocket spec; other values are rejected by
+   * the browser's `close()` call. Defaults to `1000`. Use `4000–4999` for
+   * application-defined chaos codes.
+   */
+  code?: number;
+  /**
+   * WebSocket close reason string. Must encode to <= 123 UTF-8 bytes per the
+   * spec. Defaults to `"Chaos Maker close"`.
+   */
+  reason?: string;
+  /** Delay after `open` before closing, in ms. Default 0 = close immediately. */
+  afterMs?: number;
+  probability: number;
+}
+
+export interface WebSocketConfig {
+  drops?: WebSocketDropConfig[];
+  delays?: WebSocketDelayConfig[];
+  corruptions?: WebSocketCorruptConfig[];
+  closes?: WebSocketCloseConfig[];
+}
+
 export interface ChaosConfig {
   network?: NetworkConfig;
   ui?: UiConfig;
+  websocket?: WebSocketConfig;
   /** Seed for the PRNG. When provided, all probability rolls become deterministic and replayable. */
   seed?: number;
 }

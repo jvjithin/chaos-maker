@@ -1,4 +1,4 @@
-import { ChaosConfig, CorruptionStrategy, RequestCountingOptions } from './config';
+import { ChaosConfig, CorruptionStrategy, RequestCountingOptions, WebSocketDirection, WebSocketCorruptionStrategy } from './config';
 
 function cloneConfig(config: ChaosConfig): ChaosConfig {
   return JSON.parse(JSON.stringify(config));
@@ -8,9 +8,10 @@ export class ChaosConfigBuilder {
   private config: ChaosConfig;
 
   constructor(initialConfig?: ChaosConfig) {
-    this.config = initialConfig ? cloneConfig(initialConfig) : { network: {}, ui: {} };
+    this.config = initialConfig ? cloneConfig(initialConfig) : { network: {}, ui: {}, websocket: {} };
     if (!this.config.network) this.config.network = {};
     if (!this.config.ui) this.config.ui = {};
+    if (!this.config.websocket) this.config.websocket = {};
   }
 
   failRequests(urlPattern: string, statusCode: number, probability: number, methods?: string[], body?: string, headers?: Record<string, string>, counting?: RequestCountingOptions) {
@@ -113,6 +114,42 @@ export class ChaosConfigBuilder {
     if (!this.config.ui!.assaults) this.config.ui!.assaults = [];
     this.config.ui!.assaults.push({ selector, action, probability });
     return this;
+  }
+
+  // --- WebSocket chaos ---
+
+  dropMessages(urlPattern: string, direction: WebSocketDirection, probability: number, counting?: RequestCountingOptions) {
+    if (!this.config.websocket!.drops) this.config.websocket!.drops = [];
+    this.config.websocket!.drops.push({ urlPattern, direction, probability, ...counting });
+    return this;
+  }
+
+  delayMessages(urlPattern: string, direction: WebSocketDirection, delayMs: number, probability: number, counting?: RequestCountingOptions) {
+    if (!this.config.websocket!.delays) this.config.websocket!.delays = [];
+    this.config.websocket!.delays.push({ urlPattern, direction, delayMs, probability, ...counting });
+    return this;
+  }
+
+  corruptMessages(urlPattern: string, direction: WebSocketDirection, strategy: WebSocketCorruptionStrategy, probability: number, counting?: RequestCountingOptions) {
+    if (!this.config.websocket!.corruptions) this.config.websocket!.corruptions = [];
+    this.config.websocket!.corruptions.push({ urlPattern, direction, strategy, probability, ...counting });
+    return this;
+  }
+
+  closeConnection(urlPattern: string, probability: number, opts?: { code?: number; reason?: string; afterMs?: number }, counting?: RequestCountingOptions) {
+    if (!this.config.websocket!.closes) this.config.websocket!.closes = [];
+    this.config.websocket!.closes.push({ urlPattern, probability, ...opts, ...counting });
+    return this;
+  }
+
+  // Counting shortcuts (only the two highest-value ones — see plan §8).
+
+  dropMessagesOnNth(urlPattern: string, direction: WebSocketDirection, n: number) {
+    return this.dropMessages(urlPattern, direction, 1, { onNth: n });
+  }
+
+  delayMessagesOnNth(urlPattern: string, direction: WebSocketDirection, delayMs: number, n: number) {
+    return this.delayMessages(urlPattern, direction, delayMs, 1, { onNth: n });
   }
 
   /** Set the PRNG seed for reproducible chaos. */

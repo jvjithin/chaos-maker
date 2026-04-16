@@ -297,4 +297,100 @@ describe('validateConfig', () => {
       expect(() => validateConfig(config)).not.toThrow();
     });
   });
+
+  describe('websocket config', () => {
+    it('accepts valid drop/delay/corrupt/close rules', () => {
+      const config = {
+        websocket: {
+          drops: [{ urlPattern: '/ws', direction: 'inbound' as const, probability: 0.5 }],
+          delays: [{ urlPattern: '/ws', direction: 'outbound' as const, delayMs: 100, probability: 1 }],
+          corruptions: [{ urlPattern: '/ws', direction: 'both' as const, strategy: 'truncate' as const, probability: 0.2 }],
+          closes: [{ urlPattern: '/ws', code: 4000, reason: 'chaos', afterMs: 500, probability: 1 }],
+        },
+      };
+      expect(() => validateConfig(config)).not.toThrow();
+    });
+
+    it('rejects invalid direction', () => {
+      const config = {
+        websocket: {
+          drops: [{ urlPattern: '/ws', direction: 'sideways' as unknown as 'inbound', probability: 1 }],
+        },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+
+    it('rejects empty urlPattern', () => {
+      const config = {
+        websocket: {
+          drops: [{ urlPattern: '', direction: 'both' as const, probability: 1 }],
+        },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+
+    it('rejects negative afterMs on close', () => {
+      const config = {
+        websocket: {
+          closes: [{ urlPattern: '/ws', probability: 1, afterMs: -5 }],
+        },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+
+    it('rejects multiple counting fields on a single ws rule', () => {
+      const config = {
+        websocket: {
+          drops: [{ urlPattern: '/ws', direction: 'both' as const, probability: 1, onNth: 1, everyNth: 2 }],
+        },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+
+    it('accepts close code 1000', () => {
+      const config = {
+        websocket: { closes: [{ urlPattern: '/ws', probability: 1, code: 1000 }] },
+      };
+      expect(() => validateConfig(config)).not.toThrow();
+    });
+
+    it('accepts close code in 3000-4999 range', () => {
+      const config = {
+        websocket: { closes: [{ urlPattern: '/ws', probability: 1, code: 4999 }] },
+      };
+      expect(() => validateConfig(config)).not.toThrow();
+    });
+
+    it('rejects reserved close code 1006', () => {
+      // 1006 (Abnormal Closure) is reserved for the browser/protocol and is
+      // not a valid input to WebSocket.close(code).
+      const config = {
+        websocket: { closes: [{ urlPattern: '/ws', probability: 1, code: 1006 }] },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+
+    it('rejects close code outside 1000 | 3000-4999', () => {
+      const config = {
+        websocket: { closes: [{ urlPattern: '/ws', probability: 1, code: 2000 }] },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+
+    it('rejects close reason whose UTF-8 encoding exceeds 123 bytes', () => {
+      // 124 × 'a' encodes to 124 bytes — just over the spec limit.
+      const config = {
+        websocket: { closes: [{ urlPattern: '/ws', probability: 1, reason: 'a'.repeat(124) }] },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+
+    it('rejects close reason whose UTF-8 encoding exceeds 123 bytes for multi-byte chars', () => {
+      // '🌀' is 4 UTF-8 bytes; 31 × '🌀' = 124 bytes > 123.
+      const config = {
+        websocket: { closes: [{ urlPattern: '/ws', probability: 1, reason: '🌀'.repeat(31) }] },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+  });
 });
