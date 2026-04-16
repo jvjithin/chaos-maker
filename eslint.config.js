@@ -24,7 +24,7 @@ export default [
   },
   {
     // Plain-JS Node scripts (e.g., Playwright webServer entry points) run as CJS.
-    files: ["e2e-tests/src/*.js"],
+    files: ["e2e-tests/src/**/*.js"],
     rules: {
       "@typescript-eslint/no-require-imports": "off",
     },
