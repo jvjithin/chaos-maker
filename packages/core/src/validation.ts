@@ -106,10 +106,25 @@ const webSocketCorruptSchema = z.object({
   ...countingFields,
 }).strict().refine(...countingRefinement);
 
+// WebSocket close code spec: only 1000 or the 3000–4999 range are valid as input
+// to `WebSocket.close(code, reason)`. Codes 1001–1015 are reserved for the
+// browser/protocol; passing them throws `InvalidAccessError` at runtime.
+const webSocketCloseCode = z.number().int().refine(
+  (code) => code === 1000 || (code >= 3000 && code <= 4999),
+  { message: 'code must be 1000 or in the range 3000-4999' },
+);
+
+// WebSocket close reason: the UTF-8 encoded string must be <= 123 bytes.
+// Control frame payload is 125 bytes; 2 are reserved for the code.
+const webSocketCloseReason = z.string().refine(
+  (reason) => new TextEncoder().encode(reason).length <= 123,
+  { message: 'reason must be <= 123 UTF-8 bytes' },
+);
+
 const webSocketCloseSchema = z.object({
   urlPattern: z.string().min(1, 'urlPattern must not be empty'),
-  code: z.number().int().optional(),
-  reason: z.string().optional(),
+  code: webSocketCloseCode.optional(),
+  reason: webSocketCloseReason.optional(),
   afterMs: z.number().min(0, 'afterMs must be >= 0').optional(),
   probability,
   ...countingFields,

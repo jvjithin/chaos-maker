@@ -106,9 +106,17 @@ export interface WebSocketCorruptConfig extends RequestCountingOptions {
 
 export interface WebSocketCloseConfig extends RequestCountingOptions {
   urlPattern: string;
-  /** WebSocket close code (default 1006 — abnormal closure). */
+  /**
+   * WebSocket close code. Must be either `1000` (Normal Closure) or in the
+   * `3000–4999` range per the WebSocket spec; other values are rejected by
+   * the browser's `close()` call. Defaults to `1000`. Use `4000–4999` for
+   * application-defined chaos codes.
+   */
   code?: number;
-  /** WebSocket close reason string (default "Chaos Maker close"). */
+  /**
+   * WebSocket close reason string. Must encode to <= 123 UTF-8 bytes per the
+   * spec. Defaults to `"Chaos Maker close"`.
+   */
   reason?: string;
   /** Delay after `open` before closing, in ms. Default 0 = close immediately. */
   afterMs?: number;

@@ -10,8 +10,11 @@
  *   A dropped message short-circuits the remaining primitives.
  * - Counting for drop/delay/corrupt is per-rule, per-message. Counting for
  *   close is per-rule, per-connection.
- * - On `stop()`, all pending-delay timers are cleared and a `websocket:drop`
- *   event is emitted for each with `detail.reason: 'stop-during-delay'`.
+ * - On `stop()`, the interceptor flips a `running` flag and cancels every
+ *   pending timer. Any already-wrapped socket is disarmed in place so its
+ *   patched `.send` and inbound listener become no-ops; pending delay timers
+ *   emit `websocket:drop` with `detail.reason: 'stop-during-delay'`; pending
+ *   close timers silently cancel (they never fired a close event).
  * - Close chaos clears pending-delay timers for the socket before closing.
  * - Binary corruption runs `truncate` / `empty` natively; `malformed-json` and
  *   `wrong-type` emit `applied: false` with `reason: 'incompatible-payload-type'`.
@@ -34,12 +37,20 @@ type PayloadType = 'text' | 'binary';
 
 const INTERCEPT_MARKER = Symbol.for('chaos-maker.websocket.intercepted');
 
-interface PendingTimer {
+interface PendingDelayTimer {
+  kind: 'delay';
   handle: ReturnType<typeof setTimeout>;
   url: string;
   direction: Direction;
   payloadType: PayloadType;
 }
+
+interface PendingCloseTimer {
+  kind: 'close';
+  handle: ReturnType<typeof setTimeout>;
+}
+
+type PendingTimer = PendingDelayTimer | PendingCloseTimer;
 
 export interface WebSocketPatchHandle {
   /** Wrapped WebSocket constructor suitable for `window.WebSocket = …`. */
@@ -89,7 +100,9 @@ function corruptBinaryPayload(
   }
   const view = data as ArrayBufferView;
   const end = Math.max(0, Math.floor(view.byteLength / 2));
-  return new Uint8Array(view.buffer, view.byteOffset, end);
+  // Copy (not alias) to match the ArrayBuffer branch above and avoid leaking
+  // mutations to/from the caller's underlying buffer.
+  return new Uint8Array(view.buffer.slice(view.byteOffset, view.byteOffset + end));
 }
 
 function findFiringRule<T extends RequestCountingOptions & { urlPattern: string; direction: WebSocketDirection; probability: number }>(
@@ -180,6 +193,9 @@ export function patchWebSocket(
   counters: Map<object, number>,
 ): WebSocketPatchHandle {
   const pendingTimersBySocket = new Map<WebSocket, Set<PendingTimer>>();
+  // Set to false in uninstall() so that already-wrapped sockets stop applying
+  // chaos on any subsequent message / scheduled close after ChaosMaker.stop().
+  let running = true;
 
   const trackTimer = (socket: WebSocket, timer: PendingTimer): void => {
     let set = pendingTimersBySocket.get(socket);
@@ -199,7 +215,11 @@ export function patchWebSocket(
     if (!set) return;
     for (const timer of set) {
       clearTimeout(timer.handle);
-      emitDrop(emitter, timer.url, timer.direction, timer.payloadType, reason);
+      // Only pending delays were observable as a "message in flight"; close
+      // timers haven't emitted anything yet, so cancelling them is silent.
+      if (timer.kind === 'delay') {
+        emitDrop(emitter, timer.url, timer.direction, timer.payloadType, reason);
+      }
     }
     pendingTimersBySocket.delete(socket);
   };
@@ -222,6 +242,10 @@ export function patchWebSocket(
     data: string | ArrayBuffer | ArrayBufferView | Blob,
     originalSend: (d: string | ArrayBuffer | ArrayBufferView | Blob) => void,
   ): { handled: boolean; data: string | ArrayBuffer | ArrayBufferView | Blob } => {
+    // After stop(), leave existing sockets alone — pass the payload through
+    // untouched so the real socket still behaves normally.
+    if (!running) return { handled: false, data };
+
     const direction: Direction = 'outbound';
     const payloadType = getPayloadType(data);
 
@@ -250,7 +274,8 @@ export function patchWebSocket(
     const delayRule = findFiringRule<WebSocketDelayConfig>(config.delays, url, direction, random, counters);
     if (delayRule) {
       emitDelay(emitter, url, direction, payloadType, delayRule.delayMs);
-      const timer: PendingTimer = {
+      const timer: PendingDelayTimer = {
+        kind: 'delay',
         handle: setTimeout(() => {
           untrackTimer(socket, timer);
           try {
@@ -272,6 +297,8 @@ export function patchWebSocket(
     socket.addEventListener('message', (evt: Event) => {
       const msgEvt = evt as MessageEvent;
       if ((msgEvt as unknown as Record<symbol, unknown>)[INTERCEPT_MARKER]) return;
+      // After stop(), let the event through untouched to app listeners.
+      if (!running) return;
 
       const direction: Direction = 'inbound';
       const payloadType = getPayloadType(msgEvt.data);
@@ -306,7 +333,8 @@ export function patchWebSocket(
       if (delayRule) {
         msgEvt.stopImmediatePropagation();
         emitDelay(emitter, url, direction, payloadType, delayRule.delayMs);
-        const timer: PendingTimer = {
+        const timer: PendingDelayTimer = {
+          kind: 'delay',
           handle: setTimeout(() => {
             untrackTimer(socket, timer);
             redispatch(socket, msgEvt, payload);
@@ -331,11 +359,18 @@ export function patchWebSocket(
       const count = incrementCounter(rule, counters);
       if (!checkCountingCondition(rule, count)) continue;
       if (!shouldApplyChaos(rule.probability, random)) continue;
-      const code = rule.code ?? 1006;
+      // Default to 1000 (Normal Closure) — the only 1xxx code browsers accept
+      // as input to `socket.close(code)`. Reserved codes like 1006 throw
+      // InvalidAccessError. Apps wanting a chaos-specific code should pass
+      // something in the 4000–4999 range (e.g., `code: 4000`).
+      const code = rule.code ?? 1000;
       const reason = rule.reason ?? 'Chaos Maker close';
       const afterMs = rule.afterMs ?? 0;
 
       const fire = () => {
+        // If stop() ran between scheduling and firing, abandon the close so
+        // the app socket survives intact.
+        if (!running) return;
         clearSocketTimers(socket, 'close-interrupt');
         emitClose(emitter, url, code, reason);
         try {
@@ -353,9 +388,9 @@ export function patchWebSocket(
         }
       } else {
         const scheduleDeferred = () => {
-          const timer: PendingTimer = {
+          const timer: PendingCloseTimer = {
+            kind: 'close',
             handle: setTimeout(fire, afterMs),
-            url, direction: 'outbound', payloadType: 'text',
           };
           trackTimer(socket, timer);
         };
@@ -400,10 +435,17 @@ export function patchWebSocket(
   return {
     Wrapped: ChaosWebSocket as unknown as typeof WebSocket,
     uninstall(): void {
+      // Disarm interception on every already-wrapped socket *before* clearing
+      // timers so any listeners/fire callbacks that run during teardown also
+      // bail out. Without this, existing sockets would keep applying chaos
+      // indefinitely after ChaosMaker.stop().
+      running = false;
       for (const [, timers] of pendingTimersBySocket) {
         for (const timer of timers) {
           clearTimeout(timer.handle);
-          emitDrop(emitter, timer.url, timer.direction, timer.payloadType, 'stop-during-delay');
+          if (timer.kind === 'delay') {
+            emitDrop(emitter, timer.url, timer.direction, timer.payloadType, 'stop-during-delay');
+          }
         }
       }
       pendingTimersBySocket.clear();

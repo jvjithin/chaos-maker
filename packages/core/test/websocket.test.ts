@@ -294,15 +294,18 @@ describe('close chaos', () => {
     expect(socket.closedWith).not.toBeNull();
   });
 
-  it('defaults to code 1006 and reason "Chaos Maker close"', () => {
+  it('defaults to code 1000 (Normal Closure) and reason "Chaos Maker close"', () => {
+    // 1000 is the only 1xxx code browsers accept as input to close(code);
+    // 1006 (the previous default) is reserved and throws InvalidAccessError.
     const { emitter, Wrapped } = setupPatch({
       closes: [{ urlPattern: '/api', probability: 1 }],
     }, ALWAYS);
     const socket = new Wrapped('ws://test/api');
     socket.simulateOpen();
     const closeEvt = emitter.getLog().find(e => e.type === 'websocket:close');
-    expect(closeEvt?.detail.closeCode).toBe(1006);
+    expect(closeEvt?.detail.closeCode).toBe(1000);
     expect(closeEvt?.detail.closeReason).toBe('Chaos Maker close');
+    expect(socket.closedWith).toEqual({ code: 1000, reason: 'Chaos Maker close' });
   });
 });
 
@@ -382,6 +385,53 @@ describe('lifecycle — uninstall', () => {
       e => e.type === 'websocket:drop' && e.detail.reason === 'stop-during-delay'
     );
     expect(drops.length).toBe(1);
+  });
+
+  it('disarms already-wrapped sockets so post-stop outbound messages pass through untouched', () => {
+    const { emitter, handle, Wrapped } = setupPatch({
+      drops: [{ urlPattern: '/api', direction: 'outbound', probability: 1 }],
+    }, ALWAYS);
+    const socket = new Wrapped('ws://test/api');
+    socket.simulateOpen();
+    socket.send('before-stop'); // dropped
+    expect(socket.sentMessages).toEqual([]);
+    handle.uninstall();
+    socket.send('after-stop'); // must pass through
+    expect(socket.sentMessages).toEqual(['after-stop']);
+    // No new drop event should be emitted after uninstall.
+    const postStopDrops = emitter.getLog()
+      .filter(e => e.type === 'websocket:drop' && !e.detail.reason);
+    expect(postStopDrops.length).toBe(1); // only the pre-stop drop
+  });
+
+  it('disarms inbound interception after stop so listeners see raw messages', () => {
+    const { handle, Wrapped } = setupPatch({
+      drops: [{ urlPattern: '/api', direction: 'inbound', probability: 1 }],
+    }, ALWAYS);
+    const socket = new Wrapped('ws://test/api');
+    const received: unknown[] = [];
+    socket.addEventListener('message', (evt) => received.push((evt as MessageEvent).data));
+    socket.simulateMessage('blocked'); // dropped
+    expect(received).toEqual([]);
+    handle.uninstall();
+    socket.simulateMessage('allowed'); // must pass through
+    expect(received).toEqual(['allowed']);
+  });
+
+  it('cancels pending close timers silently (no phantom drop event)', () => {
+    const { emitter, handle, Wrapped } = setupPatch({
+      closes: [{ urlPattern: '/api', probability: 1, afterMs: 500 }],
+    }, ALWAYS);
+    const socket = new Wrapped('ws://test/api');
+    socket.simulateOpen();
+    handle.uninstall();
+    vi.advanceTimersByTime(1000);
+    // Socket must not be closed; no misleading drop event emitted.
+    expect(socket.closedWith).toBeNull();
+    const drops = emitter.getLog().filter(e => e.type === 'websocket:drop');
+    expect(drops.length).toBe(0);
+    const closes = emitter.getLog().filter(e => e.type === 'websocket:close');
+    expect(closes.length).toBe(0);
   });
 });
 
