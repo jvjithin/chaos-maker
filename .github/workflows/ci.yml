@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [ "main" ]
 
+# Cancel in-flight runs when a new commit lands on the same ref. Keeps PRs
+# with rapid iteration from piling up duplicate runs; pushes to `main` still
+# run independently because each push targets a different commit SHA ref.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint:
     name: Lint JS
