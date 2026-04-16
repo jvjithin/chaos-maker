@@ -48,7 +48,8 @@
   "scripts": {
     "dev": "vite build --watch",
     "build": "vite build && tsc -p tsconfig.build.json",
-    "test": "vitest"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "zod": "^3.24.0"
