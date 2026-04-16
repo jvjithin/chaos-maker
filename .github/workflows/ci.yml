@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [ "main" ]
 
+# Cancel in-flight runs when a new commit lands on the same ref. Keeps PRs
+# with rapid iteration from piling up duplicate runs; pushes to `main` still
+# run independently because each push targets a different commit SHA ref.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint:
     name: Lint JS
@@ -99,9 +106,25 @@ jobs:
             packages/playwright/dist/
 
   e2e-test:
-    name: E2E Tests
+    name: E2E Tests (${{ matrix.project }})
     runs-on: ubuntu-latest
     needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: chromium
+            install: chromium
+          - project: firefox
+            install: firefox
+          - project: webkit
+            install: webkit
+          # devices['Desktop Edge'] resolves to browserName=chromium + channel=msedge.
+          # In headless mode that still launches via chromium_headless_shell, so we
+          # must install both the msedge channel (system Edge) and the chromium
+          # headless shell alongside it.
+          - project: edge
+            install: msedge chromium-headless-shell
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
@@ -129,15 +152,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ hashFiles('e2e-tests/package.json') }}
+          key: playwright-${{ matrix.project }}-${{ hashFiles('e2e-tests/package.json') }}
 
-      - name: Install Playwright Browsers
+      - name: Install Playwright Browser (${{ matrix.install }})
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm --filter e2e-tests exec playwright install --with-deps
+        run: pnpm --filter e2e-tests exec playwright install --with-deps ${{ matrix.install }}
 
       - name: Install Playwright System Dependencies
         if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: pnpm --filter e2e-tests exec playwright install-deps
+        run: pnpm --filter e2e-tests exec playwright install-deps ${{ matrix.install }}
 
-      - name: Run E2E Tests
-        run: pnpm --filter e2e-tests test
+      - name: Run E2E Tests (${{ matrix.project }})
+        run: pnpm --filter e2e-tests exec playwright test --project ${{ matrix.project }}
