@@ -107,15 +107,17 @@ jobs:
       matrix:
         include:
           - project: chromium
-            browser: chromium
+            install: chromium
           - project: firefox
-            browser: firefox
+            install: firefox
           - project: webkit
-            browser: webkit
-          # devices['Desktop Edge'] uses channel 'msedge'; Playwright installs
-          # Microsoft Edge via `playwright install msedge`.
+            install: webkit
+          # devices['Desktop Edge'] resolves to browserName=chromium + channel=msedge.
+          # In headless mode that still launches via chromium_headless_shell, so we
+          # must install both the msedge channel (system Edge) and the chromium
+          # headless shell alongside it.
           - project: edge
-            browser: msedge
+            install: msedge chromium-headless-shell
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
@@ -143,15 +145,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ matrix.browser }}-${{ hashFiles('e2e-tests/package.json') }}
+          key: playwright-${{ matrix.project }}-${{ hashFiles('e2e-tests/package.json') }}
 
-      - name: Install Playwright Browser (${{ matrix.browser }})
+      - name: Install Playwright Browser (${{ matrix.install }})
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm --filter e2e-tests exec playwright install --with-deps ${{ matrix.browser }}
+        run: pnpm --filter e2e-tests exec playwright install --with-deps ${{ matrix.install }}
 
       - name: Install Playwright System Dependencies
         if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: pnpm --filter e2e-tests exec playwright install-deps ${{ matrix.browser }}
+        run: pnpm --filter e2e-tests exec playwright install-deps ${{ matrix.install }}
 
       - name: Run E2E Tests (${{ matrix.project }})
         run: pnpm --filter e2e-tests exec playwright test --project ${{ matrix.project }}
