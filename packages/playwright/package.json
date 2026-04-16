@@ -50,7 +50,8 @@
   ],
   "scripts": {
     "build": "tsup",
-    "test": "vitest"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@chaos-maker/core": "workspace:*"
