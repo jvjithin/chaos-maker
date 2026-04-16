@@ -1,5 +1,5 @@
 {
-  "name": "e2e-tests",
+  "name": "e2e-tests-playwright",
   "version": "1.0.0",
   "private": true,
   "scripts": {

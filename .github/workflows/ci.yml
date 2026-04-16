@@ -152,15 +152,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ matrix.project }}-${{ hashFiles('e2e-tests/package.json') }}
+          key: playwright-${{ matrix.project }}-${{ hashFiles('e2e-tests/playwright/package.json') }}
 
       - name: Install Playwright Browser (${{ matrix.install }})
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm --filter e2e-tests exec playwright install --with-deps ${{ matrix.install }}
+        run: pnpm --filter e2e-tests-playwright exec playwright install --with-deps ${{ matrix.install }}
 
       - name: Install Playwright System Dependencies
         if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: pnpm --filter e2e-tests exec playwright install-deps ${{ matrix.install }}
+        run: pnpm --filter e2e-tests-playwright exec playwright install-deps ${{ matrix.install }}
 
       - name: Run E2E Tests (${{ matrix.project }})
-        run: pnpm --filter e2e-tests exec playwright test --project ${{ matrix.project }}
+        run: pnpm --filter e2e-tests-playwright exec playwright test --project ${{ matrix.project }}
