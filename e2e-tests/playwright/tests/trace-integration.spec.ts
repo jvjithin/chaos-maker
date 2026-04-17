@@ -1,5 +1,4 @@
 import { test, expect } from '@chaos-maker/playwright/fixture';
-import type { TestInfo } from '@playwright/test';
 import { readFileSync, existsSync, readdirSync, mkdtempSync } from 'fs';
 import { join } from 'path';
 import { execSync } from 'child_process';
@@ -49,13 +48,6 @@ function readTraceEvents(zipPath: string): unknown[] {
   };
   walk(outDir);
   return events;
-}
-
-/** Find the most recently written trace.zip under this test's outputDir. */
-function findTraceZip(testInfo: TestInfo): string | null {
-  const candidate = join(testInfo.outputDir, 'trace.zip');
-  if (existsSync(candidate)) return candidate;
-  return null;
 }
 
 test.describe('Playwright trace integration', () => {

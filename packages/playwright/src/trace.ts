@@ -146,7 +146,6 @@ export async function createTraceReporter(
     // `test.step` captures the current test async context; the promise is
     // resolved on the Node side once the reporter records it.
     const title = formatStepTitle(event);
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     test.step(title, async () => {
       // No-op body. The step's existence is the signal; its details live on
       // the final attachment.
