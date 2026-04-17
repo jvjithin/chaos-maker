@@ -25,8 +25,18 @@ async function waitForHttp(url: string, timeoutMs = 20_000): Promise<void> {
 export default defineConfig({
   e2e: {
     baseUrl: 'http://127.0.0.1:8080',
-    supportFile: 'cypress/support/e2e.ts',
-    specPattern: 'cypress/e2e/**/*.cy.ts',
+    // Flattened layout to mirror Playwright's `tests/` convention for cross-
+    // framework consistency in this monorepo. Cypress's default is
+    // `cypress/e2e/` + `cypress/support/`, which would nest awkwardly inside
+    // this workspace package's own `cypress/` leaf directory.
+    supportFile: 'support/e2e.ts',
+    specPattern: 'tests/**/*.cy.ts',
+    // Explicit output folders so Cypress doesn't fall back to its defaults
+    // (`cypress/videos`, `cypress/screenshots`, `cypress/downloads`) and
+    // recreate the nested `cypress/` directory we just flattened away.
+    videosFolder: 'videos',
+    screenshotsFolder: 'screenshots',
+    downloadsFolder: 'downloads',
     video: false,
     // setupNodeEvents is awaited by Cypress before the baseUrl reachability
     // check, so starting servers here ensures they are ready in time.
