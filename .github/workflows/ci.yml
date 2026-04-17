@@ -104,6 +104,7 @@ jobs:
           path: |
             packages/core/dist/
             packages/playwright/dist/
+            packages/cypress/dist/
 
   e2e-playwright:
     name: E2E Playwright (${{ matrix.project }})
