@@ -1,8 +1,13 @@
-import type { Page } from '@playwright/test';
+import type { Page, TestInfo } from '@playwright/test';
 import type { ChaosConfig, ChaosEvent } from '@chaos-maker/core';
 import { resolve, dirname } from 'path';
 import { createRequire } from 'module';
 import { fileURLToPath } from 'url';
+import {
+  createTraceReporter,
+  TraceReporterHandle,
+  TraceReporterOptions,
+} from './trace';
 
 let cachedUmdPath: string | null = null;
 
@@ -23,6 +28,33 @@ function getCoreUmdPath(): string {
 }
 
 /**
+ * Options for `injectChaos`. Most callers can omit this entirely; defaults
+ * preserve backward compatibility with the v0.1.x signature.
+ */
+export interface InjectChaosOptions {
+  /**
+   * Emit chaos events into the Playwright trace as `test.step` entries and
+   * attach the full event log on test end.
+   *
+   * - `true` — always on. Requires `testInfo`.
+   * - `false` (default for direct `injectChaos()` calls) — off.
+   * - `'auto'` (default for the fixture) — on when Playwright tracing is
+   *   enabled in the project config; no-op otherwise.
+   */
+  tracing?: boolean | 'auto';
+  /**
+   * Active Playwright `TestInfo`, required when `tracing` is truthy.
+   * The fixture supplies this automatically.
+   */
+  testInfo?: TestInfo;
+  /** Pass through to the trace reporter. */
+  traceOptions?: TraceReporterOptions;
+}
+
+/** Symbol used to stash the tracing handle on the Page object for cleanup. */
+const TRACE_HANDLE_KEY = Symbol.for('chaos-maker.playwright.traceHandle');
+
+/**
  * Inject chaos into a Playwright page. Call before `page.goto()` to ensure
  * all network requests are intercepted from the start.
  *
@@ -40,12 +72,36 @@ function getCoreUmdPath(): string {
  * });
  * ```
  */
-export async function injectChaos(page: Page, config: ChaosConfig): Promise<void> {
+export async function injectChaos(
+  page: Page,
+  config: ChaosConfig,
+  opts: InjectChaosOptions = {},
+): Promise<void> {
   const umdPath = getCoreUmdPath();
+
+  // Resolve tracing decision before touching the page.
+  const tracingEnabled = resolveTracing(opts);
+
+  // Wire the trace bridge BEFORE the UMD loads so the in-page subscriber can
+  // attach as soon as chaosUtils.instance exists.
+  if (tracingEnabled) {
+    if (!opts.testInfo) {
+      throw new Error(
+        '[chaos-maker] tracing requires a `testInfo` in InjectChaosOptions. ' +
+        'Use the fixture (`@chaos-maker/playwright/fixture`) or pass testInfo explicitly.',
+      );
+    }
+    // Avoid double-binding on re-inject.
+    const existing = (page as any)[TRACE_HANDLE_KEY] as TraceReporterHandle | undefined;
+    if (!existing) {
+      const handle = await createTraceReporter(page, opts.testInfo, opts.traceOptions);
+      (page as any)[TRACE_HANDLE_KEY] = handle;
+    }
+  }
 
   // Set config before the UMD script runs so it auto-starts with this config
   await page.addInitScript((cfg: unknown) => {
-const win = globalThis as any;
+    const win = globalThis as any;
     win.__CHAOS_CONFIG__ = cfg;
   }, config);
 
@@ -53,16 +109,44 @@ const win = globalThis as any;
   await page.addInitScript({ path: umdPath });
 }
 
+function resolveTracing(opts: InjectChaosOptions): boolean {
+  if (opts.tracing === true) return true;
+  if (opts.tracing === false || opts.tracing === undefined) return false;
+  // 'auto' — fixture must have pre-resolved this to true/false before calling
+  // injectChaos. If it reaches here as 'auto', treat as off (no testInfo
+  // context available to introspect project.use.trace).
+  return false;
+}
+
 /**
  * Remove chaos from a Playwright page. Restores original fetch/XHR/DOM behavior.
  */
 export async function removeChaos(page: Page): Promise<void> {
+  // Read seed BEFORE stop() clears the instance.
+  const handle = (page as any)[TRACE_HANDLE_KEY] as TraceReporterHandle | undefined;
+  let seed: number | null = null;
+  if (handle) {
+    try {
+      seed = await getChaosSeed(page);
+    } catch {
+      // Page closed / detached — fall through with seed=null.
+    }
+  }
+
   await page.evaluate(() => {
-const win = globalThis as any;
+    const win = globalThis as any;
     if (win.chaosUtils) {
       win.chaosUtils.stop();
     }
+  }).catch(() => {
+    // Page may already be closed during teardown — don't mask real failures.
   });
+
+  // Flush trace attachment if tracing was active.
+  if (handle) {
+    await handle.dispose(seed);
+    delete (page as any)[TRACE_HANDLE_KEY];
+  }
 }
 
 /**
@@ -71,7 +155,7 @@ const win = globalThis as any;
  */
 export async function getChaosLog(page: Page): Promise<ChaosEvent[]> {
   return page.evaluate(() => {
-const win = globalThis as any;
+    const win = globalThis as any;
     if (win.chaosUtils) {
       return win.chaosUtils.getLog();
     }
@@ -85,7 +169,7 @@ const win = globalThis as any;
  */
 export async function getChaosSeed(page: Page): Promise<number | null> {
   return page.evaluate(() => {
-const win = globalThis as any;
+    const win = globalThis as any;
     if (win.chaosUtils) {
       return win.chaosUtils.getSeed();
     }
@@ -104,3 +188,5 @@ export type {
   WebSocketDirection,
   WebSocketCorruptionStrategy,
 } from '@chaos-maker/core';
+
+export type { TraceReporterOptions, ChaosTraceAttachment } from './trace';

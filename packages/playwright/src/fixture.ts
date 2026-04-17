@@ -1,17 +1,43 @@
 import { test as base } from '@playwright/test';
-import type { Page } from '@playwright/test';
+import type { Page, TestInfo } from '@playwright/test';
 import type { ChaosConfig, ChaosEvent } from '@chaos-maker/core';
-import { injectChaos, removeChaos, getChaosLog, getChaosSeed } from './index';
+import {
+  injectChaos,
+  removeChaos,
+  getChaosLog,
+  getChaosSeed,
+  InjectChaosOptions,
+} from './index';
 
 export interface ChaosFixture {
-  inject: (config: ChaosConfig) => Promise<void>;
+  inject: (config: ChaosConfig, opts?: InjectChaosOptions) => Promise<void>;
   remove: () => Promise<void>;
   getLog: () => Promise<ChaosEvent[]>;
   getSeed: () => Promise<number | null>;
 }
 
 /**
+ * Resolve the auto-tracing decision: on when Playwright's own tracing is
+ * enabled for this project, off otherwise. Users override per-call with
+ * `chaos.inject(config, { tracing: false })`.
+ */
+function shouldAutoTrace(testInfo: TestInfo): boolean {
+  // `project.use.trace` may be a string ('on' | 'off' | 'retain-on-failure' | …)
+  // or an object with a `mode` field. Treat anything other than 'off' as on.
+  const trace = (testInfo.project.use as { trace?: unknown } | undefined)?.trace;
+  if (trace == null) return false;
+  if (typeof trace === 'string') return trace !== 'off';
+  if (typeof trace === 'object' && trace !== null && 'mode' in trace) {
+    return (trace as { mode?: string }).mode !== 'off';
+  }
+  return true;
+}
+
+/**
  * Extended Playwright test with a `chaos` fixture.
+ *
+ * Tracing is auto-enabled when the project's `use.trace` config is not `'off'`.
+ * Override with `chaos.inject(config, { tracing: false })` to opt out.
  *
  * @example
  * ```ts
@@ -30,9 +56,26 @@ export interface ChaosFixture {
  * ```
  */
 export const test = base.extend<{ chaos: ChaosFixture }>({
-  chaos: async ({ page }: { page: Page }, use: (fixture: ChaosFixture) => Promise<void>) => {
+  chaos: async (
+    { page }: { page: Page },
+    use: (fixture: ChaosFixture) => Promise<void>,
+    testInfo: TestInfo,
+  ) => {
+    const autoTrace = shouldAutoTrace(testInfo);
+
     const fixture: ChaosFixture = {
-      inject: (config: ChaosConfig) => injectChaos(page, config),
+      inject: (config: ChaosConfig, opts: InjectChaosOptions = {}) => {
+        // Resolve 'auto' here where testInfo is available.
+        let tracing = opts.tracing;
+        if (tracing === undefined || tracing === 'auto') {
+          tracing = autoTrace;
+        }
+        return injectChaos(page, config, {
+          ...opts,
+          tracing,
+          testInfo: opts.testInfo ?? testInfo,
+        });
+      },
       remove: () => removeChaos(page),
       getLog: () => getChaosLog(page),
       getSeed: () => getChaosSeed(page),
@@ -44,3 +87,4 @@ export const test = base.extend<{ chaos: ChaosFixture }>({
 
 export { expect } from '@playwright/test';
 export type { ChaosConfig, ChaosEvent } from '@chaos-maker/core';
+export type { InjectChaosOptions } from './index';
