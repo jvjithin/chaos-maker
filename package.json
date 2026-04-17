@@ -12,7 +12,7 @@
     "build": "pnpm build:core && pnpm build:playwright && pnpm build:cypress",
     "dev:core": "pnpm --filter @chaos-maker/core dev",
     "test": "pnpm --filter @chaos-maker/core test",
-    "test:e2e": "pnpm --filter e2e-tests exec playwright test",
+    "test:e2e": "pnpm --filter e2e-tests-playwright exec playwright test",
     "prepare": "husky"
   },
   "devDependencies": {
@@ -28,6 +28,7 @@
     "vitest": "^1.6.0"
   },
   "pnpm": {
+    "onlyBuiltDependencies": ["cypress"],
     "overrides": {
       "minimatch@<3.1.4": "3.1.4",
       "minimatch@>=9.0.0 <9.0.7": "9.0.7",

@@ -1,0 +1,16 @@
+{
+  "name": "e2e-tests-cypress",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "cypress run",
+    "open": "cypress open"
+  },
+  "devDependencies": {
+    "@chaos-maker/core": "workspace:*",
+    "@chaos-maker/cypress": "workspace:*",
+    "cypress": "^13.0.0",
+    "http-server": "^14.1.1",
+    "ws": "^8.17.0"
+  }
+}

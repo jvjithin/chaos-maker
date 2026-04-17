@@ -28,13 +28,13 @@ export default defineConfig({
   webServer: [
     {
       command: process.env.CI
-        ? 'npx http-server ./src -p 8080 -s'
-        : 'python3 -m http.server 8080 -d ./src',
+        ? 'npx http-server ../fixtures -p 8080 -s'
+        : 'python3 -m http.server 8080 -d ../fixtures',
       url: 'http://127.0.0.1:8080',
       reuseExistingServer: !process.env.CI,
     },
     {
-      command: 'node ./src/ws-echo-server.js',
+      command: 'node ../fixtures/ws-echo-server.cjs',
       port: 8081,
       reuseExistingServer: !process.env.CI,
     },

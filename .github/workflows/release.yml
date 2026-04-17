@@ -49,18 +49,18 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ hashFiles('e2e-tests/package.json') }}
+          key: playwright-${{ hashFiles('e2e-tests/playwright/package.json') }}
 
       - name: Install Playwright Browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm --filter e2e-tests exec playwright install --with-deps
+        run: pnpm --filter e2e-tests-playwright exec playwright install --with-deps
 
       - name: Install Playwright System Dependencies
         if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: pnpm --filter e2e-tests exec playwright install-deps
+        run: pnpm --filter e2e-tests-playwright exec playwright install-deps
 
       - name: E2E Tests
-        run: pnpm --filter e2e-tests test
+        run: pnpm --filter e2e-tests-playwright test
 
   publish-core:
     name: Publish @chaos-maker/core
