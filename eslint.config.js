@@ -44,4 +44,12 @@ export default [
       },
     },
   },
+  {
+    // Cypress specs use Chai assertions (e.g. `expect(x).to.be.true`),
+    // which eslint's no-unused-expressions flags as "no-op expression".
+    files: ["e2e-tests/cypress/**/*.cy.ts"],
+    rules: {
+      "@typescript-eslint/no-unused-expressions": "off",
+    },
+  },
 ];
