@@ -137,15 +137,19 @@ describe('validateConfig', () => {
         failures: [{ urlPattern: '', statusCode: 999, probability: 2.0 }],
       },
     };
+
+    let capturedError: ChaosConfigError | undefined;
+
     try {
       validateConfig(config);
-      expect.fail('Should have thrown');
     } catch (e) {
-      expect(e).toBeInstanceOf(ChaosConfigError);
-      const err = e as ChaosConfigError;
-      expect(err.issues.length).toBeGreaterThan(0);
-      expect(err.message).toContain('Invalid ChaosConfig');
+      capturedError = e as ChaosConfigError;
     }
+
+    expect(capturedError).toBeDefined();
+    expect(capturedError).toBeInstanceOf(ChaosConfigError);
+    expect(capturedError!.issues.length).toBeGreaterThan(0);
+    expect(capturedError!.message).toContain('Invalid ChaosConfig');
   });
 
   it('should reject missing required fields', () => {
