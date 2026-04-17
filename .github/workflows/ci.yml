@@ -39,7 +39,8 @@ jobs:
   test:
     name: Unit Tests
     runs-on: ubuntu-latest
-    needs: lint
+    # Runs in parallel with `lint` and `build` — none of the three reads
+    # another's output. E2E jobs still gate on `build` for the dist artifact.
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
@@ -62,7 +63,8 @@ jobs:
   build:
     name: Build Core
     runs-on: ubuntu-latest
-    needs: test
+    # Runs in parallel with `lint` and `test`. E2E jobs below consume the
+    # dist artifact this produces.
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5

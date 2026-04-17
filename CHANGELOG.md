@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-04-17
+
+### Added
+
+- **Playwright trace integration** (Phase 5): every applied chaos event now appears inline in the Playwright trace action timeline as a `chaos:<type>` `test.step` entry (e.g. `chaos:network:failure /api/users → 503`). Full event log + PRNG seed attached as `chaos-log.json` on test end.
+  - New `InjectChaosOptions` on `injectChaos(page, config, opts)`: `{ tracing: boolean | 'auto', testInfo, traceOptions }`.
+  - Fixture auto-enables tracing whenever the project's `use.trace !== 'off'`; opt out per-call with `chaos.inject(config, { tracing: false })`.
+  - Bridging via `page.exposeBinding('__chaosMakerReport', …)` + an `addInitScript` subscriber on `chaosUtils.instance.on('*')`. Survives cross-navigation and idempotent per page.
+  - New `packages/playwright/src/trace.ts` exports `formatStepTitle`, `shouldEmitStep`, `createTraceReporter`, `ChaosTraceAttachment`, `TraceReporterOptions`.
+  - E2E coverage: `e2e-tests/playwright/tests/trace-integration.spec.ts` cracks open the produced `trace.zip` (all four projects: chromium, firefox, webkit, edge) and asserts chaos steps present.
+  - Unit coverage: 13 formatter/filter tests under `packages/playwright/test/trace.test.ts`.
+- **Cypress adapter coverage** (from rc.1): unchanged — Cypress surfaces chaos via `Cypress.log` (the Command Log), no trace-viewer work needed.
+
 ## [0.2.0-rc.1] - 2026-04-17
 
 ### Added
