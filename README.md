@@ -343,8 +343,11 @@ pnpm install              # install dependencies
 pnpm build                # build core + playwright + cypress
 pnpm test                 # unit tests
 pnpm lint                 # eslint
-pnpm test:playwright      # Playwright e2e tests (60 tests)
-pnpm test:cypress         # Cypress e2e tests (60 tests)
+pnpm test:playwright      # Playwright e2e tests across all 4 browsers (240 tests)
+pnpm test:cypress         # Cypress e2e tests on Electron (60 tests, fast)
+pnpm test:cypress:all     # Cypress e2e tests across chrome + firefox + electron (180 tests)
+                          # Requires Chrome + Firefox installed locally.
+                          # CI always runs the full matrix regardless.
 ```
 
 ## Contributing

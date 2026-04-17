@@ -14,6 +14,10 @@
     "test": "pnpm --filter @chaos-maker/core test",
     "test:playwright": "pnpm --filter e2e-tests-playwright exec playwright test",
     "test:cypress": "pnpm --filter e2e-tests-cypress exec cypress run",
+    "test:cypress:chrome": "pnpm --filter e2e-tests-cypress exec cypress run --browser chrome",
+    "test:cypress:firefox": "pnpm --filter e2e-tests-cypress exec cypress run --browser firefox",
+    "test:cypress:electron": "pnpm --filter e2e-tests-cypress exec cypress run --browser electron",
+    "test:cypress:all": "pnpm test:cypress:chrome && pnpm test:cypress:firefox && pnpm test:cypress:electron",
     "prepare": "husky"
   },
   "devDependencies": {
