@@ -9,8 +9,8 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - **Cypress adapter** (`@chaos-maker/cypress`): one-line chaos injection via `cy.injectChaos(config)`, `cy.removeChaos()`, `cy.getChaosLog()` custom commands. Ships `@chaos-maker/cypress/support` (auto-registration of commands + `afterEach` cleanup) and `@chaos-maker/cypress/tasks` (plugin-process bridge that reads the UMD bundle from disk).
-- **Cypress E2E suite**: 60 tests across 7 spec files in `e2e-tests/cypress/` — full parity with Playwright suite (resilience baseline, chaos lifecycle + presets, network, UI, WebSocket, seeded randomness, Nth-request counting). Runs against Chrome, Firefox, and Electron in CI.
-- **CI job `e2e-cypress`**: matrix over `[chrome, firefox, electron]` with Cypress binary caching.
+- **Cypress E2E suite**: 60 tests across 7 spec files in `e2e-tests/cypress/` — full parity with Playwright suite (resilience baseline, chaos lifecycle + presets, network, UI, WebSocket, seeded randomness, Nth-request counting). Runs against Chrome and Electron in CI.
+- **CI job `e2e-cypress`**: matrix over `[chrome, electron]` with Cypress binary caching. Firefox is omitted because Cypress 13.x's CDP-over-GeckoDriver bridge is broken against Firefox 140+ (a Cypress-infrastructure issue, not a chaos-maker one); Playwright's `e2e-playwright (firefox)` job covers the Firefox browser engine end-to-end.
 - **Release job `publish-cypress`**: publishes `@chaos-maker/cypress` to npm on tagged releases after `publish-core` succeeds.
 
 ### Changed

@@ -345,9 +345,11 @@ pnpm test                 # unit tests
 pnpm lint                 # eslint
 pnpm test:playwright      # Playwright e2e tests across all 4 browsers (240 tests)
 pnpm test:cypress         # Cypress e2e tests on Electron (60 tests, fast)
-pnpm test:cypress:all     # Cypress e2e tests across chrome + firefox + electron (180 tests)
-                          # Requires Chrome + Firefox installed locally.
-                          # CI always runs the full matrix regardless.
+pnpm test:cypress:all     # Cypress e2e tests across chrome + electron (120 tests)
+                          # Requires Chrome installed locally.
+                          # Firefox is omitted — Cypress 13.x has a CDP bridge
+                          # bug against Firefox 140+ that's unrelated to chaos-maker;
+                          # Playwright's firefox job covers the Firefox engine.
 ```
 
 ## Contributing

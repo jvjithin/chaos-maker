@@ -17,7 +17,7 @@
     "test:cypress:chrome": "pnpm --filter e2e-tests-cypress exec cypress run --browser chrome",
     "test:cypress:firefox": "pnpm --filter e2e-tests-cypress exec cypress run --browser firefox",
     "test:cypress:electron": "pnpm --filter e2e-tests-cypress exec cypress run --browser electron",
-    "test:cypress:all": "pnpm test:cypress:chrome && pnpm test:cypress:firefox && pnpm test:cypress:electron",
+    "test:cypress:all": "pnpm test:cypress:chrome && pnpm test:cypress:electron",
     "prepare": "husky"
   },
   "devDependencies": {

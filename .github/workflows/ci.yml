@@ -173,10 +173,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Chrome + Firefox are pre-installed on ubuntu-latest runners.
+        # Chrome is pre-installed on ubuntu-latest runners.
         # Electron ships with the Cypress binary itself — no separate install.
-        # WebKit isn't supported by Cypress (covered by Playwright job instead).
-        browser: [chrome, firefox, electron]
+        #
+        # Firefox is intentionally excluded: Cypress 13.x's CDP-over-GeckoDriver
+        # bridge is broken against Firefox 140+ on ubuntu-latest ("Failed to
+        # spawn CDP with Firefox" → `getWindowHandles` of undefined). This is a
+        # Cypress-infrastructure issue, not a chaos-maker one. Playwright's
+        # firefox job still covers the Firefox browser engine end-to-end, and
+        # chaos-maker core only touches standard Web Platform APIs that behave
+        # identically across engines. Revisit after upgrading to Cypress 14.x,
+        # which has better WebDriver BiDi support.
+        #
+        # WebKit isn't supported by Cypress at all (covered by Playwright).
+        browser: [chrome, electron]
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
