@@ -269,28 +269,46 @@ const log = await getChaosLog(page);
 
 ### Cypress
 
-Load the UMD bundle and start chaos before your test:
+Install the adapter:
 
-```js
-// cypress/support/commands.js
-Cypress.Commands.add('injectChaos', (config) => {
-  cy.readFile('node_modules/@chaos-maker/core/dist/chaos-maker.umd.js').then((script) => {
-    cy.window().then((win) => {
-      win.__CHAOS_CONFIG__ = config;
-      win.eval(script);
-    });
-  });
+```bash
+pnpm add -D @chaos-maker/core @chaos-maker/cypress
+```
+
+Register the tasks in `cypress.config.ts`:
+
+```ts
+import { defineConfig } from 'cypress';
+import { registerChaosTasks } from '@chaos-maker/cypress/tasks';
+
+export default defineConfig({
+  e2e: {
+    setupNodeEvents(on) {
+      registerChaosTasks(on);
+    },
+  },
 });
+```
 
-// In your test:
+Register the commands in `cypress/support/e2e.ts`:
+
+```ts
+import '@chaos-maker/cypress/support';
+```
+
+Use in your tests:
+
+```ts
 it('handles API failure', () => {
   cy.injectChaos({
-    network: { failures: [{ urlPattern: '/api', statusCode: 500, probability: 1.0 }] }
+    network: { failures: [{ urlPattern: '/api', statusCode: 500, probability: 1.0 }] },
   });
   cy.visit('/');
   cy.contains('Something went wrong').should('be.visible');
 });
 ```
+
+See [`@chaos-maker/cypress`](./packages/cypress/) for the full API.
 
 ### Selenium / WebDriver
 
@@ -316,15 +334,22 @@ await driver.get('http://localhost:3000');
 |---------|-------------|
 | [`@chaos-maker/core`](./packages/core/) | Core chaos engine. Framework-agnostic. ESM + CJS + UMD. |
 | [`@chaos-maker/playwright`](./packages/playwright/) | Playwright adapter with `injectChaos`, `removeChaos`, `getChaosLog`, and test fixture. |
+| [`@chaos-maker/cypress`](./packages/cypress/) | Cypress adapter with `cy.injectChaos`, `cy.removeChaos`, `cy.getChaosLog`, and auto-cleanup `afterEach` hook. |
 
 ## Development
 
 ```bash
 pnpm install              # install dependencies
-pnpm build                # build core + playwright
-pnpm test                 # unit tests (178 tests)
+pnpm build                # build core + playwright + cypress
+pnpm test                 # unit tests
 pnpm lint                 # eslint
-pnpm --filter e2e-tests exec playwright test  # e2e tests
+pnpm test:playwright      # Playwright e2e tests across all 4 browsers (240 tests)
+pnpm test:cypress         # Cypress e2e tests on Electron (60 tests, fast)
+pnpm test:cypress:all     # Cypress e2e tests across chrome + electron (120 tests)
+                          # Requires Chrome installed locally.
+                          # Firefox is omitted — Cypress 13.x has a CDP bridge
+                          # bug against Firefox 140+ that's unrelated to chaos-maker;
+                          # Playwright's firefox job covers the Firefox engine.
 ```
 
 ## Contributing

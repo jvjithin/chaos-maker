@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.2.0-rc.1] - 2026-04-17
+
+### Added
+
+- **Cypress adapter** (`@chaos-maker/cypress`): one-line chaos injection via `cy.injectChaos(config)`, `cy.removeChaos()`, `cy.getChaosLog()` custom commands. Ships `@chaos-maker/cypress/support` (auto-registration of commands + `afterEach` cleanup) and `@chaos-maker/cypress/tasks` (plugin-process bridge that reads the UMD bundle from disk).
+- **Cypress E2E suite**: 60 tests across 7 spec files in `e2e-tests/cypress/` — full parity with Playwright suite (resilience baseline, chaos lifecycle + presets, network, UI, WebSocket, seeded randomness, Nth-request counting). Runs against Chrome and Electron in CI.
+- **CI job `e2e-cypress`**: matrix over `[chrome, electron]` with Cypress binary caching. Firefox is omitted because Cypress 13.x's CDP-over-GeckoDriver bridge is broken against Firefox 140+ (a Cypress-infrastructure issue, not a chaos-maker one); Playwright's `e2e-playwright (firefox)` job covers the Firefox browser engine end-to-end.
+- **Release job `publish-cypress`**: publishes `@chaos-maker/cypress` to npm on tagged releases after `publish-core` succeeds.
+
+### Changed
+
+- **E2E layout restructured**: `e2e-tests/` now contains `e2e-tests/{framework}/` subdirectories (`playwright/`, `cypress/`) plus shared `e2e-tests/fixtures/`. Cypress layout flattened to `tests/` + `support/` (overriding Cypress defaults of `cypress/e2e/` + `cypress/support/`) for cross-framework directory symmetry.
+- **Package filters renamed**: `e2e-tests` workspace package split into `e2e-tests-playwright` and `e2e-tests-cypress`. Root scripts renamed: `test:e2e` → `test:playwright` + `test:cypress`.
+- **CI job renamed**: `e2e-test` → `e2e-playwright` (plus new sibling `e2e-cypress`).
+- **Fixture ws-echo-server**: `.js` → `.cjs` to prevent Node treating it as ESM under the root `"type": "module"`.
+
 ## [0.2.0-beta.1] - 2026-04-16
 
 ### Added
