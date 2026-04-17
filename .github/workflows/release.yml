@@ -140,17 +140,9 @@ jobs:
     name: Publish @chaos-maker/cypress
     runs-on: ubuntu-latest
     needs: publish-core
-    # NOTE: This job uses a legacy NPM_TOKEN instead of npm trusted publishing
-    # (OIDC) because `@chaos-maker/cypress` is publishing to npm for the first
-    # time in this release, and a trusted publisher can only be configured on
-    # an existing npm package page. After the first successful release:
-    #   1. Configure the trusted publisher on npmjs.com for @chaos-maker/cypress
-    #      pointing at this workflow file (release.yml), matching the setup used
-    #      for @chaos-maker/core and @chaos-maker/playwright.
-    #   2. Replace the `NODE_AUTH_TOKEN` env + NPM_TOKEN secret here with
-    #      `permissions: id-token: write` to match publish-core / publish-playwright.
     permissions:
       contents: read
+      id-token: write
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
@@ -172,6 +164,4 @@ jobs:
         run: pnpm build:core && pnpm build:cypress
 
       - name: Publish Cypress Adapter
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: pnpm --filter @chaos-maker/cypress publish --no-git-checks --access public
