@@ -105,8 +105,8 @@ jobs:
             packages/core/dist/
             packages/playwright/dist/
 
-  e2e-test:
-    name: E2E Tests (${{ matrix.project }})
+  e2e-playwright:
+    name: E2E Playwright (${{ matrix.project }})
     runs-on: ubuntu-latest
     needs: build
     strategy:
@@ -164,3 +164,58 @@ jobs:
 
       - name: Run E2E Tests (${{ matrix.project }})
         run: pnpm --filter e2e-tests-playwright exec playwright test --project ${{ matrix.project }}
+
+  e2e-cypress:
+    name: E2E Cypress (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        # Chrome + Firefox are pre-installed on ubuntu-latest runners.
+        # Electron ships with the Cypress binary itself — no separate install.
+        # WebKit isn't supported by Cypress (covered by Playwright job instead).
+        browser: [chrome, firefox, electron]
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      - name: Cache Cypress Binary
+        id: cypress-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/Cypress
+          key: cypress-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Install Cypress Binary
+        if: steps.cypress-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter e2e-tests-cypress exec cypress install
+
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: chaos-maker-dist
+          path: packages
+
+      - name: Run Cypress E2E Tests (${{ matrix.browser }})
+        run: pnpm --filter e2e-tests-cypress exec cypress run --browser ${{ matrix.browser }}
+
+      - name: Upload Cypress Screenshots (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-screenshots-${{ matrix.browser }}
+          path: e2e-tests/cypress/screenshots/
+          if-no-files-found: ignore
