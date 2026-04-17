@@ -24,13 +24,16 @@ export interface ChaosFixture {
 function shouldAutoTrace(testInfo: TestInfo): boolean {
   // `project.use.trace` may be a string ('on' | 'off' | 'retain-on-failure' | …)
   // or an object with a `mode` field. Treat anything other than 'off' as on.
+  // Unrecognized shapes (stray boolean/number from user misconfig) fall
+  // through to `false` — conservative default; don't silently opt in to a
+  // feature based on a value we can't interpret.
   const trace = (testInfo.project.use as { trace?: unknown } | undefined)?.trace;
   if (trace == null) return false;
   if (typeof trace === 'string') return trace !== 'off';
   if (typeof trace === 'object' && trace !== null && 'mode' in trace) {
     return (trace as { mode?: string }).mode !== 'off';
   }
-  return true;
+  return false;
 }
 
 /**
