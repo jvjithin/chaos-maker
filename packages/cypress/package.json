@@ -1,0 +1,83 @@
+{
+  "name": "@chaos-maker/cypress",
+  "version": "0.2.0-beta.1",
+  "type": "module",
+  "description": "Cypress adapter for @chaos-maker/core — custom commands for one-line chaos injection",
+  "keywords": [
+    "chaos-engineering",
+    "cypress",
+    "testing",
+    "e2e-testing",
+    "resilience"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jvjithin/chaos-maker.git",
+    "directory": "packages/cypress"
+  },
+  "homepage": "https://github.com/jvjithin/chaos-maker",
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./support": {
+      "import": {
+        "types": "./dist/support.d.ts",
+        "default": "./dist/support.js"
+      },
+      "require": {
+        "types": "./dist/support.d.ts",
+        "default": "./dist/support.cjs"
+      }
+    },
+    "./tasks": {
+      "import": {
+        "types": "./dist/tasks.d.ts",
+        "default": "./dist/tasks.js"
+      },
+      "require": {
+        "types": "./dist/tasks.d.ts",
+        "default": "./dist/tasks.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@chaos-maker/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "cypress": ">=13.0.0"
+  },
+  "peerDependenciesMeta": {
+    "cypress": {
+      "optional": false
+    }
+  },
+  "devDependencies": {
+    "cypress": "^13.15.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  }
+}
