@@ -352,6 +352,10 @@ pnpm test:cypress:all     # Cypress e2e tests across chrome + electron (120 test
                           # Playwright's firefox job covers the Firefox engine.
 ```
 
+### Spikes
+
+The `spike/` directory and any `tests/spike/**` files are intentional out-of-tree experiments preserved for historical reference. They are excluded from the default Playwright run via `testIgnore` and are not part of CI. Run them on demand with `pnpm --filter e2e-tests exec playwright test tests/spike/`.
+
 ## Contributing
 
 Pull requests are welcome. For major changes, please open an issue first.
