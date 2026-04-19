@@ -76,6 +76,11 @@ jobs:
       - name: Cypress E2E Tests
         run: pnpm --filter e2e-tests-cypress exec cypress run --browser chrome
 
+      - name: WebdriverIO E2E Tests
+        env:
+          WDIO_BROWSER: chrome
+        run: pnpm --filter e2e-tests-webdriverio test
+
   publish-core:
     name: Publish @chaos-maker/core
     runs-on: ubuntu-latest
@@ -165,3 +170,33 @@ jobs:
 
       - name: Publish Cypress Adapter
         run: pnpm --filter @chaos-maker/cypress publish --no-git-checks --access public
+
+  publish-webdriverio:
+    name: Publish @chaos-maker/webdriverio
+    runs-on: ubuntu-latest
+    needs: publish-core
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build WebdriverIO
+        run: pnpm build:core && pnpm build:webdriverio
+
+      - name: Publish WebdriverIO Adapter
+        run: pnpm --filter @chaos-maker/webdriverio publish --no-git-checks --access public

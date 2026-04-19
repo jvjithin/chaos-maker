@@ -1,0 +1,65 @@
+{
+  "name": "@chaos-maker/webdriverio",
+  "version": "0.3.0",
+  "type": "module",
+  "description": "WebdriverIO adapter for @chaos-maker/core — one-line chaos injection in WDIO tests",
+  "keywords": [
+    "chaos-engineering",
+    "webdriverio",
+    "wdio",
+    "selenium",
+    "testing",
+    "e2e-testing",
+    "resilience"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jvjithin/chaos-maker.git",
+    "directory": "packages/webdriverio"
+  },
+  "homepage": "https://github.com/jvjithin/chaos-maker",
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@chaos-maker/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "webdriverio": ">=8.0.0"
+  },
+  "peerDependenciesMeta": {
+    "webdriverio": {
+      "optional": false
+    }
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1",
+    "typescript": "^5.4.5",
+    "vitest": "^3.2.4",
+    "webdriverio": "^8.40.0"
+  }
+}

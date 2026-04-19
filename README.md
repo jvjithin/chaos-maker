@@ -310,9 +310,45 @@ it('handles API failure', () => {
 
 See [`@chaos-maker/cypress`](./packages/cypress/) for the full API.
 
-### Selenium / WebDriver
+### WebdriverIO
 
-Inject the UMD bundle via `executeScript`:
+```bash
+pnpm add -D @chaos-maker/webdriverio @chaos-maker/core
+```
+
+Register the commands once in `wdio.conf.ts`:
+
+```ts
+import { registerChaosCommands } from '@chaos-maker/webdriverio';
+
+export const config: WebdriverIO.Config = {
+  async before() {
+    registerChaosCommands(browser);
+  },
+  // ...
+};
+```
+
+Use in your tests:
+
+```ts
+it('handles API failure', async () => {
+  await browser.url('/');
+  await browser.injectChaos({
+    network: { failures: [{ urlPattern: '/api', statusCode: 503, probability: 1.0 }] },
+  });
+  await $('button.refresh').click();
+  await expect($('#status')).toHaveText('Error!');
+});
+```
+
+Note: WebdriverIO injects chaos **after** `browser.url(...)` — requests issued during the initial page load are not intercepted. For full-lifecycle chaos use Playwright or Cypress.
+
+See [`@chaos-maker/webdriverio`](./packages/webdriverio/) for the full API.
+
+### Raw Selenium / WebDriver
+
+If you're not using WebdriverIO, inject the UMD bundle via `executeScript`:
 
 ```js
 const fs = require('fs');
@@ -321,11 +357,11 @@ const script = fs.readFileSync(
 );
 const config = { network: { failures: [{ urlPattern: '/api', statusCode: 500, probability: 1.0 }] } };
 
+await driver.get('http://localhost:3000');
 await driver.executeScript(`
   window.__CHAOS_CONFIG__ = ${JSON.stringify(config)};
   ${script}
 `);
-await driver.get('http://localhost:3000');
 ```
 
 ## Packages
@@ -335,12 +371,13 @@ await driver.get('http://localhost:3000');
 | [`@chaos-maker/core`](./packages/core/) | Core chaos engine. Framework-agnostic. ESM + CJS + UMD. |
 | [`@chaos-maker/playwright`](./packages/playwright/) | Playwright adapter with `injectChaos`, `removeChaos`, `getChaosLog`, and test fixture. |
 | [`@chaos-maker/cypress`](./packages/cypress/) | Cypress adapter with `cy.injectChaos`, `cy.removeChaos`, `cy.getChaosLog`, and auto-cleanup `afterEach` hook. |
+| [`@chaos-maker/webdriverio`](./packages/webdriverio/) | WebdriverIO adapter with `browser.injectChaos`, `browser.removeChaos`, `browser.getChaosLog`, and `browser.getChaosSeed` custom commands. |
 
 ## Development
 
 ```bash
 pnpm install              # install dependencies
-pnpm build                # build core + playwright + cypress
+pnpm build                # build core + playwright + cypress + webdriverio
 pnpm test                 # unit tests
 pnpm lint                 # eslint
 pnpm test:playwright      # Playwright e2e tests across all 4 browsers (240 tests)
@@ -350,6 +387,8 @@ pnpm test:cypress:all     # Cypress e2e tests across chrome + electron (120 test
                           # Firefox is omitted — Cypress 13.x has a CDP bridge
                           # bug against Firefox 140+ that's unrelated to chaos-maker;
                           # Playwright's firefox job covers the Firefox engine.
+pnpm test:wdio            # WebdriverIO e2e tests on headless Chrome (~49 tests)
+pnpm test:wdio:firefox    # WebdriverIO e2e tests on headless Firefox
 ```
 
 ### Spikes
