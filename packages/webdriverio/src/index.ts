@@ -69,18 +69,18 @@ export async function injectChaos(
   config: ChaosConfig,
 ): Promise<void> {
   const umdSource = loadCoreUmdSource();
-  await browser.execute(
-    (src: string, serializedCfg: string) => {
-      const win = globalThis as unknown as { __CHAOS_CONFIG__: unknown };
-      win.__CHAOS_CONFIG__ = JSON.parse(serializedCfg);
-      const script = document.createElement('script');
-      script.textContent = src;
-      (document.head || document.documentElement).appendChild(script);
-      script.remove();
-    },
-    umdSource,
-    JSON.stringify(config),
-  );
+  // Both the config assignment and UMD source run inside the <script> tag's
+  // textContent so they execute in the page realm — Firefox/geckodriver runs
+  // `executeScript` bodies in a sandbox whose globals don't leak to the real
+  // `window`, so setting `window.__CHAOS_CONFIG__` from the execute callback
+  // alone leaves the UMD's auto-bootstrap with nothing to pick up.
+  const scriptSource = `window.__CHAOS_CONFIG__ = ${JSON.stringify(config)};\n${umdSource}`;
+  await browser.execute((src: string) => {
+    const script = document.createElement('script');
+    script.textContent = src;
+    (document.head || document.documentElement).appendChild(script);
+    script.remove();
+  }, scriptSource);
 }
 
 /**
@@ -88,12 +88,13 @@ export async function injectChaos(
  * on the current page.
  */
 export async function removeChaos(browser: ChaosBrowser): Promise<void> {
+  // Read state off `window` (the page realm), not `globalThis` — in Firefox
+  // geckodriver's executeScript sandbox `globalThis` is the sandbox global,
+  // which never sees `chaosUtils` because the UMD attaches it to `window`.
   await browser.execute(() => {
-    const win = globalThis as unknown as {
-      chaosUtils?: { stop: () => void };
-    };
-    if (win.chaosUtils && typeof win.chaosUtils.stop === 'function') {
-      win.chaosUtils.stop();
+    const w = window as unknown as { chaosUtils?: { stop: () => void } };
+    if (w.chaosUtils && typeof w.chaosUtils.stop === 'function') {
+      w.chaosUtils.stop();
     }
   });
 }
@@ -104,11 +105,9 @@ export async function removeChaos(browser: ChaosBrowser): Promise<void> {
  */
 export async function getChaosLog(browser: ChaosBrowser): Promise<ChaosEvent[]> {
   return browser.execute(() => {
-    const win = globalThis as unknown as {
-      chaosUtils?: { getLog: () => unknown[] };
-    };
-    if (win.chaosUtils && typeof win.chaosUtils.getLog === 'function') {
-      return win.chaosUtils.getLog() as ChaosEvent[];
+    const w = window as unknown as { chaosUtils?: { getLog: () => unknown[] } };
+    if (w.chaosUtils && typeof w.chaosUtils.getLog === 'function') {
+      return w.chaosUtils.getLog() as ChaosEvent[];
     }
     return [] as ChaosEvent[];
   });
@@ -120,11 +119,11 @@ export async function getChaosLog(browser: ChaosBrowser): Promise<ChaosEvent[]> 
  */
 export async function getChaosSeed(browser: ChaosBrowser): Promise<number | null> {
   return browser.execute(() => {
-    const win = globalThis as unknown as {
+    const w = window as unknown as {
       chaosUtils?: { getSeed: () => number | null };
     };
-    if (win.chaosUtils && typeof win.chaosUtils.getSeed === 'function') {
-      return win.chaosUtils.getSeed();
+    if (w.chaosUtils && typeof w.chaosUtils.getSeed === 'function') {
+      return w.chaosUtils.getSeed();
     }
     return null;
   });

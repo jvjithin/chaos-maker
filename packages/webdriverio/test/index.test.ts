@@ -36,16 +36,19 @@ describe('@chaos-maker/webdriverio', () => {
   });
 
   describe('injectChaos', () => {
-    it('executes UMD source + serialized config against the browser', async () => {
+    it('executes a single script argument that prepends the config assignment to the UMD bundle', async () => {
       await injectChaos(fake.browser, {
         network: { failures: [{ urlPattern: '/api', statusCode: 500, probability: 1 }] },
       });
       expect(fake.executeCalls).toHaveLength(1);
-      const [src, serialized] = fake.executeCalls[0].args as [string, string];
-      expect(typeof src).toBe('string');
-      expect(src.length).toBeGreaterThan(100); // real UMD bundle, not empty
-      expect(() => JSON.parse(serialized)).not.toThrow();
-      expect(JSON.parse(serialized)).toMatchObject({
+      const [scriptSource] = fake.executeCalls[0].args as [string];
+      expect(typeof scriptSource).toBe('string');
+      expect(scriptSource).toMatch(/^window\.__CHAOS_CONFIG__ = /);
+      expect(scriptSource.length).toBeGreaterThan(100); // real UMD bundle, not empty
+      // config is embedded as a JSON literal on the first line
+      const firstLine = scriptSource.split('\n', 1)[0];
+      const configJson = firstLine.replace(/^window\.__CHAOS_CONFIG__ = /, '').replace(/;$/, '');
+      expect(JSON.parse(configJson)).toMatchObject({
         network: { failures: [{ urlPattern: '/api', statusCode: 500 }] },
       });
     });

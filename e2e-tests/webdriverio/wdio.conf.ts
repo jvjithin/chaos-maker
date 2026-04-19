@@ -96,9 +96,9 @@ export const config: WebdriverIO.Config = {
     // doesn't leak into the next spec.
     try {
       await browser.execute(() => {
-        const win = globalThis as unknown as { chaosUtils?: { stop?: () => void } };
-        if (win.chaosUtils && typeof win.chaosUtils.stop === 'function') {
-          win.chaosUtils.stop();
+        const w = window as unknown as { chaosUtils?: { stop?: () => void } };
+        if (w.chaosUtils && typeof w.chaosUtils.stop === 'function') {
+          w.chaosUtils.stop();
         }
       });
     } catch {
