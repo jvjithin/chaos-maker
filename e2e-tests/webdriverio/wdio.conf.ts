@@ -5,6 +5,7 @@ import { registerChaosCommands } from '@chaos-maker/webdriverio';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIXTURES = resolve(__dirname, '../fixtures');
+const PNPM_BIN = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 
 const browserName = process.env.WDIO_BROWSER || 'chrome';
 
@@ -71,8 +72,8 @@ export const config: WebdriverIO.Config = {
       /* start fixture servers */
     }
     httpServer = spawn(
-      'npx',
-      ['http-server', FIXTURES, '-p', '8080', '-s'],
+      PNPM_BIN,
+      ['exec', 'http-server', FIXTURES, '-p', '8080', '-s'],
       { stdio: 'inherit' },
     );
     wsServer = spawn(

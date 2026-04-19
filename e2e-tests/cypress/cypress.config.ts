@@ -5,6 +5,7 @@ import { registerChaosTasks } from '@chaos-maker/cypress/tasks';
 
 // __dirname is available because Cypress compiles this file to CJS.
 const FIXTURES = path.resolve(__dirname, '../fixtures');
+const PNPM_BIN = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 
 let httpServer: ChildProcess | null = null;
 let wsServer: ChildProcess | null = null;
@@ -54,8 +55,8 @@ export default defineConfig({
 
       if (!alreadyUp) {
         httpServer = spawn(
-          'npx',
-          ['http-server', FIXTURES, '-p', '8080', '-s'],
+          PNPM_BIN,
+          ['exec', 'http-server', FIXTURES, '-p', '8080', '-s'],
           { stdio: 'pipe' },
         );
         wsServer = spawn(
