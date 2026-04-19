@@ -1,7 +1,7 @@
 # Spike — Service Worker chaos feasibility
 
 **Date:** 2026-04-18
-**Branch:** `fix-playwright-webserver-npm-warnings`
+**Branch:** `chore/spike-cleanup` (merged to `main` via Phase 0 of v0.3.0)
 **Decision:** ✅ **GO for v0.4.0** with caveats below.
 
 ---
@@ -18,7 +18,7 @@ Determine whether chaos-maker can intercept `fetch` calls issued from inside a S
 Test artifacts:
 - Shim: `spike/sw-chaos/sw-chaos-shim.js` (standalone) and `e2e-tests/fixtures/sw-app/sw-chaos.js` (baked into fixture SW)
 - Fixture: `e2e-tests/fixtures/sw-app/{index.html, sw.js, sw-chaos.js}`
-- Test: `e2e-tests/playwright/tests/spike-sw-chaos.spec.ts` (2 tests × 4 browsers = 8 passes)
+- Test: `e2e-tests/playwright/tests/spike/spike-sw-chaos.spec.ts` (2 tests × 4 browsers = 8 passes)
 
 ## Approaches tried
 
@@ -115,10 +115,8 @@ Fits in v0.4.0 alongside SSE chaos and GraphQL matching if SSE = M and GraphQL =
 
 These become test cases in the real implementation, not blockers for the go/no-go.
 
-## Cleanup before merge to main
+## Disposition (merged to main)
 
-Spike artifacts to keep / remove:
-- ✅ Keep `spike/sw-chaos/sw-chaos-shim.js` + this notes file as historical record
-- ❌ Remove `e2e-tests/fixtures/sw-app/` after porting fixture into v0.4.0 implementation branch
-- ❌ Remove `e2e-tests/playwright/tests/spike-sw-chaos.spec.ts` after real SW chaos tests land
-- Spike test currently lives in main test dir → will run in CI. Either tag with `test.fixme` or move under separate spike testMatch before pushing if you want to keep CI green without committing to ship.
+- ✅ Kept `spike/sw-chaos/sw-chaos-shim.js` + this notes file as historical record.
+- ✅ Kept `e2e-tests/fixtures/sw-app/` as historical reference; to be superseded (not necessarily removed) when the v0.4.0 implementation lands.
+- ✅ Moved the spike spec to `e2e-tests/playwright/tests/spike/spike-sw-chaos.spec.ts` and excluded `**/spike/**` from default Playwright discovery via `testIgnore` in `e2e-tests/playwright/playwright.config.ts`. Spike is out of CI but runnable on demand: `pnpm --filter e2e-tests exec playwright test tests/spike/`.
