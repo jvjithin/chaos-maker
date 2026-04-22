@@ -1,0 +1,39 @@
+---
+title: Chaos Types
+description: Network, UI, and WebSocket chaos primitives in Chaos Maker.
+---
+
+Chaos Maker applies browser-side chaos to APIs your frontend already uses.
+
+## Network
+
+| Type | Config key | Effect |
+| --- | --- | --- |
+| Failure | `network.failures` | Returns a configured HTTP status and body. |
+| Latency | `network.latencies` | Delays matched requests by `delayMs`. |
+| Abort | `network.aborts` | Aborts immediately or after `timeout`. |
+| Corruption | `network.corruptions` | Rewrites response text with `truncate`, `malformed-json`, `empty`, or `wrong-type`. |
+| CORS | `network.cors` | Simulates a browser network/CORS failure. |
+
+Network rules match by `urlPattern` substring and optional `methods`.
+
+## UI
+
+`ui.assaults` targets DOM nodes by CSS selector and applies `disable`, `hide`, or `remove`.
+
+```typescript
+ui: {
+  assaults: [{ selector: 'button[type="submit"]', action: 'disable', probability: 0.5 }],
+}
+```
+
+## WebSocket
+
+| Type | Config key | Effect |
+| --- | --- | --- |
+| Drop | `websocket.drops` | Drops inbound, outbound, or both directions. |
+| Delay | `websocket.delays` | Delays matched messages. |
+| Corrupt | `websocket.corruptions` | Rewrites text/binary payloads where supported. |
+| Close | `websocket.closes` | Closes a matched socket with code, reason, and optional delay. |
+
+All probability-driven decisions use the seeded PRNG.

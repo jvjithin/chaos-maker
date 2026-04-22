@@ -1,6 +1,6 @@
 import type { CorruptionStrategy, RequestCountingOptions } from './config';
 
-export function shouldApplyChaos(probability: number, random: () => number = Math.random): boolean {
+export function shouldApplyChaos(probability: number, random: () => number): boolean {
   return random() < probability;
 }
 

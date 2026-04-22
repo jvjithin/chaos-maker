@@ -1,0 +1,45 @@
+---
+title: Cypress
+description: Inject chaos into Cypress tests before cy.visit().
+---
+
+Cypress injects Chaos Maker through custom commands. Register the support module once, then call `cy.injectChaos()` before `cy.visit()`.
+
+```bash
+npm install @chaos-maker/core @chaos-maker/cypress
+```
+
+In `cypress/support/e2e.ts`:
+
+```typescript
+import '@chaos-maker/cypress/support';
+```
+
+```typescript
+describe('orders', () => {
+  it('shows error state when the API fails', () => {
+    cy.injectChaos({
+      seed: 42,
+      network: {
+        failures: [{ urlPattern: '/api/orders', statusCode: 503, probability: 1 }],
+      },
+    });
+
+    cy.visit('/orders');
+    cy.get('[data-testid="error-state"]').should('be.visible');
+    cy.getChaosLog().should((log) => {
+      expect(log.some((event) => event.type === 'network:failure' && event.applied)).to.equal(true);
+    });
+  });
+});
+```
+
+## Command log
+
+Cypress command log entries include the same event types returned by `cy.getChaosLog()`, so test output and assertions stay aligned.
+
+## Next steps
+
+- [Cypress adapter API](/adapters/cypress/)
+- [Flaky API with retries](/recipes/flaky-api-with-retries/)
+- [Observability](/concepts/observability/)

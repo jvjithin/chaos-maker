@@ -1,0 +1,28 @@
+---
+title: Presets
+description: Built-in Chaos Maker presets for common resilience scenarios.
+---
+
+Presets are reusable `ChaosConfig` objects exported from `@chaos-maker/core`.
+
+```typescript
+import { presets } from '@chaos-maker/core';
+import { injectChaos } from '@chaos-maker/playwright';
+
+await injectChaos(page, presets.slowNetwork);
+```
+
+## When to use presets
+
+Use presets for smoke coverage and exploratory resilience tests. Use explicit configs for product-critical flows where the exact status code, selector, message direction, and probability matter.
+
+## Common pattern
+
+```typescript
+await injectChaos(page, {
+  ...presets.unstableApi,
+  seed: 42,
+});
+```
+
+The seed belongs at the root config level, so it can be added to any preset before injection.

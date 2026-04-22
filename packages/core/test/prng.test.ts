@@ -97,9 +97,8 @@ describe('shouldApplyChaos with seeded random', () => {
     expect(ratio).toBeLessThan(probability + 0.05);
   });
 
-  it('should still work without a random function (falls back to Math.random)', () => {
-    // Just verifying it doesn't throw
-    const result = shouldApplyChaos(0.5);
-    expect(typeof result).toBe('boolean');
+  it('should use the caller-provided random function', () => {
+    expect(shouldApplyChaos(0.5, () => 0.49)).toBe(true);
+    expect(shouldApplyChaos(0.5, () => 0.5)).toBe(false);
   });
 });

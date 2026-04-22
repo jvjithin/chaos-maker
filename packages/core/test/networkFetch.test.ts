@@ -7,6 +7,7 @@ import { mockFetch } from './setup';
 
 // Get the mock fetch from our setup file
 const originalFetch = mockFetch;
+const deterministicRandom = () => 0;
 
 function createAbortAwareFetch() {
   return vi.fn((_input: RequestInfo | URL, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
@@ -40,7 +41,7 @@ beforeEach(() => {
 describe('patchFetch', () => {
   it('should not intercept requests if config is empty', async () => {
     const config: NetworkConfig = {};
-    const patchedFetch = patchFetch(originalFetch, config);
+    const patchedFetch = patchFetch(originalFetch, config, deterministicRandom);
 
     await patchedFetch('/api/test');
     expect(originalFetch).toHaveBeenCalledWith('/api/test', undefined);
@@ -50,7 +51,7 @@ describe('patchFetch', () => {
     const config: NetworkConfig = {
       failures: [{ urlPattern: '/api/fail', statusCode: 503, probability: 1.0 }]
     };
-    const patchedFetch = patchFetch(originalFetch, config);
+    const patchedFetch = patchFetch(originalFetch, config, deterministicRandom);
 
     const response = await patchedFetch('/api/fail');
     
@@ -62,7 +63,7 @@ describe('patchFetch', () => {
     const config: NetworkConfig = {
       failures: [{ urlPattern: '/api/fail', statusCode: 503, probability: 1.0 }]
     };
-    const patchedFetch = patchFetch(originalFetch, config);
+    const patchedFetch = patchFetch(originalFetch, config, deterministicRandom);
 
     await patchedFetch('/api/success');
     
@@ -74,7 +75,7 @@ describe('patchFetch', () => {
     const config: NetworkConfig = {
       failures: [{ urlPattern: '/api/data', methods: ['POST'], statusCode: 500, probability: 1.0 }]
     };
-    const patchedFetch = patchFetch(originalFetch, config);
+    const patchedFetch = patchFetch(originalFetch, config, deterministicRandom);
 
     // This one should pass through
     await patchedFetch('/api/data', { method: 'GET' });
@@ -92,7 +93,7 @@ describe('patchFetch', () => {
     const config: NetworkConfig = {
       latencies: [{ urlPattern: '/api/slow', delayMs: 100, probability: 1.0 }]
     };
-    const patchedFetch = patchFetch(originalFetch, config);
+    const patchedFetch = patchFetch(originalFetch, config, deterministicRandom);
 
     const startTime = Date.now();
     await patchedFetch('/api/slow');
@@ -106,7 +107,7 @@ describe('patchFetch', () => {
     const config: NetworkConfig = {
       failures: [{ urlPattern: '/api/flaky', statusCode: 500, probability: 0.0 }]
     };
-    const patchedFetch = patchFetch(originalFetch, config);
+    const patchedFetch = patchFetch(originalFetch, config, deterministicRandom);
 
     // With 0 probability, should always call original
     await patchedFetch('/api/flaky');
@@ -117,7 +118,7 @@ describe('patchFetch', () => {
     const config: NetworkConfig = {
       cors: [{ urlPattern: '/api/cors', probability: 1.0 }]
     };
-    const patchedFetch = patchFetch(originalFetch, config);
+    const patchedFetch = patchFetch(originalFetch, config, deterministicRandom);
 
     await expect(patchedFetch('/api/cors')).rejects.toThrow('Failed to fetch');
     expect(originalFetch).not.toHaveBeenCalled();
@@ -128,7 +129,7 @@ describe('patchFetch', () => {
       aborts: [{ urlPattern: '/api/abort', probability: 1.0 }]
     };
     const abortAwareFetch = createAbortAwareFetch();
-    const patchedFetch = patchFetch(abortAwareFetch as typeof global.fetch, config);
+    const patchedFetch = patchFetch(abortAwareFetch as typeof global.fetch, config, deterministicRandom);
 
     await expect(patchedFetch('/api/abort')).rejects.toThrow('The user aborted a request.');
     expect(abortAwareFetch).toHaveBeenCalledTimes(1);
@@ -143,7 +144,7 @@ describe('patchFetch', () => {
       aborts: [{ urlPattern: '/api/abort-delay', timeout: 100, probability: 1.0 }]
     };
     const abortAwareFetch = createAbortAwareFetch();
-    const patchedFetch = patchFetch(abortAwareFetch as typeof global.fetch, config);
+    const patchedFetch = patchFetch(abortAwareFetch as typeof global.fetch, config, deterministicRandom);
 
     const requestPromise = patchedFetch('/api/abort-delay');
     expect(abortAwareFetch).toHaveBeenCalledTimes(1);
@@ -173,7 +174,7 @@ describe('patchFetch', () => {
     const config: NetworkConfig = {
       corruptions: [{ urlPattern: '/api/corrupt', strategy: 'truncate', probability: 1.0 }]
     };
-    const patchedFetch = patchFetch(originalFetch, config);
+    const patchedFetch = patchFetch(originalFetch, config, deterministicRandom);
     originalFetch.mockResolvedValueOnce(new global.Response('HelloWorld', { status: 200 }));
 
     const response = await patchedFetch('/api/corrupt');
@@ -185,7 +186,7 @@ describe('patchFetch', () => {
     const config: NetworkConfig = {
       corruptions: [{ urlPattern: '/api/corrupt', strategy: 'malformed-json', probability: 1.0 }]
     };
-    const patchedFetch = patchFetch(originalFetch, config);
+    const patchedFetch = patchFetch(originalFetch, config, deterministicRandom);
     originalFetch.mockResolvedValueOnce(new global.Response('{"key":"value"}', { status: 200 }));
 
     const response = await patchedFetch('/api/corrupt');
@@ -197,7 +198,7 @@ describe('patchFetch', () => {
     const config: NetworkConfig = {
       corruptions: [{ urlPattern: '/api/corrupt', strategy: 'empty', probability: 1.0 }]
     };
-    const patchedFetch = patchFetch(originalFetch, config);
+    const patchedFetch = patchFetch(originalFetch, config, deterministicRandom);
     originalFetch.mockResolvedValueOnce(new global.Response('HelloWorld', { status: 200 }));
 
     const response = await patchedFetch('/api/corrupt');
@@ -209,7 +210,7 @@ describe('patchFetch', () => {
     const config: NetworkConfig = {
       corruptions: [{ urlPattern: '/api/corrupt', strategy: 'wrong-type', probability: 1.0 }]
     };
-    const patchedFetch = patchFetch(originalFetch, config);
+    const patchedFetch = patchFetch(originalFetch, config, deterministicRandom);
     originalFetch.mockResolvedValueOnce(new global.Response('HelloWorld', { status: 200 }));
 
     const response = await patchedFetch('/api/corrupt');
@@ -223,7 +224,7 @@ describe('patchFetch', () => {
     const config: NetworkConfig = {
       corruptions: [{ urlPattern: '/api/corrupt', strategy: 'truncate', probability: 1.0 }]
     };
-    const patchedFetch = patchFetch(failingFetch as typeof global.fetch, config, emitter);
+    const patchedFetch = patchFetch(failingFetch as typeof global.fetch, config, deterministicRandom, emitter);
 
     await expect(patchedFetch('/api/corrupt')).rejects.toThrow('boom');
     expect(emitter.getLog()).toEqual([
@@ -246,7 +247,7 @@ describe('patchFetch', () => {
     const config: NetworkConfig = {
       aborts: [{ urlPattern: '/api/fast', timeout: 100, probability: 1.0 }]
     };
-    const patchedFetch = patchFetch(fastFetch as typeof global.fetch, config, emitter);
+    const patchedFetch = patchFetch(fastFetch as typeof global.fetch, config, deterministicRandom, emitter);
 
     const response = await patchedFetch('/api/fast');
     expect(response.status).toBe(200);

@@ -1,0 +1,14 @@
+{
+  "name": "chaos-maker-docs",
+  "version": "0.3.0",
+  "private": true,
+  "scripts": {
+    "dev": "ASTRO_TELEMETRY_DISABLED=1 astro dev",
+    "build": "ASTRO_TELEMETRY_DISABLED=1 astro build",
+    "preview": "ASTRO_TELEMETRY_DISABLED=1 astro preview"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.21.0",
+    "astro": "^4.0.0"
+  }
+}

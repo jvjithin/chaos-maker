@@ -1,0 +1,47 @@
+---
+title: Playwright
+description: Inject chaos into Playwright tests before navigation.
+---
+
+Playwright is the best fit when you need chaos from the first page load. The adapter registers Chaos Maker as an init script before `page.goto()`.
+
+```bash
+npm install @chaos-maker/core @chaos-maker/playwright
+```
+
+```typescript
+import { test, expect } from '@playwright/test';
+import { injectChaos, getChaosLog, getChaosSeed } from '@chaos-maker/playwright';
+
+test('shows error state when the API fails', async ({ page }) => {
+  await injectChaos(page, {
+    seed: 42,
+    network: {
+      failures: [{ urlPattern: '/api/orders', statusCode: 503, probability: 1 }],
+    },
+  });
+
+  await page.goto('/orders');
+  await expect(page.locator('[data-testid="error-state"]')).toBeVisible();
+
+  const log = await getChaosLog(page);
+  expect(log.some((event) => event.type === 'network:failure' && event.applied)).toBe(true);
+  console.info('Chaos seed:', await getChaosSeed(page));
+});
+```
+
+## Trace integration
+
+Pass `testInfo` with tracing enabled to annotate Playwright traces and attach the chaos log.
+
+```typescript
+await injectChaos(page, config, { tracing: true, testInfo });
+```
+
+The fixture entry point can also wire tracing automatically for suites that prefer shared setup.
+
+## Next steps
+
+- [Playwright adapter API](/adapters/playwright/)
+- [Slow checkout recipe](/recipes/slow-checkout/)
+- [Seeded reproducibility](/concepts/seeded-reproducibility/)

@@ -1,0 +1,38 @@
+---
+title: WebdriverIO Adapter
+description: Public API and limitations for @chaos-maker/webdriverio.
+---
+
+Use `@chaos-maker/webdriverio` for WDIO suites that can inject chaos after navigation.
+
+## API
+
+```typescript
+import {
+  injectChaos,
+  removeChaos,
+  getChaosLog,
+  getChaosSeed,
+  registerChaosCommands,
+} from '@chaos-maker/webdriverio';
+```
+
+| Function | Purpose |
+| --- | --- |
+| `injectChaos(browser, config)` | Injects the core UMD into the current page. |
+| `removeChaos(browser)` | Stops chaos in the current page. |
+| `getChaosLog(browser)` | Returns `ChaosEvent[]`. |
+| `getChaosSeed(browser)` | Returns the active seed or `null`. |
+| `registerChaosCommands(browser)` | Adds `browser.injectChaos()`, `browser.removeChaos()`, `browser.getChaosLog()`, and `browser.getChaosSeed()`. |
+
+## Timing
+
+Call after `browser.url()`. WebDriver does not expose a reliable cross-browser pre-navigation hook, so initial page-load requests are outside this adapter's reach.
+
+```typescript
+await browser.url('/dashboard');
+await injectChaos(browser, config);
+await $('#reload').click();
+```
+
+For first-load interception, use Playwright or Cypress.

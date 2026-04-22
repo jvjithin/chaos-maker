@@ -7,6 +7,7 @@ export default [
     ignores: [
       "node_modules",
       "**/dist",
+      "**/.astro",
       "**/*.cjs",
       "**/playwright-report",
       "**/test-results"
@@ -36,6 +37,14 @@ export default [
     },
   },
   {
+    // Astro's environment declaration uses the framework-standard triple-slash
+    // reference to generated `.astro` types.
+    files: ["docs/src/env.d.ts"],
+    rules: {
+      "@typescript-eslint/triple-slash-reference": "off",
+    },
+  },
+  {
     // Configuration for test files
     files: ["**/*.test.ts"],
     plugins: {
@@ -56,6 +65,19 @@ export default [
     files: ["e2e-tests/cypress/**/*.cy.ts"],
     rules: {
       "@typescript-eslint/no-unused-expressions": "off",
+    },
+  },
+  {
+    files: ["packages/core/src/**/*.ts"],
+    ignores: ["packages/core/src/prng.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "MemberExpression[object.name='Math'][property.name='random']",
+          message: "Use the seeded PRNG (this.random / random parameter). See packages/core/src/prng.ts.",
+        },
+      ],
     },
   },
 ];

@@ -32,7 +32,7 @@ function emitCorruptionEvent(
   });
 }
 
-export function patchXHR(originalXhrSend: (body?: Document | XMLHttpRequestBodyInit) => void, config: NetworkConfig, emitter?: ChaosEventEmitter, random: () => number = Math.random, counters: Map<object, number> = new Map()) {
+export function patchXHR(originalXhrSend: (body?: Document | XMLHttpRequestBodyInit) => void, config: NetworkConfig, random: () => number, emitter?: ChaosEventEmitter, counters: Map<object, number> = new Map()) {
   return function (this: XMLHttpRequest, body?: Document | XMLHttpRequestBodyInit) {
     const url = (this as any)._chaos_url;
     const method = (this as any)._chaos_method;
