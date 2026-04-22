@@ -1,0 +1,34 @@
+---
+title: Cypress Adapter
+description: Public API and command registration for @chaos-maker/cypress.
+---
+
+Use `@chaos-maker/cypress` to inject chaos into the next `cy.visit()` and inspect decisions through Cypress commands.
+
+## Register
+
+```typescript
+import '@chaos-maker/cypress/support';
+```
+
+## Commands
+
+| Command | Purpose |
+| --- | --- |
+| `cy.injectChaos(config, options?)` | Injects chaos into the next visit. |
+| `cy.removeChaos()` | Stops chaos in the current AUT window. |
+| `cy.getChaosLog()` | Yields `ChaosEvent[]`. |
+| `cy.getChaosSeed()` | Yields the active seed or `null`. |
+
+## Persistence
+
+By default, chaos persists across navigations until `cy.removeChaos()` runs. Pass `{ persistAcrossNavigations: false }` to limit chaos to the next visit.
+
+```typescript
+cy.injectChaos(config, { persistAcrossNavigations: false });
+cy.visit('/checkout');
+```
+
+## Timing
+
+Call `cy.injectChaos()` before `cy.visit()` so Cypress can install the bundle before app code executes.

@@ -1,0 +1,80 @@
+---
+title: Config Reference
+description: ChaosConfig, event, and rule type reference.
+---
+
+## ChaosConfig
+
+```typescript
+interface ChaosConfig {
+  network?: NetworkConfig;
+  ui?: UiConfig;
+  websocket?: WebSocketConfig;
+  seed?: number;
+}
+```
+
+`seed` controls probability-driven chaos decisions. The same seed plus the same interaction sequence produces the same normalized event sequence.
+
+## NetworkConfig
+
+```typescript
+interface NetworkConfig {
+  failures?: NetworkFailureConfig[];
+  latencies?: NetworkLatencyConfig[];
+  aborts?: NetworkAbortConfig[];
+  corruptions?: NetworkCorruptionConfig[];
+  cors?: NetworkCorsConfig[];
+}
+```
+
+Each network rule supports `urlPattern`, optional `methods`, `probability`, and optional request counting.
+
+```typescript
+interface RequestCountingOptions {
+  onNth?: number;
+  everyNth?: number;
+  afterN?: number;
+}
+```
+
+## UI
+
+```typescript
+interface UiConfig {
+  assaults?: UiAssaultConfig[];
+}
+
+interface UiAssaultConfig {
+  selector: string;
+  action: 'disable' | 'hide' | 'remove';
+  probability: number;
+}
+```
+
+## WebSocket
+
+```typescript
+interface WebSocketConfig {
+  drops?: WebSocketDropConfig[];
+  delays?: WebSocketDelayConfig[];
+  corruptions?: WebSocketCorruptConfig[];
+  closes?: WebSocketCloseConfig[];
+}
+
+type WebSocketDirection = 'inbound' | 'outbound' | 'both';
+type WebSocketCorruptionStrategy = 'truncate' | 'malformed-json' | 'empty' | 'wrong-type';
+```
+
+## ChaosEvent
+
+```typescript
+interface ChaosEvent {
+  type: ChaosEventType;
+  timestamp: number;
+  applied: boolean;
+  detail: Record<string, unknown>;
+}
+```
+
+Use `applied` to distinguish "matched and rolled false" from "chaos actually changed browser behavior".

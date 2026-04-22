@@ -1,0 +1,30 @@
+---
+title: Observability
+description: Inspect chaos events, seeds, and Playwright trace output.
+---
+
+Every chaos decision emits a `ChaosEvent`.
+
+```typescript
+type ChaosEvent = {
+  type: string;
+  timestamp: number;
+  applied: boolean;
+  detail: Record<string, unknown>;
+};
+```
+
+Use the adapter log helpers to assert that chaos happened and to diagnose skipped decisions.
+
+```typescript
+const log = await getChaosLog(page);
+expect(log.some((event) => event.type === 'network:failure' && event.applied)).toBe(true);
+```
+
+## Seeds
+
+Always log `getChaosSeed()` when a test fails. The seed plus the chaos log gives you the repro input and the observed decision sequence.
+
+## Playwright traces
+
+The Playwright adapter can add chaos events to the trace viewer and attach `chaos-log.json` at test end.

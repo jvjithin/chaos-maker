@@ -1,0 +1,69 @@
+---
+title: Corrupt JSON Response
+description: Verify parse-error handling when an API returns malformed JSON.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Corrupt a JSON response and assert that the app renders a parse-safe error instead of crashing.
+
+<Tabs>
+  <TabItem label="Playwright">
+
+```typescript
+await injectChaos(page, {
+  seed: 42,
+  network: { corruptions: [{ urlPattern: '/api/profile', strategy: 'malformed-json', probability: 1 }] },
+});
+await page.goto('/profile');
+await expect(page.locator('[data-testid="parse-error"]')).toBeVisible();
+expect((await getChaosLog(page)).some((event) => event.type === 'network:corruption' && event.applied)).toBe(true);
+```
+
+  </TabItem>
+  <TabItem label="Cypress">
+
+```typescript
+cy.injectChaos({
+  seed: 42,
+  network: { corruptions: [{ urlPattern: '/api/profile', strategy: 'malformed-json', probability: 1 }] },
+});
+cy.visit('/profile');
+cy.get('[data-testid="parse-error"]').should('be.visible');
+cy.getChaosLog().should((log) => {
+  expect(log.some((event) => event.type === 'network:corruption' && event.applied)).to.equal(true);
+});
+```
+
+  </TabItem>
+  <TabItem label="WebdriverIO">
+
+```typescript
+await browser.url('/profile');
+await injectChaos(browser, {
+  seed: 42,
+  network: { corruptions: [{ urlPattern: '/api/profile', strategy: 'malformed-json', probability: 1 }] },
+});
+await $('#reload-profile').click();
+await expect($('[data-testid="parse-error"]')).toBeDisplayed();
+expect((await getChaosLog(browser)).some((event) => event.type === 'network:corruption' && event.applied)).toBe(true);
+```
+
+  </TabItem>
+  <TabItem label="Puppeteer">
+
+```typescript
+await injectChaos(page, {
+  seed: 42,
+  network: { corruptions: [{ urlPattern: '/api/profile', strategy: 'malformed-json', probability: 1 }] },
+});
+await page.goto('http://localhost:3000/profile');
+await page.waitForSelector('[data-testid="parse-error"]');
+const log = await getChaosLog(page);
+if (!log.some((event) => event.type === 'network:corruption' && event.applied)) {
+  throw new Error('Expected corrupt JSON chaos');
+}
+```
+
+  </TabItem>
+</Tabs>

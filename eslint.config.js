@@ -7,6 +7,7 @@ export default [
     ignores: [
       "node_modules",
       "**/dist",
+      "**/.astro",
       "**/*.cjs",
       "**/playwright-report",
       "**/test-results"
@@ -33,6 +34,14 @@ export default [
     files: ["e2e-tests/fixtures/**/*.cjs"],
     rules: {
       "@typescript-eslint/no-require-imports": "off",
+    },
+  },
+  {
+    // Astro's environment declaration uses the framework-standard triple-slash
+    // reference to generated `.astro` types.
+    files: ["docs/src/env.d.ts"],
+    rules: {
+      "@typescript-eslint/triple-slash-reference": "off",
     },
   },
   {

@@ -1,0 +1,47 @@
+---
+title: Core API
+description: Public exports from @chaos-maker/core.
+---
+
+The core package owns config validation, the seeded PRNG, event emission, presets, and the browser-side chaos engine used by every adapter.
+
+## Main exports
+
+```typescript
+export {
+  ChaosMaker,
+  ChaosConfigError,
+  validateConfig,
+  ChaosEventEmitter,
+  ChaosConfigBuilder,
+  presets,
+  createPrng,
+  generateSeed,
+};
+```
+
+## ChaosMaker
+
+```typescript
+class ChaosMaker {
+  constructor(config: ChaosConfig);
+  start(): void;
+  stop(): void;
+  getSeed(): number;
+  getLog(): ChaosEvent[];
+  clearLog(): void;
+  on(type: ChaosEventType | '*', listener: ChaosEventListener): void;
+  off(type: ChaosEventType | '*', listener: ChaosEventListener): void;
+}
+```
+
+Most users should call a framework adapter instead of constructing `ChaosMaker` directly.
+
+## PRNG helpers
+
+```typescript
+function createPrng(seed?: number): { random: () => number; seed: number };
+function generateSeed(): number;
+```
+
+`generateSeed()` is the only intentional `Math.random()` use in core. All chaos decisions use `createPrng(seed).random`.

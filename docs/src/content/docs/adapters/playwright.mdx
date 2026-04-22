@@ -1,0 +1,39 @@
+---
+title: Playwright Adapter
+description: Public API and timing rules for @chaos-maker/playwright.
+---
+
+Use `@chaos-maker/playwright` when you need pre-navigation interception and optional trace annotations.
+
+## API
+
+```typescript
+import {
+  injectChaos,
+  removeChaos,
+  getChaosLog,
+  getChaosSeed,
+} from '@chaos-maker/playwright';
+```
+
+| Function | Purpose |
+| --- | --- |
+| `injectChaos(page, config, options?)` | Registers config and core UMD as init scripts. Call before `page.goto()`. |
+| `removeChaos(page)` | Stops chaos and flushes trace attachments when tracing is active. |
+| `getChaosLog(page)` | Returns every emitted `ChaosEvent`. |
+| `getChaosSeed(page)` | Returns the seed for replay. |
+
+## Trace options
+
+```typescript
+await injectChaos(page, config, {
+  tracing: true,
+  testInfo,
+});
+```
+
+Trace output includes named chaos steps and a `chaos-log.json` attachment. Direct `injectChaos()` calls default tracing to off; fixture-based setup can opt into automatic trace handling.
+
+## Timing
+
+Call `injectChaos()` before navigation. The adapter uses Playwright `addInitScript()`, so app code observes patched browser APIs from the first script.

@@ -1,0 +1,55 @@
+---
+title: Puppeteer
+description: Inject chaos into Puppeteer pages with evaluateOnNewDocument().
+---
+
+Puppeteer uses `page.evaluateOnNewDocument()` so network and WebSocket chaos are installed before app scripts run. Launch headless Chromium with `headless: true`.
+
+```bash
+npm install @chaos-maker/core @chaos-maker/puppeteer
+```
+
+```typescript
+import puppeteer from 'puppeteer';
+import { injectChaos, getChaosLog, removeChaos } from '@chaos-maker/puppeteer';
+
+const browser = await puppeteer.launch({ headless: true });
+const page = await browser.newPage();
+
+await injectChaos(page, {
+  seed: 42,
+  network: {
+    failures: [{ urlPattern: '/api/orders', statusCode: 503, probability: 1 }],
+  },
+});
+
+await page.goto('http://localhost:3000/orders');
+await page.waitForSelector('[data-testid="error-state"]');
+
+const log = await getChaosLog(page);
+if (!log.some((event) => event.type === 'network:failure' && event.applied)) {
+  throw new Error('Expected chaos to apply');
+}
+
+await removeChaos(page);
+await browser.close();
+```
+
+## UI chaos timing
+
+DOM assaults need `document.body`. For UI chaos, load the bundle before navigation, then start the UI config after `page.goto()`.
+
+```typescript
+await injectChaos(page, {});
+await page.goto('http://localhost:3000/settings');
+await page.evaluate((config) => window.chaosUtils.start(config), {
+  seed: 42,
+  ui: { assaults: [{ selector: 'button.save', action: 'disable', probability: 1 }] },
+});
+```
+
+## Next steps
+
+- [Puppeteer adapter API](/adapters/puppeteer/)
+- [Degraded UI buttons](/recipes/degraded-ui-buttons/)
+- [Chaos types](/concepts/chaos-types/)
