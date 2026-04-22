@@ -225,6 +225,9 @@ importers:
       '@chaos-maker/core':
         specifier: workspace:*
         version: link:../core
+      puppeteer-core:
+        specifier: '>=21.0.0'
+        version: 22.15.0
     devDependencies:
       puppeteer:
         specifier: ^22.0.0
