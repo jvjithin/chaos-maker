@@ -14,12 +14,28 @@ export interface ChaosPage {
     pageFunction: string | ((...args: unknown[]) => void),
     ...args: unknown[]
   ): Promise<unknown>;
+  removeScriptToEvaluateOnNewDocument?(identifier: string): Promise<void>;
   evaluate<T = unknown>(pageFunction: string | ((...args: unknown[]) => T), ...args: unknown[]): Promise<T>;
   goto(url: string, options?: Record<string, unknown>): Promise<unknown>;
 }
 
 let cachedUmdSource: string | null = null;
 let cachedUmdPath: string | null = null;
+
+// Track init-script identifiers per page so removeChaos can tear them down.
+// Without this, evaluateOnNewDocument scripts persist across navigations and
+// re-inject chaos after removeChaos on subsequent page.goto() calls — breaks
+// test frameworks that pool pages across cases.
+const registeredInitScripts = new WeakMap<ChaosPage, string[]>();
+
+function scriptIdentifier(handle: unknown): string | undefined {
+  if (typeof handle === 'string') return handle;
+  if (handle && typeof handle === 'object' && 'identifier' in handle) {
+    const id = (handle as { identifier?: unknown }).identifier;
+    return typeof id === 'string' ? id : undefined;
+  }
+  return undefined;
+}
 
 function getCurrentDir(): string {
   return typeof __dirname !== 'undefined'
@@ -69,13 +85,19 @@ export async function injectChaos(page: ChaosPage, config: ChaosConfig): Promise
 
   // Set config in the page realm before the UMD loads so the auto-bootstrap
   // picks it up. Serialized as an argument — Puppeteer JSON-encodes it.
-  await page.evaluateOnNewDocument((cfg: unknown) => {
+  const configHandle = await page.evaluateOnNewDocument((cfg: unknown) => {
     (globalThis as unknown as Record<string, unknown>)['__CHAOS_CONFIG__'] = cfg;
   }, config as unknown);
 
   // Inject UMD source as a raw script string — fires before any navigation
   // script so all patching happens at document creation time.
-  await page.evaluateOnNewDocument(umdSource);
+  const umdHandle = await page.evaluateOnNewDocument(umdSource);
+
+  const ids = [scriptIdentifier(configHandle), scriptIdentifier(umdHandle)]
+    .filter((id): id is string => typeof id === 'string');
+  if (ids.length > 0) {
+    registeredInitScripts.set(page, [...(registeredInitScripts.get(page) ?? []), ...ids]);
+  }
 }
 
 /**
@@ -83,6 +105,16 @@ export async function injectChaos(page: ChaosPage, config: ChaosConfig): Promise
  * Safe to call even if the page is already closed (rejects are swallowed).
  */
 export async function removeChaos(page: ChaosPage): Promise<void> {
+  // Remove tracked init scripts so subsequent page.goto() does not re-inject
+  // chaos. No-op when the Puppeteer build does not expose the CDP helper
+  // (kept optional on ChaosPage to preserve the structural contract).
+  const scriptIds = registeredInitScripts.get(page) ?? [];
+  registeredInitScripts.delete(page);
+  const removeScript = page.removeScriptToEvaluateOnNewDocument?.bind(page);
+  if (removeScript && scriptIds.length > 0) {
+    await Promise.all(scriptIds.map((id) => removeScript(id).catch(() => undefined)));
+  }
+
   await (page.evaluate(() => {
     const w = globalThis as unknown as { chaosUtils?: { stop: () => void } };
     if (w.chaosUtils && typeof w.chaosUtils.stop === 'function') {

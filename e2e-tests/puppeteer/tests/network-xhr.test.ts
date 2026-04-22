@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import type { Browser, Page } from 'puppeteer';
 import { injectChaos, getChaosLog } from '@chaos-maker/puppeteer';
 import type { ChaosEvent } from '@chaos-maker/core';

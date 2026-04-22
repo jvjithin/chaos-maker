@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import type { Browser, Page } from 'puppeteer';
 import { injectChaos, getChaosLog, getChaosSeed } from '@chaos-maker/puppeteer';
 import type { ChaosEvent } from '@chaos-maker/core';
 import { launchBrowser, BASE_URL, API_PATTERN, makeRequest } from './helpers';
 
 const SEED = 42;
+const SEED_TRIALS = 10;
 
 let browser: Browser;
 let page: Page;
@@ -21,7 +22,7 @@ async function runWithSeed(p: Page, seed: number): Promise<boolean[]> {
     network: { failures: [{ urlPattern: API_PATTERN, statusCode: 503, probability: 0.5 }] },
   });
   await p.goto(BASE_URL);
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < SEED_TRIALS; i++) {
     await makeRequest(p);
   }
   const log = await getChaosLog(p) as ChaosEvent[];
@@ -36,7 +37,7 @@ describe('Seeded randomness', () => {
     const outcomes2 = await runWithSeed(page2, SEED);
     await page2.close();
 
-    expect(outcomes1.length).toBe(5);
+    expect(outcomes1.length).toBe(SEED_TRIALS);
     expect(outcomes1).toEqual(outcomes2);
   });
 
@@ -47,8 +48,7 @@ describe('Seeded randomness', () => {
     const outcomes2 = await runWithSeed(page2, 99);
     await page2.close();
 
-    // With 5 trials at p=0.5 and different seeds, collision probability is ~1/32.
-    // Run 10 trials per seed for < 1/1000 collision chance.
+    // 10 trials at p=0.5 → collision probability ~1/1024 per seed pair.
     expect(outcomes1).not.toEqual(outcomes2);
   });
 

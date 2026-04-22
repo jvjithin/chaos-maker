@@ -48,7 +48,8 @@
     "@chaos-maker/core": "workspace:*"
   },
   "peerDependencies": {
-    "puppeteer": ">=21.0.0"
+    "puppeteer": ">=21.0.0",
+    "puppeteer-core": ">=21.0.0"
   },
   "peerDependenciesMeta": {
     "puppeteer": {

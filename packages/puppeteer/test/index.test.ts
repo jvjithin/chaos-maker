@@ -78,6 +78,35 @@ describe('@chaos-maker/puppeteer', () => {
       };
       await expect(removeChaos(closedPage)).resolves.toBeUndefined();
     });
+
+    it('removes tracked init scripts on cleanup (Puppeteer 22+ handle shape)', async () => {
+      const removed: string[] = [];
+      let next = 0;
+      const page: ChaosPage = {
+        async evaluateOnNewDocument() {
+          return { identifier: `script-${++next}` };
+        },
+        async evaluate() {
+          return undefined as never;
+        },
+        async goto() {
+          return undefined;
+        },
+        async removeScriptToEvaluateOnNewDocument(id: string) {
+          removed.push(id);
+        },
+      };
+      await injectChaos(page, {});
+      await removeChaos(page);
+      expect(removed).toEqual(['script-1', 'script-2']);
+    });
+
+    it('is a no-op when page lacks removeScriptToEvaluateOnNewDocument', async () => {
+      // Older Puppeteer / puppeteer-core forks may not expose the helper —
+      // cleanup must still stop chaos without throwing.
+      await injectChaos(fake.page, {});
+      await expect(removeChaos(fake.page)).resolves.toBeUndefined();
+    });
   });
 
   describe('getChaosLog', () => {

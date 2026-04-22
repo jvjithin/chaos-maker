@@ -287,7 +287,16 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
 
+      - name: Cache Puppeteer Chrome
+        id: puppeteer-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/puppeteer
+          key: puppeteer-${{ hashFiles('e2e-tests/puppeteer/package.json', 'pnpm-lock.yaml') }}
+
       - name: Install Dependencies
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: 'true'
         run: pnpm install
 
       - name: Download Build Artifact
@@ -296,16 +305,9 @@ jobs:
           name: chaos-maker-dist
           path: packages
 
-      - name: Cache Puppeteer Chrome
-        id: puppeteer-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/puppeteer
-          key: puppeteer-${{ hashFiles('e2e-tests/puppeteer/package.json') }}
-
       - name: Install Puppeteer Chrome
         if: steps.puppeteer-cache.outputs.cache-hit != 'true'
-        run: pnpm --filter e2e-tests-puppeteer exec node -e "const p = require('puppeteer'); p.executablePath && console.log(p.executablePath())" 2>/dev/null || pnpm --filter e2e-tests-puppeteer exec puppeteer browsers install chrome
+        run: pnpm --filter e2e-tests-puppeteer exec puppeteer browsers install chrome
 
       - name: Run Puppeteer E2E Tests
         run: pnpm --filter e2e-tests-puppeteer test
