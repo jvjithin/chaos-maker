@@ -9,7 +9,8 @@
     "build:core": "pnpm --filter @chaos-maker/core build",
     "build:playwright": "pnpm --filter @chaos-maker/playwright build",
     "build:cypress": "pnpm --filter @chaos-maker/cypress build",
-    "build": "pnpm build:core && pnpm build:playwright && pnpm build:cypress",
+    "build:webdriverio": "pnpm --filter @chaos-maker/webdriverio build",
+    "build": "pnpm build:core && pnpm build:playwright && pnpm build:cypress && pnpm build:webdriverio",
     "dev:core": "pnpm --filter @chaos-maker/core dev",
     "test": "pnpm --filter @chaos-maker/core test",
     "test:playwright": "pnpm --filter e2e-tests-playwright exec playwright test",
@@ -18,6 +19,9 @@
     "test:cypress:firefox": "pnpm --filter e2e-tests-cypress exec cypress run --browser firefox",
     "test:cypress:electron": "pnpm --filter e2e-tests-cypress exec cypress run --browser electron",
     "test:cypress:all": "pnpm test:cypress:chrome && pnpm test:cypress:electron",
+    "test:wdio": "pnpm --filter e2e-tests-webdriverio test",
+    "test:wdio:chrome": "pnpm --filter e2e-tests-webdriverio test:chrome",
+    "test:wdio:firefox": "pnpm --filter e2e-tests-webdriverio test:firefox",
     "prepare": "husky"
   },
   "devDependencies": {

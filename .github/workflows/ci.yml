@@ -107,6 +107,7 @@ jobs:
             packages/core/dist/
             packages/playwright/dist/
             packages/cypress/dist/
+            packages/webdriverio/dist/
 
   e2e-playwright:
     name: E2E Playwright (${{ matrix.project }})
@@ -232,3 +233,38 @@ jobs:
           name: cypress-screenshots-${{ matrix.browser }}
           path: e2e-tests/cypress/screenshots/
           if-no-files-found: ignore
+
+  e2e-webdriverio:
+    name: E2E WebdriverIO (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chrome, firefox]
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: chaos-maker-dist
+          path: packages
+
+      - name: Run WebdriverIO E2E Tests (${{ matrix.browser }})
+        env:
+          WDIO_BROWSER: ${{ matrix.browser }}
+        run: pnpm --filter e2e-tests-webdriverio test
