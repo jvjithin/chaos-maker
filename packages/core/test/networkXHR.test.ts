@@ -8,6 +8,7 @@ import { mockXhrAbort, mockXhrOpen, mockXhrSend } from './setup';
 // Get the original implementations
 const originalXhrOpen = global.XMLHttpRequest.prototype.open;
 const originalXhrSend = global.XMLHttpRequest.prototype.send;
+const deterministicRandom = () => 0;
 
 beforeEach(() => {
   // Reset all mock call history
@@ -51,7 +52,7 @@ describe('patchXHR (send)', () => {
   };
 
   it('should not intercept requests if config is empty', () => {
-    const patchedSend = patchXHR(originalXhrSend, {});
+    const patchedSend = patchXHR(originalXhrSend, {}, deterministicRandom);
     global.XMLHttpRequest.prototype.send = patchedSend;
     
     const xhr = new global.XMLHttpRequest();
@@ -64,7 +65,7 @@ describe('patchXHR (send)', () => {
   });
 
   it('should force a 503 failure for a matching URL', () => {
-    const patchedSend = patchXHR(originalXhrSend, config);
+    const patchedSend = patchXHR(originalXhrSend, config, deterministicRandom);
     global.XMLHttpRequest.prototype.send = patchedSend;
 
     const xhr = new global.XMLHttpRequest();
@@ -86,7 +87,7 @@ describe('patchXHR (send)', () => {
   });
 
   it('should not intercept a non-matching URL', () => {
-    const patchedSend = patchXHR(originalXhrSend, config);
+    const patchedSend = patchXHR(originalXhrSend, config, deterministicRandom);
     global.XMLHttpRequest.prototype.send = patchedSend;
 
     const xhr = new global.XMLHttpRequest();
@@ -105,7 +106,7 @@ describe('patchXHR (send)', () => {
     const latencyConfig: NetworkConfig = {
       latencies: [{ urlPattern: '/api/slow', delayMs: 100, probability: 1.0 }]
     };
-    const patchedSend = patchXHR(originalXhrSend, latencyConfig);
+    const patchedSend = patchXHR(originalXhrSend, latencyConfig, deterministicRandom);
     global.XMLHttpRequest.prototype.send = patchedSend;
     
     const xhr = new global.XMLHttpRequest();
@@ -130,7 +131,7 @@ describe('patchXHR (send)', () => {
     const config: NetworkConfig = {
       cors: [{ urlPattern: '/api/cors', probability: 1.0 }]
     };
-    const patchedSend = patchXHR(originalXhrSend, config);
+    const patchedSend = patchXHR(originalXhrSend, config, deterministicRandom);
     global.XMLHttpRequest.prototype.send = patchedSend;
 
     const xhr = new global.XMLHttpRequest();
@@ -149,7 +150,7 @@ describe('patchXHR (send)', () => {
     const config: NetworkConfig = {
       aborts: [{ urlPattern: '/api/abort', probability: 1.0 }]
     };
-    const patchedSend = patchXHR(originalXhrSend, config);
+    const patchedSend = patchXHR(originalXhrSend, config, deterministicRandom);
     global.XMLHttpRequest.prototype.send = patchedSend;
 
     const xhr = new global.XMLHttpRequest();
@@ -170,7 +171,7 @@ describe('patchXHR (send)', () => {
     const config: NetworkConfig = {
       aborts: [{ urlPattern: '/api/abort', probability: 1.0, timeout: 100 }]
     };
-    const patchedSend = patchXHR(originalXhrSend, config);
+    const patchedSend = patchXHR(originalXhrSend, config, deterministicRandom);
     global.XMLHttpRequest.prototype.send = patchedSend;
 
     const xhr = new global.XMLHttpRequest();
@@ -196,7 +197,7 @@ describe('patchXHR (send)', () => {
     const config: NetworkConfig = {
       corruptions: [{ urlPattern: '/api/corrupt', strategy: 'truncate', probability: 1.0 }]
     };
-    const patchedSend = patchXHR(originalXhrSend, config);
+    const patchedSend = patchXHR(originalXhrSend, config, deterministicRandom);
     global.XMLHttpRequest.prototype.send = patchedSend;
 
     const xhr = new global.XMLHttpRequest();
@@ -215,7 +216,7 @@ describe('patchXHR (send)', () => {
     const config: NetworkConfig = {
       corruptions: [{ urlPattern: '/api/corrupt', strategy: 'malformed-json', probability: 1.0 }]
     };
-    const patchedSend = patchXHR(originalXhrSend, config);
+    const patchedSend = patchXHR(originalXhrSend, config, deterministicRandom);
     global.XMLHttpRequest.prototype.send = patchedSend;
 
     const xhr = new global.XMLHttpRequest();
@@ -233,7 +234,7 @@ describe('patchXHR (send)', () => {
     const config: NetworkConfig = {
       corruptions: [{ urlPattern: '/api/corrupt', strategy: 'empty', probability: 1.0 }]
     };
-    const patchedSend = patchXHR(originalXhrSend, config);
+    const patchedSend = patchXHR(originalXhrSend, config, deterministicRandom);
     global.XMLHttpRequest.prototype.send = patchedSend;
 
     const xhr = new global.XMLHttpRequest();
@@ -251,7 +252,7 @@ describe('patchXHR (send)', () => {
     const config: NetworkConfig = {
       corruptions: [{ urlPattern: '/api/corrupt', strategy: 'wrong-type', probability: 1.0 }]
     };
-    const patchedSend = patchXHR(originalXhrSend, config);
+    const patchedSend = patchXHR(originalXhrSend, config, deterministicRandom);
     global.XMLHttpRequest.prototype.send = patchedSend;
 
     const xhr = new global.XMLHttpRequest();
@@ -274,7 +275,7 @@ describe('patchXHR (send)', () => {
       this.dispatchEvent(new Event('error'));
       this.dispatchEvent(new Event('loadend'));
     };
-    const patchedSend = patchXHR(failingSend, config, emitter);
+    const patchedSend = patchXHR(failingSend, config, deterministicRandom, emitter);
     global.XMLHttpRequest.prototype.send = patchedSend;
 
     const xhr = new global.XMLHttpRequest();
@@ -306,7 +307,7 @@ describe('patchXHR (send)', () => {
       this.dispatchEvent(new Event('load'));
       this.dispatchEvent(new Event('loadend'));
     };
-    const patchedSend = patchXHR(successfulSend, config, emitter);
+    const patchedSend = patchXHR(successfulSend, config, deterministicRandom, emitter);
     global.XMLHttpRequest.prototype.send = patchedSend;
 
     const xhr = new global.XMLHttpRequest();

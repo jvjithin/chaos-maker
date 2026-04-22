@@ -118,7 +118,7 @@ function emitCorruptionEvent(
   });
 }
 
-export function patchFetch(originalFetch: typeof window.fetch, config: NetworkConfig, emitter?: ChaosEventEmitter, random: () => number = Math.random, counters: Map<object, number> = new Map()) {
+export function patchFetch(originalFetch: typeof window.fetch, config: NetworkConfig, random: () => number, emitter?: ChaosEventEmitter, counters: Map<object, number> = new Map()) {
   return async (
     input: RequestInfo | URL,
     init?: RequestInit

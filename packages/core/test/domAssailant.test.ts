@@ -6,6 +6,7 @@ import { ChaosEventEmitter } from '../src/events';
 describe('domAssailant', () => {
   let emitter: ChaosEventEmitter;
   let observer: MutationObserver;
+  const deterministicRandom = () => 0;
 
   beforeEach(() => {
     emitter = new ChaosEventEmitter();
@@ -20,7 +21,7 @@ describe('domAssailant', () => {
   });
 
   function startObserver(config: UiConfig): MutationObserver {
-    observer = attachDomAssailant(config, emitter);
+    observer = attachDomAssailant(config, deterministicRandom, emitter);
     observer.observe(document.body, { childList: true, subtree: true });
     return observer;
   }

@@ -67,4 +67,17 @@ export default [
       "@typescript-eslint/no-unused-expressions": "off",
     },
   },
+  {
+    files: ["packages/core/src/**/*.ts"],
+    ignores: ["packages/core/src/prng.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "MemberExpression[object.name='Math'][property.name='random']",
+          message: "Use the seeded PRNG (this.random / random parameter). See packages/core/src/prng.ts.",
+        },
+      ],
+    },
+  },
 ];

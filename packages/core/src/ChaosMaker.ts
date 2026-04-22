@@ -65,17 +65,17 @@ export class ChaosMaker {
 
     if (this.config.network) {
       this.originalFetch = window.fetch;
-      window.fetch = patchFetch(this.originalFetch.bind(window), this.config.network, this.emitter, this.random, this.requestCounters);
+      window.fetch = patchFetch(this.originalFetch.bind(window), this.config.network, this.random, this.emitter, this.requestCounters);
 
       this.originalXhrOpen = window.XMLHttpRequest.prototype.open;
       window.XMLHttpRequest.prototype.open = patchXHROpen(this.originalXhrOpen);
 
       this.originalXhrSend = window.XMLHttpRequest.prototype.send;
-      window.XMLHttpRequest.prototype.send = patchXHR(this.originalXhrSend, this.config.network, this.emitter, this.random, this.requestCounters);
+      window.XMLHttpRequest.prototype.send = patchXHR(this.originalXhrSend, this.config.network, this.random, this.emitter, this.requestCounters);
     }
 
     if (this.config.ui) {
-      this.domObserver = attachDomAssailant(this.config.ui, this.emitter, this.random);
+      this.domObserver = attachDomAssailant(this.config.ui, this.random, this.emitter);
       this.domObserver.observe(document.body, {
         childList: true,
         subtree: true,

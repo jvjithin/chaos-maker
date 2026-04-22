@@ -134,6 +134,21 @@ export interface ChaosConfig {
   network?: NetworkConfig;
   ui?: UiConfig;
   websocket?: WebSocketConfig;
-  /** Seed for the PRNG. When provided, all probability rolls become deterministic and replayable. */
+  /**
+   * Seed for Chaos Maker's PRNG.
+   *
+   * The seed controls every probability-driven chaos decision across network,
+   * UI, and WebSocket rules. With the same seed and the same interaction
+   * sequence, Chaos Maker emits the same `ChaosEvent` decision sequence after
+   * normalizing runtime-only fields such as `timestamp`.
+   *
+   * When omitted, Chaos Maker auto-generates a seed from `Math.random()` during
+   * instance creation. Read it with the adapter's `getChaosSeed()` helper and
+   * log it on failure to replay the run.
+   *
+   * The seed does not control browser-native nondeterminism, wall-clock
+   * timestamps, network/server timing, or task-scheduler ordering in the app
+   * under test.
+   */
   seed?: number;
 }
