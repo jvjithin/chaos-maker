@@ -108,6 +108,7 @@ jobs:
             packages/playwright/dist/
             packages/cypress/dist/
             packages/webdriverio/dist/
+            packages/puppeteer/dist/
 
   e2e-playwright:
     name: E2E Playwright (${{ matrix.project }})
@@ -268,3 +269,43 @@ jobs:
         env:
           WDIO_BROWSER: ${{ matrix.browser }}
         run: pnpm --filter e2e-tests-webdriverio test
+
+  e2e-puppeteer:
+    name: E2E Puppeteer (headless-new)
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: chaos-maker-dist
+          path: packages
+
+      - name: Cache Puppeteer Chrome
+        id: puppeteer-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/puppeteer
+          key: puppeteer-${{ hashFiles('e2e-tests/puppeteer/package.json') }}
+
+      - name: Install Puppeteer Chrome
+        if: steps.puppeteer-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter e2e-tests-puppeteer exec node -e "const p = require('puppeteer'); p.executablePath && console.log(p.executablePath())" 2>/dev/null || pnpm exec puppeteer browsers install chrome
+
+      - name: Run Puppeteer E2E Tests
+        run: pnpm --filter e2e-tests-puppeteer test
