@@ -305,7 +305,7 @@ jobs:
 
       - name: Install Puppeteer Chrome
         if: steps.puppeteer-cache.outputs.cache-hit != 'true'
-        run: pnpm --filter e2e-tests-puppeteer exec node -e "const p = require('puppeteer'); p.executablePath && console.log(p.executablePath())" 2>/dev/null || pnpm exec puppeteer browsers install chrome
+        run: pnpm --filter e2e-tests-puppeteer exec node -e "const p = require('puppeteer'); p.executablePath && console.log(p.executablePath())" 2>/dev/null || pnpm --filter e2e-tests-puppeteer exec puppeteer browsers install chrome
 
       - name: Run Puppeteer E2E Tests
         run: pnpm --filter e2e-tests-puppeteer test
