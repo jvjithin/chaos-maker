@@ -1,0 +1,19 @@
+{
+  "name": "e2e-tests-puppeteer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@chaos-maker/core": "workspace:*",
+    "@chaos-maker/puppeteer": "workspace:*",
+    "http-server": "^14.1.1",
+    "puppeteer": "^22.0.0",
+    "typescript": "^5.4.5",
+    "vitest": "^3.2.4",
+    "ws": "^8.17.0"
+  }
+}
