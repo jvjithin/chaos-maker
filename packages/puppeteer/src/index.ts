@@ -83,6 +83,14 @@ function loadCoreUmdSource(): string {
 export async function injectChaos(page: ChaosPage, config: ChaosConfig): Promise<void> {
   const umdSource = loadCoreUmdSource();
 
+  // Remove any previously registered init scripts for this page so a repeat
+  // injectChaos call replaces — rather than stacks on top of — the prior pair.
+  const previousIds = registeredInitScripts.get(page) ?? [];
+  const removeScript = page.removeScriptToEvaluateOnNewDocument?.bind(page);
+  if (removeScript && previousIds.length > 0) {
+    await Promise.all(previousIds.map((id) => removeScript(id).catch(() => undefined)));
+  }
+
   // Set config in the page realm before the UMD loads so the auto-bootstrap
   // picks it up. Serialized as an argument — Puppeteer JSON-encodes it.
   const configHandle = await page.evaluateOnNewDocument((cfg: unknown) => {
@@ -96,7 +104,9 @@ export async function injectChaos(page: ChaosPage, config: ChaosConfig): Promise
   const ids = [scriptIdentifier(configHandle), scriptIdentifier(umdHandle)]
     .filter((id): id is string => typeof id === 'string');
   if (ids.length > 0) {
-    registeredInitScripts.set(page, [...(registeredInitScripts.get(page) ?? []), ...ids]);
+    registeredInitScripts.set(page, ids);
+  } else {
+    registeredInitScripts.delete(page);
   }
 }
 
