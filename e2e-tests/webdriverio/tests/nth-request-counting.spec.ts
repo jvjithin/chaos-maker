@@ -4,8 +4,13 @@ import type { ChaosEvent } from '@chaos-maker/core';
 const API_PATTERN = '/api/data.json';
 
 async function makeRequest(buttonId = '#fetch-data', statusId = '#status'): Promise<void> {
+  const status = $(statusId);
   await $(buttonId).click();
-  await browser.waitUntil(async () => (await $(statusId).getText()) !== 'Loading...', {
+  await browser.waitUntil(async () => (await status.getText()) === 'Loading...', {
+    timeout: 1000,
+    timeoutMsg: `${statusId} did not enter Loading...`,
+  });
+  await browser.waitUntil(async () => (await status.getText()) !== 'Loading...', {
     timeout: 5000,
     timeoutMsg: `${statusId} stuck in Loading...`,
   });

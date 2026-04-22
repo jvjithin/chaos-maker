@@ -75,12 +75,23 @@ export async function injectChaos(
   // `window`, so setting `window.__CHAOS_CONFIG__` from the execute callback
   // alone leaves the UMD's auto-bootstrap with nothing to pick up.
   const scriptSource = `window.__CHAOS_CONFIG__ = ${JSON.stringify(config)};\n${umdSource}`;
-  await browser.execute((src: string) => {
+  const started = await browser.execute((src: string) => {
     const script = document.createElement('script');
     script.textContent = src;
     (document.head || document.documentElement).appendChild(script);
     script.remove();
+
+    const w = window as unknown as {
+      chaosUtils?: { getSeed?: () => number | null };
+    };
+    return typeof w.chaosUtils?.getSeed === 'function' && w.chaosUtils.getSeed() !== null;
   }, scriptSource);
+
+  if (!started) {
+    throw new Error(
+      '[chaos-maker] injectChaos did not start. Page may block inline scripts via CSP, or core auto-bootstrap failed.',
+    );
+  }
 }
 
 /**

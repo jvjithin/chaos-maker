@@ -18,8 +18,9 @@ function makeFakeBrowser(): {
   const browser: ChaosBrowser = {
     async execute(fn, ...args) {
       executeCalls.push({ fn, args });
-      // Default stub: behave like "chaos not installed yet"
-      return undefined as never;
+      // Default stub: behave like "chaos bootstrapped successfully" for injectChaos,
+      // which checks for a truthy result to fail fast on CSP/bootstrap errors.
+      return true as never;
     },
     addCommand(name, fn) {
       addCommandCalls.push({ name, fn });
@@ -57,6 +58,13 @@ describe('@chaos-maker/webdriverio', () => {
       await injectChaos(fake.browser, {});
       expect(fake.executeCalls).toHaveLength(1);
       expect(typeof fake.executeCalls[0].fn).toBe('function');
+    });
+
+    it('throws when bootstrap check reports chaos did not start (e.g. CSP blocked inline script)', async () => {
+      const browser: ChaosBrowser = {
+        execute: vi.fn().mockResolvedValue(false),
+      };
+      await expect(injectChaos(browser, {})).rejects.toThrow(/did not start/);
     });
   });
 

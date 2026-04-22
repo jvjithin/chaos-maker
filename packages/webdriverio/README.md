@@ -64,6 +64,10 @@ If your app fires its first API call on boot and you need that request to be cha
 
 For requests fired on user interaction (clicks, form submits), the adapter works identically to the Playwright and Cypress ones.
 
+## Content Security Policy
+
+`injectChaos` appends an inline `<script>` to the page. A restrictive `script-src` policy (no `'unsafe-inline'` / no matching nonce) blocks it and `injectChaos` throws `[chaos-maker] injectChaos did not start.` — relax CSP for your test environment (e.g. add `'unsafe-inline'` or a matching nonce) or serve a chaos-friendly CSP from your test fixture.
+
 ## API
 
 ### `registerChaosCommands(browser)`

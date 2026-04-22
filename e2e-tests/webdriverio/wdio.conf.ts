@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
+import { createConnection } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { registerChaosCommands } from '@chaos-maker/webdriverio';
@@ -24,6 +25,28 @@ async function waitForHttp(url: string, timeoutMs = 20_000): Promise<void> {
     await new Promise((r) => setTimeout(r, 200));
   }
   throw new Error(`Fixture server at ${url} did not start within ${timeoutMs}ms`);
+}
+
+function probeTcp(host: string, port: number, timeoutMs = 500): Promise<boolean> {
+  return new Promise((resolvePromise) => {
+    const socket = createConnection({ host, port });
+    const done = (ok: boolean) => {
+      socket.destroy();
+      resolvePromise(ok);
+    };
+    socket.once('connect', () => done(true));
+    socket.once('error', () => done(false));
+    socket.setTimeout(timeoutMs, () => done(false));
+  });
+}
+
+async function waitForTcp(host: string, port: number, timeoutMs = 20_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await probeTcp(host, port)) return;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  throw new Error(`Fixture server at ${host}:${port} did not start within ${timeoutMs}ms`);
 }
 
 function capabilities(): WebdriverIO.Capabilities[] {
@@ -65,23 +88,31 @@ export const config: WebdriverIO.Config = {
     timeout: 60_000,
   },
   async onPrepare() {
+    let httpReady = false;
     try {
       await fetch('http://127.0.0.1:8080');
-      return;
+      httpReady = true;
     } catch {
-      /* start fixture servers */
+      /* will start HTTP fixture below */
     }
-    httpServer = spawn(
-      PNPM_BIN,
-      ['exec', 'http-server', FIXTURES, '-p', '8080', '-s'],
-      { stdio: 'inherit' },
-    );
-    wsServer = spawn(
-      'node',
-      [resolve(FIXTURES, 'ws-echo-server.cjs')],
-      { stdio: 'inherit' },
-    );
-    await waitForHttp('http://127.0.0.1:8080');
+    const wsReady = await probeTcp('127.0.0.1', 8081);
+
+    if (!httpReady) {
+      httpServer = spawn(
+        PNPM_BIN,
+        ['exec', 'http-server', FIXTURES, '-p', '8080', '-s'],
+        { stdio: 'inherit' },
+      );
+    }
+    if (!wsReady) {
+      wsServer = spawn(
+        'node',
+        [resolve(FIXTURES, 'ws-echo-server.cjs')],
+        { stdio: 'inherit' },
+      );
+    }
+    if (!httpReady) await waitForHttp('http://127.0.0.1:8080');
+    if (!wsReady) await waitForTcp('127.0.0.1', 8081);
   },
   onComplete() {
     httpServer?.kill();

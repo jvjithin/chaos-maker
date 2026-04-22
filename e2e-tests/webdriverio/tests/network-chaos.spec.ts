@@ -106,8 +106,8 @@ describe('Network Latency', () => {
     });
     await $('#fetch-data').click();
     await expect($('#status')).toHaveText('Success!');
-    const timingText = await $('#timing').getText();
-    expect(parseInt(timingText, 10)).toBeLessThan(1000);
+    const log = (await browser.getChaosLog()) as ChaosEvent[];
+    expect(log.some((e) => e.type === 'network:latency' && e.applied)).toBe(false);
   });
 });
 
