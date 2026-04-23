@@ -33,4 +33,4 @@ UI chaos requires the DOM to exist, so do **not** pass a `ui` config into the pr
 
 1. Call `injectChaos(page, { network, websocket })` (or `injectChaos(page, {})`) before `page.goto()` to load the UMD bundle and install network/WebSocket interceptors.
 2. Navigate with `page.goto()`.
-3. Start UI chaos after navigation with `page.evaluate(() => (window as any).chaosUtils.start(uiConfig))`.
+3. Start UI chaos after navigation with `page.evaluate((cfg) => (window as any).chaosUtils.start(cfg), uiConfig)` — pass `uiConfig` as an explicit argument because the callback runs in the browser context.
