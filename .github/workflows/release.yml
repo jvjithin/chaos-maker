@@ -215,8 +215,6 @@ jobs:
         run: pnpm build:core && pnpm build:webdriverio
 
       - name: Publish WebdriverIO Adapter
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: pnpm --filter @chaos-maker/webdriverio publish --no-git-checks --access public
 
   publish-puppeteer:
@@ -247,6 +245,4 @@ jobs:
         run: pnpm build:core && pnpm build:puppeteer
 
       - name: Publish Puppeteer Adapter
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: pnpm --filter @chaos-maker/puppeteer publish --no-git-checks --access public
