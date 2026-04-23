@@ -42,7 +42,7 @@ DOM assaults need `document.body`. For UI chaos, load the bundle before navigati
 ```typescript
 await injectChaos(page, {});
 await page.goto('http://localhost:3000/settings');
-await page.evaluate((config) => window.chaosUtils.start(config), {
+await page.evaluate((config) => (window as any).chaosUtils.start(config), {
   seed: 42,
   ui: { assaults: [{ selector: 'button.save', action: 'disable', probability: 1 }] },
 });

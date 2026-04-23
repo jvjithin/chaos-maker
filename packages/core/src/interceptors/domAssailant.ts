@@ -48,13 +48,12 @@ function checkNode(node: Node, config: UiConfig, random: () => number, emitter?:
       if (element.matches(assault.selector)) {
         applyAssault(element, assault, random, emitter);
       }
+      element.querySelectorAll(assault.selector).forEach(childEl => {
+        applyAssault(childEl as HTMLElement, assault, random, emitter);
+      });
     } catch (e) {
       console.error(`Chaos Maker: Invalid selector '${assault.selector}'`, e);
     }
-
-    element.querySelectorAll(assault.selector).forEach(childEl => {
-      applyAssault(childEl as HTMLElement, assault, random, emitter);
-    });
   }
 }
 

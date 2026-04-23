@@ -29,4 +29,8 @@ import {
 
 Call before `page.goto()` for network and WebSocket chaos. Puppeteer v21+ headless Chromium is the supported mode for v0.3.0.
 
-UI chaos requires the DOM to exist. Load the bundle first, navigate, then start the UI config through `window.chaosUtils.start()`.
+UI chaos requires the DOM to exist, so do **not** pass a `ui` config into the pre-navigation `injectChaos()` call — the auto-bootstrap would run before `document.body` is available. Instead:
+
+1. Call `injectChaos(page, { network, websocket })` (or `injectChaos(page, {})`) before `page.goto()` to load the UMD bundle and install network/WebSocket interceptors.
+2. Navigate with `page.goto()`.
+3. Start UI chaos after navigation with `page.evaluate((cfg) => (window as any).chaosUtils.start(cfg), uiConfig)` — pass `uiConfig` as an explicit argument because the callback runs in the browser context.

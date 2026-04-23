@@ -16,7 +16,7 @@ await injectChaos(page, {
 
 ## Auto-generated seeds
 
-When `seed` is omitted, Chaos Maker generates one using the browser's entropy source. Read it from the adapter and print it on failure.
+When `seed` is omitted, Chaos Maker auto-generates a 32-bit seed during instance creation. Read it from the adapter and print it on failure.
 
 ```typescript
 const seed = await getChaosSeed(page);

@@ -13,7 +13,7 @@ Disable a critical button and assert that the page exposes an alternate path or 
 ```typescript
 await injectChaos(page, {});
 await page.goto('/settings');
-await page.evaluate((config) => window.chaosUtils.start(config), {
+await page.evaluate((config) => (window as any).chaosUtils.start(config), {
   seed: 42,
   ui: { assaults: [{ selector: 'button.save', action: 'disable', probability: 1 }] },
 });
@@ -29,7 +29,7 @@ expect((await getChaosLog(page)).some((event) => event.type === 'ui:assault' && 
 cy.injectChaos({});
 cy.visit('/settings');
 cy.window().then((win) => {
-  win.chaosUtils.start({
+  (win as any).chaosUtils.start({
     seed: 42,
     ui: { assaults: [{ selector: 'button.save', action: 'disable', probability: 1 }] },
   });
@@ -61,13 +61,17 @@ expect((await getChaosLog(browser)).some((event) => event.type === 'ui:assault' 
 ```typescript
 await injectChaos(page, {});
 await page.goto('http://localhost:3000/settings');
-await page.evaluate((config) => window.chaosUtils.start(config), {
+await page.evaluate((config) => (window as any).chaosUtils.start(config), {
   seed: 42,
   ui: { assaults: [{ selector: 'button.save', action: 'disable', probability: 1 }] },
 });
 const disabled = await page.$eval('button.save', (button) => (button as HTMLButtonElement).disabled);
 if (!disabled) throw new Error('Expected save button to be disabled');
 await page.waitForSelector('[data-testid="autosave-state"]');
+const log = await getChaosLog(page);
+if (!log.some((event) => event.type === 'ui:assault' && event.applied)) {
+  throw new Error('Expected UI assault chaos');
+}
 ```
 
   </TabItem>

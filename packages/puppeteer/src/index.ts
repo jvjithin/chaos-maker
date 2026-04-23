@@ -65,7 +65,7 @@ function loadCoreUmdSource(): string {
  *
  * **UI chaos note:** The DOM assailant requires the DOM to exist when started.
  * For UI chaos, inject an empty config pre-nav to load the UMD bundle, navigate,
- * then call `page.evaluate(() => window.chaosUtils.start(uiConfig))` after goto.
+ * then call `page.evaluate((cfg) => window.chaosUtils.start(cfg), uiConfig)` after goto.
  *
  * @example
  * ```ts
