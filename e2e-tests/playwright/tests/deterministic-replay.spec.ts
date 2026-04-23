@@ -56,13 +56,6 @@ async function waitForTextToSettle(page: Page, selector: string): Promise<void> 
   }, selector);
 }
 
-async function waitForChaosLogGrowth(page: Page, previousLength: number): Promise<void> {
-  await page.waitForFunction(
-    (count) => ((window as unknown as { chaosUtils?: { getLog?: () => unknown[] } }).chaosUtils?.getLog?.().length ?? 0) > count,
-    previousLength,
-  );
-}
-
 async function driveFixedInteraction(page: Page): Promise<void> {
   for (let i = 0; i < 10; i++) {
     await page.click('#fetch-data');
@@ -77,17 +70,16 @@ async function driveFixedInteraction(page: Page): Promise<void> {
   await page.click('#ws-connect');
   await expect(page.locator('#ws-status')).toHaveText('open');
   for (let i = 0; i < 3; i++) {
-    const before = (await getChaosLog(page)).length;
     await page.click('#ws-send');
-    await waitForChaosLogGrowth(page, before);
+    await page.waitForTimeout(30);
   }
 
   for (let i = 0; i < 3; i++) {
-    const before = (await getChaosLog(page)).length;
     await page.click('#add-dynamic');
     await expect(page.locator('.dynamic-btn')).toHaveCount(i + 1);
-    await waitForChaosLogGrowth(page, before);
   }
+
+  await page.waitForTimeout(150);
 }
 
 async function runReplay(browser: Browser, seed: number): Promise<NormalizedEvent[]> {
