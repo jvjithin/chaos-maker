@@ -10,16 +10,16 @@ export default defineConfig({
   site: 'https://jvjithin.github.io/chaos-maker',
   base: '/chaos-maker',
   integrations: [
-    // Starlight 0.21 auto-adds @astrojs/sitemap when `site` is set. The docs
-    // release plan only requires Pagefind search and GitHub Pages deployment.
+    // Starlight auto-adds @astrojs/sitemap when `site` is set. The docs release
+    // plan only requires Pagefind search and GitHub Pages deployment.
     skipAutoSitemap,
     starlight({
       title: 'Chaos Maker',
       description: 'Frontend chaos engineering toolkit for testing resilience across Playwright, Cypress, WebdriverIO, and Puppeteer.',
       favicon: '/favicon.svg',
-      social: {
-        github: 'https://github.com/jvjithin/chaos-maker',
-      },
+      social: [
+        { icon: 'github', label: 'GitHub', href: 'https://github.com/jvjithin/chaos-maker' },
+      ],
       editLink: {
         baseUrl: 'https://github.com/jvjithin/chaos-maker/edit/main/docs/',
       },
