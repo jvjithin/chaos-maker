@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-23
+
+### Added
+
+- **WebdriverIO adapter** (`@chaos-maker/webdriverio`): one-line injection via `injectChaos(browser, config)`, `getChaosLog(browser)`, `getChaosSeed(browser)`, `useChaos(browser, config)`. Embeds the UMD bundle in an injected script tag so Firefox geckodriver still sees the config during initial page load.
+  - E2E suite: 49 tests across Chrome and Firefox covering resilience baseline, presets, network/WebSocket/UI chaos, seeded reproducibility, and Nth-request counting.
+  - New CI jobs `e2e-webdriverio (chrome)` and `e2e-webdriverio (firefox)`.
+- **Puppeteer adapter** (`@chaos-maker/puppeteer`): one-line injection via `injectChaos(page, config)`, `removeChaos(page)`, `getChaosLog(page)`, `getChaosSeed(page)`, `useChaos(page, config)`. Uses `page.evaluateOnNewDocument` to patch `fetch`, `XMLHttpRequest`, and `WebSocket` before any page script runs; tracks init-script identifiers in a `WeakMap<ChaosPage>` so `removeChaos` + repeat `injectChaos` tear down cleanly without stacking.
+  - E2E suite: 37 tests on headless Chromium, mirroring the Playwright suite where applicable.
+  - New CI job `e2e-puppeteer (headless-new)`.
+- **Documentation site** (Starlight-powered, published to GitHub Pages at <https://jvjithin.github.io/chaos-maker/>): 28 pages covering Install, per-adapter Getting Started, Concepts (chaos types, presets, builder, seeded reproducibility, Nth counting, observability), eight Recipes, API reference, and a Rationale section. Search via Pagefind.
+- **Seeded determinism enforcement**: `Math.random` is now an ESLint error across `packages/**` (via `no-restricted-syntax` AST rule, exempt only in `prng.ts`). Every chaos probability decision must flow through `createPrng(seed)` so replays are bit-exact.
+
+### Changed
+
+- `@chaos-maker/core` bumped to 0.3.0 — emits a bit-exact event log for a given seed; any accidental `Math.random` usage now fails CI.
+- `@chaos-maker/playwright` bumped to 0.3.0 to pick up core 0.3.0.
+- `@chaos-maker/cypress` bumped to 0.3.0 to pick up core 0.3.0.
+- Release workflow: new adapters (`webdriverio`, `puppeteer`) publish via classic `NPM_TOKEN` on first release because npm Trusted Publishing requires a pre-existing package. Existing adapters (`core`, `playwright`, `cypress`) continue using OIDC Trusted Publishing.
+
+### Fixed
+
+- **Puppeteer re-injection**: `injectChaos` now removes the prior page's init scripts before registering new ones, preventing double-patching when pages are reused across test cases.
+- **Docs site base path**: inline markdown links and hero actions on the Starlight site are now prefixed with `/chaos-maker/` so they resolve under the GitHub Pages base instead of 404ing.
+- **Deterministic replay test**: reverted an ill-fitting event-based wait — chaos events are probabilistic so `waitForChaosLogGrowth` could hang when the rolled probability said "no chaos"; reverted to fixed `waitForTimeout` since the seeded PRNG already guarantees reproducibility.
+
+### Security
+
+- Upgraded Astro (4 → 6) and Starlight (0.21 → 0.38) in the docs workspace, clearing 19 transitive CVEs.
+- Added `pnpm.overrides` for `diff`, `tar-fs`, `tmp`, `ws`, `serialize-javascript`, `fast-xml-parser` to patch 8 more transitive CVEs across the repo.
+- One residual Dependabot alert (`uuid < 14.0.0` via `@cypress/request@3.0.10`) is accepted as tolerable: dev-only transitive, no patched version in range, exploit path (user-controlled `buf` into `v3/v5/v6`) not reachable from Cypress's usage.
+
 ## [0.2.0] - 2026-04-17
 
 ### Added
