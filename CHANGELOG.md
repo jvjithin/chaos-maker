@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **`@chaos-maker/core` — `globalThis` refactor (Phase 0 of v0.4.0)**: interceptors read their targets (`fetch`, `XMLHttpRequest`, `WebSocket`) through `globalThis` instead of `window`, so the same engine code now runs in both browser page contexts and service worker / worker contexts. No public API change beyond a new optional `ChaosMaker(config, { target })` constructor argument that defaults to `globalThis`.
+- UI-config (`config.ui`) is now skipped with a warning (instead of throwing) when no DOM is available in the current context. XHR and WebSocket patching likewise feature-detect before attaching. This is groundwork for v0.4.0 Phase 1 (Service Worker chaos) — no new surface is exposed yet.
+
 ## [0.3.0] - 2026-04-23
 
 ### Added

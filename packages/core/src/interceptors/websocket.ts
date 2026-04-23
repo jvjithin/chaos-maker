@@ -2,7 +2,7 @@
  * WebSocket chaos interceptor.
  *
  * Design decisions (see V2_PHASE3_WEBSOCKET_PLAN.md §4, §9):
- * - Patch `window.WebSocket` with a wrapper constructor. Real socket is returned
+ * - Patch `globalThis.WebSocket` with a wrapper constructor. Real socket is returned
  *   so `instanceof WebSocket` continues to work. `.send` is overridden on the
  *   instance; inbound messages are intercepted via a listener installed *before*
  *   user code runs.
@@ -53,7 +53,7 @@ interface PendingCloseTimer {
 type PendingTimer = PendingDelayTimer | PendingCloseTimer;
 
 export interface WebSocketPatchHandle {
-  /** Wrapped WebSocket constructor suitable for `window.WebSocket = …`. */
+  /** Wrapped WebSocket constructor suitable for `globalThis.WebSocket = …`. */
   readonly Wrapped: typeof WebSocket;
   /** Clear all pending delay timers and emit drop events for them. Call on ChaosMaker.stop(). */
   uninstall(): void;
