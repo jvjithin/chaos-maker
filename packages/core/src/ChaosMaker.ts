@@ -7,13 +7,31 @@ import { patchXHR, patchXHROpen } from './interceptors/networkXHR';
 import { attachDomAssailant } from './interceptors/domAssailant';
 import { patchWebSocket, WebSocketPatchHandle } from './interceptors/websocket';
 
+/**
+ * Global context ChaosMaker patches against. Must expose at minimum `fetch`
+ * (network chaos), and optionally `XMLHttpRequest` / `WebSocket`. In a
+ * browser page this is `window`; in a service worker / dedicated worker
+ * this is `self`. `globalThis` resolves to the correct value in both.
+ */
+export type ChaosTarget = typeof globalThis;
+
+export interface ChaosMakerOptions {
+  /**
+   * Explicit global to install chaos on. Defaults to `globalThis`, which
+   * resolves correctly in both window and service-worker contexts. Pass
+   * `window` or `self` explicitly only for cross-context testing.
+   */
+  target?: ChaosTarget;
+}
+
 export class ChaosMaker {
   private config: ChaosConfig;
   private emitter: ChaosEventEmitter;
   private random: () => number;
   private seed: number;
   private running = false;
-  private originalFetch?: typeof window.fetch;
+  private target: ChaosTarget;
+  private originalFetch?: typeof globalThis.fetch;
   private originalXhrSend?: (body?: Document | XMLHttpRequestBodyInit) => void;
   private originalXhrOpen?: (method: string, url: string | URL) => void;
   private domObserver?: MutationObserver;
@@ -22,12 +40,13 @@ export class ChaosMaker {
   /** Shared counters keyed by config rule object reference. Shared across fetch + XHR + WS. */
   private requestCounters: Map<object, number> = new Map();
 
-  constructor(config: ChaosConfig) {
+  constructor(config: ChaosConfig, options: ChaosMakerOptions = {}) {
     this.config = validateConfig(config);
     this.emitter = new ChaosEventEmitter();
     const prng = createPrng(config.seed);
     this.random = prng.random;
     this.seed = prng.seed;
+    this.target = options.target ?? globalThis;
     console.log(`Chaos Maker initialized (seed: ${this.seed})`);
   }
 
@@ -63,28 +82,38 @@ export class ChaosMaker {
     this.running = true;
     console.log('🛠️ Chaos Maker ENGAGED 🛠️');
 
+    const target = this.target;
+
     if (this.config.network) {
-      this.originalFetch = window.fetch;
-      window.fetch = patchFetch(this.originalFetch.bind(window), this.config.network, this.random, this.emitter, this.requestCounters);
+      if (typeof target.fetch === 'function') {
+        this.originalFetch = target.fetch;
+        target.fetch = patchFetch(this.originalFetch.bind(target), this.config.network, this.random, this.emitter, this.requestCounters);
+      }
 
-      this.originalXhrOpen = window.XMLHttpRequest.prototype.open;
-      window.XMLHttpRequest.prototype.open = patchXHROpen(this.originalXhrOpen);
+      if (typeof target.XMLHttpRequest === 'function') {
+        this.originalXhrOpen = target.XMLHttpRequest.prototype.open;
+        target.XMLHttpRequest.prototype.open = patchXHROpen(this.originalXhrOpen);
 
-      this.originalXhrSend = window.XMLHttpRequest.prototype.send;
-      window.XMLHttpRequest.prototype.send = patchXHR(this.originalXhrSend, this.config.network, this.random, this.emitter, this.requestCounters);
+        this.originalXhrSend = target.XMLHttpRequest.prototype.send;
+        target.XMLHttpRequest.prototype.send = patchXHR(this.originalXhrSend, this.config.network, this.random, this.emitter, this.requestCounters);
+      }
     }
 
     if (this.config.ui) {
-      this.domObserver = attachDomAssailant(this.config.ui, this.random, this.emitter);
-      this.domObserver.observe(document.body, {
-        childList: true,
-        subtree: true,
-      });
-      console.log('UI Assailant is now observing the DOM.');
+      if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') {
+        console.warn('Chaos Maker: UI config ignored — no DOM available in current context.');
+      } else {
+        this.domObserver = attachDomAssailant(this.config.ui, this.random, this.emitter);
+        this.domObserver.observe(document.body, {
+          childList: true,
+          subtree: true,
+        });
+        console.log('UI Assailant is now observing the DOM.');
+      }
     }
 
-    if (this.config.websocket && typeof window !== 'undefined' && typeof window.WebSocket !== 'undefined') {
-      this.originalWebSocket = window.WebSocket;
+    if (this.config.websocket && typeof target.WebSocket !== 'undefined') {
+      this.originalWebSocket = target.WebSocket;
       this.webSocketHandle = patchWebSocket(
         this.originalWebSocket,
         this.config.websocket,
@@ -92,7 +121,7 @@ export class ChaosMaker {
         this.random,
         this.requestCounters,
       );
-      window.WebSocket = this.webSocketHandle.Wrapped;
+      target.WebSocket = this.webSocketHandle.Wrapped;
     }
   }
 
@@ -100,21 +129,23 @@ export class ChaosMaker {
     this.running = false;
     console.log('🛑 Chaos Maker DISENGAGED 🛑');
 
+    const target = this.target;
+
     if (this.originalFetch) {
-      window.fetch = this.originalFetch;
+      target.fetch = this.originalFetch;
     }
-    if (this.originalXhrSend) {
-      window.XMLHttpRequest.prototype.send = this.originalXhrSend;
+    if (this.originalXhrSend && typeof target.XMLHttpRequest === 'function') {
+      target.XMLHttpRequest.prototype.send = this.originalXhrSend;
     }
-    if (this.originalXhrOpen) {
-      window.XMLHttpRequest.prototype.open = this.originalXhrOpen;
+    if (this.originalXhrOpen && typeof target.XMLHttpRequest === 'function') {
+      target.XMLHttpRequest.prototype.open = this.originalXhrOpen;
     }
     if (this.domObserver) {
       this.domObserver.disconnect();
       console.log('UI Assailant has stopped observing.');
     }
     if (this.originalWebSocket) {
-      window.WebSocket = this.originalWebSocket;
+      target.WebSocket = this.originalWebSocket;
       this.originalWebSocket = undefined;
     }
     if (this.webSocketHandle) {
