@@ -180,6 +180,9 @@ jobs:
           name: chaos-maker-dist
           path: packages
 
+      - name: Sync SW bundle into fixtures
+        run: node scripts/sync-sw-fixtures.mjs
+
       - name: Cache Playwright Browsers
         id: playwright-cache
         uses: actions/cache@v4
@@ -252,6 +255,9 @@ jobs:
           name: chaos-maker-dist
           path: packages
 
+      - name: Sync SW bundle into fixtures
+        run: node scripts/sync-sw-fixtures.mjs
+
       - name: Run Cypress E2E Tests (${{ matrix.browser }})
         run: pnpm --filter e2e-tests-cypress exec cypress run --browser ${{ matrix.browser }}
 
@@ -293,6 +299,9 @@ jobs:
           name: chaos-maker-dist
           path: packages
 
+      - name: Sync SW bundle into fixtures
+        run: node scripts/sync-sw-fixtures.mjs
+
       - name: Run WebdriverIO E2E Tests (${{ matrix.browser }})
         env:
           WDIO_BROWSER: ${{ matrix.browser }}
@@ -332,6 +341,9 @@ jobs:
         with:
           name: chaos-maker-dist
           path: packages
+
+      - name: Sync SW bundle into fixtures
+        run: node scripts/sync-sw-fixtures.mjs
 
       - name: Install Puppeteer Chrome
         if: steps.puppeteer-cache.outputs.cache-hit != 'true'
