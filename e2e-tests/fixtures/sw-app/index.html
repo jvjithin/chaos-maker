@@ -16,7 +16,8 @@
   <section>
     <h2>Service Worker</h2>
     <div class="row">
-      <button id="sw-register">Register SW</button>
+      <button id="sw-register">Register Classic SW</button>
+      <button id="sw-register-module">Register Module SW</button>
       <button id="sw-unregister">Unregister</button>
       <span id="sw-state">idle</span>
     </div>
@@ -49,39 +50,41 @@
       swLog.textContent += line + '\n';
     }
 
-    // Bridge: SW posts chaos events back via postMessage; mirror to window
-    // for the spike test to read via page.evaluate.
-    window.__SW_CHAOS_EVENTS__ = [];
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.addEventListener('message', function (evt) {
-        if (evt.data && evt.data.__chaosMakerSWEvent) {
-          window.__SW_CHAOS_EVENTS__.push(evt.data.event);
-          log('chaos: ' + JSON.stringify(evt.data.event));
-        }
-      });
-    }
+    // Adapters install their own bridge on window.__chaosMakerSWBridge — this
+    // fixture only needs to drive registration. Tests read chaos events via
+    // the adapter helpers (getSWChaosLog).
 
-    // Allow test to pre-set chaos config; pass it via search param so the SW
-    // can read it at install time (SW has no access to window).
-    window.__registerChaosSW = async function (chaosConfig) {
+    window.__registerClassicSW = async function () {
       if (!('serviceWorker' in navigator)) throw new Error('unsupported');
       stateEl.textContent = 'registering';
-      var encoded = btoa(JSON.stringify(chaosConfig || {}));
-      var url = '/sw-app/sw-chaos.js?config=' + encodeURIComponent(encoded);
-      var reg = await navigator.serviceWorker.register(url, { scope: '/sw-app/' });
+      var reg = await navigator.serviceWorker.register('/sw-app/sw.js', { scope: '/sw-app/' });
       await navigator.serviceWorker.ready;
       stateEl.textContent = 'ready';
-      log('registered scope=' + reg.scope);
+      log('registered classic scope=' + reg.scope);
+      return true;
+    };
+
+    window.__registerModuleSW = async function () {
+      if (!('serviceWorker' in navigator)) throw new Error('unsupported');
+      stateEl.textContent = 'registering';
+      var reg = await navigator.serviceWorker.register('/sw-app/sw-module.mjs', {
+        scope: '/sw-app/',
+        type: 'module',
+      });
+      await navigator.serviceWorker.ready;
+      stateEl.textContent = 'ready';
+      log('registered module scope=' + reg.scope);
       return true;
     };
 
     document.getElementById('sw-register').addEventListener('click', async function () {
-      try {
-        await window.__registerChaosSW({});
-      } catch (err) {
-        stateEl.textContent = 'error';
-        log('register error: ' + err.message);
-      }
+      try { await window.__registerClassicSW(); }
+      catch (err) { stateEl.textContent = 'error'; log('register error: ' + err.message); }
+    });
+
+    document.getElementById('sw-register-module').addEventListener('click', async function () {
+      try { await window.__registerModuleSW(); }
+      catch (err) { stateEl.textContent = 'error'; log('register error: ' + err.message); }
     });
 
     document.getElementById('sw-unregister').addEventListener('click', async function () {

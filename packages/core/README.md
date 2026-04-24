@@ -171,6 +171,28 @@ try {
 }
 ```
 
+## Service Worker chaos
+
+Chaos applies to SW-originated fetches via the `@chaos-maker/core/sw` subpath. Zod + UI + builder are excluded from this bundle so it stays small enough for production SW deploys.
+
+Classic SW (one line):
+
+```js
+// user's sw.js
+importScripts('/path/to/chaos-maker-sw.js'); // auto-installs
+```
+
+Module SW:
+
+```js
+import { installChaosSW } from '@chaos-maker/core/sw';
+installChaosSW({ source: 'message' });
+```
+
+Page-side config is delivered via `postMessage` + `MessageChannel` ack. Use the adapter helpers (`injectSWChaos` / `removeSWChaos` / `getSWChaosLog`) in `@chaos-maker/{playwright,cypress,webdriverio,puppeteer}`.
+
+Limitations: `caches.match` hits bypass chaos (v0.5.0); push/sync events not covered; cross-origin SWs not supported.
+
 ## License
 
 [MIT](../../LICENSE)

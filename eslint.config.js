@@ -10,7 +10,9 @@ export default [
       "**/.astro",
       "**/*.cjs",
       "**/playwright-report",
-      "**/test-results"
+      "**/test-results",
+      "e2e-tests/fixtures/sw-app/chaos-maker-sw.js",
+      "e2e-tests/fixtures/sw-app/chaos-maker-sw.mjs"
     ],
   },
   ...tseslint.configs.recommended,

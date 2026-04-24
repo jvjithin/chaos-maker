@@ -167,6 +167,38 @@ test('with direct API', async ({ page }, testInfo) => {
 });
 ```
 
+## Service Worker chaos
+
+Intercept SW-originated fetches. Requires one line in your service-worker script.
+
+```js
+// user's sw.js (classic)
+importScripts('/chaos-maker-sw.js');
+```
+
+```ts
+import { injectSWChaos, removeSWChaos, getSWChaosLog } from '@chaos-maker/playwright';
+
+test('SW-fetched /api returns 503', async ({ page }) => {
+  await page.goto('/app-with-sw/');
+  // wait for controller after your app's SW registration
+  await injectSWChaos(page, {
+    network: { failures: [{ urlPattern: '/api/data', statusCode: 503, probability: 1 }] },
+    seed: 1,
+  });
+  await page.click('#trigger');
+  const log = await getSWChaosLog(page);
+  expect(log.some(e => e.type === 'network:failure' && e.applied)).toBe(true);
+  await removeSWChaos(page);
+});
+```
+
+Two artifacts ship in `@chaos-maker/core`:
+- `dist/sw.js` — IIFE bundle for classic SWs (`importScripts('/chaos-maker-sw.js')`).
+- `dist/sw.mjs` — ESM bundle for module SWs (`import { installChaosSW } from '/chaos-maker-sw.mjs'`).
+
+Serve whichever your SW type uses at a URL reachable from the service-worker scope.
+
 ## License
 
 [MIT](../../LICENSE)

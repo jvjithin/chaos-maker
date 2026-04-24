@@ -40,3 +40,7 @@ Thumbs.db
 e2e-tests/cypress/videos/
 e2e-tests/cypress/screenshots/
 e2e-tests/cypress/downloads/
+
+# Built SW bundles vendored into e2e fixtures by scripts/sync-sw-fixtures.mjs
+e2e-tests/fixtures/sw-app/chaos-maker-sw.js
+e2e-tests/fixtures/sw-app/chaos-maker-sw.mjs

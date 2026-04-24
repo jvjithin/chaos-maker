@@ -64,6 +64,24 @@ beforeEach(async () => {
 afterEach(() => teardown());
 ```
 
+## Service Worker chaos
+
+```ts
+import { injectSWChaos, removeSWChaos, getSWChaosLog } from '@chaos-maker/puppeteer';
+
+await page.goto('http://localhost:3000/app-with-sw/');
+await page.waitForFunction(() => !!navigator.serviceWorker.controller);
+await injectSWChaos(page, {
+  network: { failures: [{ urlPattern: '/api/data', statusCode: 503, probability: 1 }] },
+  seed: 1,
+});
+// ...interact...
+const log = await getSWChaosLog(page);
+await removeSWChaos(page);
+```
+
+User's SW must `importScripts('/chaos-maker-sw.js')` (classic) or `import { installChaosSW } from '@chaos-maker/core/sw'` (module).
+
 ## Notes
 
 - **Headless Chromium only** (headless-new mode, Puppeteer 21+). Firefox via `puppeteer-core` is untested.

@@ -42,6 +42,17 @@ test('shows error state when payment API fails', async ({ page }) => {
 });
 ```
 
+## Service Worker chaos
+
+PWAs and offline-first apps serve fetches from a Service Worker — those bypass page-side chaos. Add one line to your SW and chaos applies there too:
+
+```js
+// classic sw.js
+importScripts('/chaos-maker-sw.js');
+```
+
+Page-side: `injectSWChaos` / `removeSWChaos` / `getSWChaosLog` in each adapter. See adapter READMEs.
+
 ## Full docs
 
 [Getting started](https://jvjithin.github.io/chaos-maker/getting-started/install) | [Concepts](https://jvjithin.github.io/chaos-maker/concepts/chaos-types) | [Recipes](https://jvjithin.github.io/chaos-maker/recipes/slow-checkout) | [API](https://jvjithin.github.io/chaos-maker/api/core)

@@ -8,6 +8,7 @@ import { presets } from './presets';
 import { createPrng, generateSeed } from './prng';
 
 export { ChaosMaker, ChaosConfigError, validateConfig, ChaosEventEmitter, ChaosConfigBuilder, presets, createPrng, generateSeed };
+export { SW_BRIDGE_SOURCE } from './sw-bridge-source';
 export type { ChaosConfig, CorruptionStrategy, NetworkFailureConfig, NetworkLatencyConfig, NetworkAbortConfig, NetworkCorruptionConfig, NetworkCorsConfig, NetworkConfig, UiAssaultConfig, UiConfig, WebSocketConfig, WebSocketDropConfig, WebSocketDelayConfig, WebSocketCorruptConfig, WebSocketCloseConfig, WebSocketDirection, WebSocketCorruptionStrategy, ChaosEvent, ChaosEventType, ChaosEventListener };
 
 // --- NEW INTERFACE ---

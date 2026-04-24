@@ -90,6 +90,37 @@ Read every chaos decision emitted since `injectChaos` was called — applied or 
 
 Read the PRNG seed used by the active chaos instance. Log this on test failure to replay the exact sequence of chaos decisions with a fixed seed.
 
+## Service Worker chaos
+
+Register the SW commands in `wdio.conf.ts`:
+
+```ts
+import { registerChaosCommands, registerSWChaosCommands } from '@chaos-maker/webdriverio';
+// ...
+async before() {
+  registerChaosCommands(browser);
+  registerSWChaosCommands(browser);
+},
+```
+
+Spec:
+
+```ts
+await browser.url('/app-with-sw/');
+await browser.waitUntil(() =>
+  browser.execute(() => !!navigator.serviceWorker.controller),
+);
+await browser.injectSWChaos({
+  network: { failures: [{ urlPattern: '/api/data', statusCode: 503, probability: 1 }] },
+  seed: 1,
+});
+// ...interact...
+const log = await browser.getSWChaosLog();
+await browser.removeSWChaos();
+```
+
+User's SW must `importScripts('/chaos-maker-sw.js')` (classic) or `import { installChaosSW } from '@chaos-maker/core/sw'` (module).
+
 ## License
 
 MIT

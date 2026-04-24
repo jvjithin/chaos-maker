@@ -6,7 +6,7 @@
   "description": "A lightweight toolkit for injecting chaos into web applications",
   "scripts": {
     "lint": "eslint .",
-    "build:core": "pnpm --filter @chaos-maker/core build",
+    "build:core": "pnpm --filter @chaos-maker/core build && node scripts/sync-sw-fixtures.mjs",
     "build:playwright": "pnpm --filter @chaos-maker/playwright build",
     "build:cypress": "pnpm --filter @chaos-maker/cypress build",
     "build:webdriverio": "pnpm --filter @chaos-maker/webdriverio build",
