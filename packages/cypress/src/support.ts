@@ -1,10 +1,12 @@
 /// <reference types="cypress" />
 import { registerChaosCommands, isChaosActive } from './commands';
+import { registerSWChaosCommands } from './sw';
 
 // Side-effect import path: `import '@chaos-maker/cypress/support'` in
 // `cypress/support/e2e.ts` auto-registers the custom commands and wires the
 // per-test cleanup hook.
 registerChaosCommands();
+registerSWChaosCommands();
 
 afterEach(() => {
   if (isChaosActive()) {

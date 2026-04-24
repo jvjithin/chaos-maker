@@ -146,6 +146,33 @@ Chaos behaviour is identical — both adapters load the same core UMD into the p
 - **CSP `script-src` 'self' only**: appending an inline `<script>` element requires either `unsafe-inline` in the page's Content Security Policy or a CSP-relaxed test mode. If your production CSP is strict, disable it for Cypress runs (e.g., via a dedicated test build).
 - **`cy.intercept` interaction**: Cypress's request interception layer runs above `window.fetch`, so a `cy.intercept` response is delivered to chaos-maker's patched fetch — chaos still applies inside the intercepted response path. Use both together intentionally.
 
+## Service Worker chaos
+
+```js
+// cypress/support/e2e.js
+import '@chaos-maker/cypress/support';
+```
+
+```ts
+it('SW fetch fails', () => {
+  cy.visit('/app-with-sw/');
+  cy.window().should((win) => {
+    expect(win.navigator.serviceWorker.controller).to.not.be.null;
+  });
+  cy.injectSWChaos({
+    network: { failures: [{ urlPattern: '/api/data', statusCode: 503, probability: 1 }] },
+    seed: 1,
+  });
+  cy.get('#trigger').click();
+  cy.getSWChaosLog().should((log) => {
+    expect(log.some((e) => e.type === 'network:failure' && e.applied)).to.be.true;
+  });
+  cy.removeSWChaos();
+});
+```
+
+Serve `node_modules/@chaos-maker/core/dist/sw.js` at a URL your SW can reach.
+
 ## License
 
 [MIT](../../LICENSE)

@@ -187,3 +187,12 @@ export type {
   WebSocketDirection,
   WebSocketCorruptionStrategy,
 } from '@chaos-maker/core';
+
+export {
+  injectSWChaos,
+  removeSWChaos,
+  getSWChaosLog,
+  getSWChaosLogFromSW,
+  registerSWChaosCommands,
+} from './sw';
+export type { SWChaosOptions, InjectSWChaosResult } from './sw';

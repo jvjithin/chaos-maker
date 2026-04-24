@@ -190,3 +190,11 @@ export type {
 } from '@chaos-maker/core';
 
 export type { TraceReporterOptions, ChaosTraceAttachment } from './trace';
+
+export {
+  injectSWChaos,
+  removeSWChaos,
+  getSWChaosLog,
+  getSWChaosLogFromSW,
+} from './sw';
+export type { SWChaosOptions, InjectSWChaosResult } from './sw';

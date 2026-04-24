@@ -40,6 +40,11 @@
         "types": "./dist/types/index.d.ts",
         "default": "./dist/chaos-maker.cjs"
       }
+    },
+    "./sw": {
+      "types": "./dist/types/sw.d.ts",
+      "import": "./dist/sw.mjs",
+      "default": "./dist/sw.js"
     }
   },
   "files": [
@@ -47,7 +52,7 @@
   ],
   "scripts": {
     "dev": "vite build --watch",
-    "build": "vite build && tsc -p tsconfig.build.json",
+    "build": "vite build && vite build -c vite.config.sw.ts && tsc -p tsconfig.build.json",
     "test": "vitest run",
     "test:watch": "vitest"
   },

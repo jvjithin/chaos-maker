@@ -2,7 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { createConnection } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { registerChaosCommands } from '@chaos-maker/webdriverio';
+import { registerChaosCommands, registerSWChaosCommands } from '@chaos-maker/webdriverio';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIXTURES = resolve(__dirname, '../fixtures');
@@ -122,6 +122,7 @@ export const config: WebdriverIO.Config = {
   },
   async before() {
     registerChaosCommands(browser as never);
+    registerSWChaosCommands(browser as never);
   },
   async afterTest() {
     // Auto-cleanup chaos between tests so leftover patched fetch/XHR/WS

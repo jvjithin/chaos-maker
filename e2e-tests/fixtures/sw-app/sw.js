@@ -1,10 +1,10 @@
-// Plain service worker fixture. Intercepts fetches under /sw-app/sw-api/* and
-// proxies them upstream to the real fixture endpoint at /api/data.json.
-// Spike chaos shim is injected by the test runner via Playwright route rewrite
-// (prepended above this file's contents at request time).
+// Classic-SW fixture for @chaos-maker/core/sw. One line + the standard
+// lifecycle and fetch routing used by the e2e harness.
+importScripts('/sw-app/chaos-maker-sw.js');
 
 self.addEventListener('install', function (event) {
-  // Activate immediately so the spike test doesn't have to wait a refresh.
+  // Skip the wait-for-refresh ceremony so tests can drive chaos on the first
+  // load without an explicit reload step.
   event.waitUntil(self.skipWaiting());
 });
 
@@ -15,8 +15,8 @@ self.addEventListener('activate', function (event) {
 self.addEventListener('fetch', function (event) {
   var url = new URL(event.request.url);
   if (url.pathname.startsWith('/sw-app/sw-api/')) {
-    // Re-issue as a real fetch so chaos shim (which patches self.fetch) sees
-    // the call. Strip the SW namespace and hit the canonical fixture file.
+    // Re-issue as a real fetch so the chaos-patched `self.fetch` sees the
+    // call. Strip the SW namespace and hit the canonical fixture JSON.
     event.respondWith(self.fetch('/api/data.json'));
   }
 });
