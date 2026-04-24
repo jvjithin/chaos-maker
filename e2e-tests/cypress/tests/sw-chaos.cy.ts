@@ -52,10 +52,14 @@ describe('SW chaos — network failure', () => {
       network: { latencies: [{ urlPattern: '/api/data.json', delayMs: 400, probability: 1 }] },
       seed: 2,
     });
-    const start = Date.now();
-    cy.get('#sw-fetch').click();
-    cy.get('#sw-fetch-status').should('have.text', '200').then(() => {
-      expect(Date.now() - start).to.be.at.least(300);
+    // Capture start inside .then so SW registration + inject overhead doesn't
+    // leak into the measured window.
+    cy.then(() => {
+      const start = Date.now();
+      cy.get('#sw-fetch').click();
+      cy.get('#sw-fetch-status').should('have.text', '200').then(() => {
+        expect(Date.now() - start).to.be.at.least(300);
+      });
     });
   });
 });

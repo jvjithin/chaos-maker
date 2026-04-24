@@ -37,7 +37,9 @@ export async function injectSWChaos(
   const validated = validateConfig(config);
   const timeoutMs = opts.timeoutMs ?? 10_000;
 
-  // Install bridge source synchronously then invoke apply via executeAsync.
+  // Install bridge source via `execute` (sync eval + inline <script> tag),
+  // then invoke `apply` via a second `execute` using async/await. WDIO v8
+  // deprecated `executeAsync` — async callbacks work natively in `execute`.
   await browser.execute((src: string) => {
     const w = window as unknown as { __chaosMakerSWBridgeInstalled?: boolean };
     if (w.__chaosMakerSWBridgeInstalled) return;
@@ -65,17 +67,23 @@ export async function injectSWChaos(
  */
 export async function removeSWChaos(browser: ChaosBrowser, opts: SWChaosOptions = {}): Promise<void> {
   const timeoutMs = opts.timeoutMs ?? 5_000;
-  await browser.execute(async (t: number) => {
-    const bridge = (window as unknown as {
-      __chaosMakerSWBridge?: {
-        stop: (t: number) => Promise<unknown>;
-        clearLocalLog: () => void;
-      };
-    }).__chaosMakerSWBridge;
-    if (!bridge) return;
-    await bridge.stop(t);
-    bridge.clearLocalLog();
-  }, timeoutMs);
+  // Session may already be torn down when this runs from `afterTest` — a
+  // transient browser error here would otherwise mask the failing assertion.
+  try {
+    await browser.execute(async (t: number) => {
+      const bridge = (window as unknown as {
+        __chaosMakerSWBridge?: {
+          stop: (t: number) => Promise<unknown>;
+          clearLocalLog: () => void;
+        };
+      }).__chaosMakerSWBridge;
+      if (!bridge) return;
+      await bridge.stop(t);
+      bridge.clearLocalLog();
+    }, timeoutMs);
+  } catch {
+    // Session closed mid-teardown — nothing left to clean up.
+  }
 }
 
 /** Read SW chaos events buffered on the page side. */

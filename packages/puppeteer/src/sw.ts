@@ -16,6 +16,18 @@ export interface InjectSWChaosResult {
 
 const BRIDGE_INIT_KEY = Symbol.for('chaos-maker.puppeteer.sw.bridgeInit');
 
+// Puppeteer messages raised when no document is committed / context is torn
+// down. These are the only conditions under which we want `page.evaluate`
+// to be a no-op here; anything else (CSP, syntax error, destroyed target
+// mid-injection) is a real bug and must surface.
+const EXPECTED_EVAL_ERRORS = [
+  'Cannot find context',
+  'Execution context was destroyed',
+  'Target closed',
+  'Session closed',
+  'no frame for given id',
+];
+
 async function ensurePageBridge(page: ChaosPage): Promise<void> {
   // `evaluateOnNewDocument` is additive — dedupe per-page so listener sets
   // never stack across re-inject calls.
@@ -25,9 +37,13 @@ async function ensurePageBridge(page: ChaosPage): Promise<void> {
     (page as unknown as Record<symbol, unknown>)[BRIDGE_INIT_KEY] = true;
   }
   // Current document has already committed — ensure bridge is live there too.
-  await (page.evaluate(SW_BRIDGE_SOURCE) as Promise<unknown>).catch(() => {
-    // Page may not have navigated yet — init script will handle the first doc.
-  });
+  try {
+    await (page.evaluate(SW_BRIDGE_SOURCE) as Promise<unknown>);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!EXPECTED_EVAL_ERRORS.some((m) => msg.includes(m))) throw err;
+    // Page has no committed doc yet — init script covers the first one.
+  }
 }
 
 /**

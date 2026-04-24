@@ -193,7 +193,11 @@ test('SW-fetched /api returns 503', async ({ page }) => {
 });
 ```
 
-Serve `node_modules/@chaos-maker/core/dist/sw.js` at a URL reachable by your SW. Same file works for `importScripts` (classic) and `import` (module SW).
+Two artifacts ship in `@chaos-maker/core`:
+- `dist/sw.js` — IIFE bundle for classic SWs (`importScripts('/chaos-maker-sw.js')`).
+- `dist/sw.mjs` — ESM bundle for module SWs (`import { installChaosSW } from '/chaos-maker-sw.mjs'`).
+
+Serve whichever your SW type uses at a URL reachable from the service-worker scope.
 
 ## License
 

@@ -90,6 +90,10 @@ export const SW_BRIDGE_SOURCE = /* js */ `
 
   window.__chaosMakerSWBridge = {
     apply: function (cfg, timeoutMs) {
+      // Stash cfg BEFORE awaiting ack — intentional. If the first ack times
+      // out (e.g. SW still installing), the controllerchange listener above
+      // will retry with this config once the new SW claims the page. Caller
+      // still sees the rejection from this attempt and can re-throw.
       lastConfig = cfg;
       return postConfig(cfg, timeoutMs).then(function (ack) {
         return { seed: ack && typeof ack.seed === 'number' ? ack.seed : null };

@@ -85,11 +85,23 @@ test.describe('SW chaos — network failure', () => {
     });
     await page.click('#sw-fetch');
     await expect(page.locator('#sw-fetch-status')).toHaveText('418');
-    // Small settle for last broadcast.
-    await page.waitForTimeout(100);
+    // Poll until the local (broadcast) log has caught the 418 event — avoids
+    // racing a fixed waitForTimeout against the final postMessage flush.
+    await expect
+      .poll(async () => (await getSWChaosLog(page)).some(
+        (e) => e.type === 'network:failure' && e.applied && e.detail.statusCode === 418,
+      ))
+      .toBe(true);
     const local = await getSWChaosLog(page);
     const remote = await getSWChaosLogFromSW(page);
-    expect(remote.length).toBeGreaterThanOrEqual(local.length);
+    const matchLocal = local.some(
+      (e) => e.type === 'network:failure' && e.applied && e.detail.statusCode === 418,
+    );
+    const matchRemote = remote.some(
+      (e) => e.type === 'network:failure' && e.applied && e.detail.statusCode === 418,
+    );
+    expect(matchLocal).toBe(true);
+    expect(matchRemote).toBe(true);
   });
 });
 
