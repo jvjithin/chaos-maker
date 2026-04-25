@@ -50,4 +50,11 @@ export const presets: Readonly<Record<string, ChaosConfig>> = deepFreeze({
       corruptions: [{ urlPattern: MATCH_ALL_URLS, direction: 'inbound', strategy: 'truncate', probability: 0.05 }],
     },
   },
+  unreliableEventStream: {
+    sse: {
+      drops: [{ urlPattern: MATCH_ALL_URLS, probability: 0.05 }],
+      delays: [{ urlPattern: MATCH_ALL_URLS, delayMs: 200, probability: 1.0 }],
+      closes: [{ urlPattern: MATCH_ALL_URLS, probability: 0.02, afterMs: 2000 }],
+    },
+  },
 });

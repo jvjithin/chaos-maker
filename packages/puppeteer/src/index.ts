@@ -205,6 +205,13 @@ export type {
   WebSocketCloseConfig,
   WebSocketDirection,
   WebSocketCorruptionStrategy,
+  SSEConfig,
+  SSEDropConfig,
+  SSEDelayConfig,
+  SSECorruptConfig,
+  SSECloseConfig,
+  SSECorruptionStrategy,
+  SSEEventTypeMatcher,
 } from '@chaos-maker/core';
 
 export {

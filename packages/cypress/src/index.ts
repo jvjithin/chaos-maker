@@ -28,6 +28,13 @@ export type {
   WebSocketCloseConfig,
   WebSocketDirection,
   WebSocketCorruptionStrategy,
+  SSEConfig,
+  SSEDropConfig,
+  SSEDelayConfig,
+  SSECorruptConfig,
+  SSECloseConfig,
+  SSECorruptionStrategy,
+  SSEEventTypeMatcher,
 } from '@chaos-maker/core';
 
 // Augment Cypress's Chainable interface so `cy.injectChaos(...)` etc. get

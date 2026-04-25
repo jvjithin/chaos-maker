@@ -1,4 +1,4 @@
-import { ChaosConfig, CorruptionStrategy, RequestCountingOptions, WebSocketDirection, WebSocketCorruptionStrategy } from './config';
+import { ChaosConfig, CorruptionStrategy, RequestCountingOptions, SSECorruptionStrategy, WebSocketDirection, WebSocketCorruptionStrategy } from './config';
 
 function cloneConfig(config: ChaosConfig): ChaosConfig {
   return JSON.parse(JSON.stringify(config));
@@ -8,10 +8,11 @@ export class ChaosConfigBuilder {
   private config: ChaosConfig;
 
   constructor(initialConfig?: ChaosConfig) {
-    this.config = initialConfig ? cloneConfig(initialConfig) : { network: {}, ui: {}, websocket: {} };
+    this.config = initialConfig ? cloneConfig(initialConfig) : { network: {}, ui: {}, websocket: {}, sse: {} };
     if (!this.config.network) this.config.network = {};
     if (!this.config.ui) this.config.ui = {};
     if (!this.config.websocket) this.config.websocket = {};
+    if (!this.config.sse) this.config.sse = {};
   }
 
   failRequests(urlPattern: string, statusCode: number, probability: number, methods?: string[], body?: string, headers?: Record<string, string>, counting?: RequestCountingOptions) {
@@ -150,6 +151,32 @@ export class ChaosConfigBuilder {
 
   delayMessagesOnNth(urlPattern: string, direction: WebSocketDirection, delayMs: number, n: number) {
     return this.delayMessages(urlPattern, direction, delayMs, 1, { onNth: n });
+  }
+
+  // --- SSE / EventSource chaos ---
+
+  dropSSE(urlPattern: string, probability: number, eventType?: string, counting?: RequestCountingOptions) {
+    if (!this.config.sse!.drops) this.config.sse!.drops = [];
+    this.config.sse!.drops.push({ urlPattern, probability, ...(eventType ? { eventType } : {}), ...counting });
+    return this;
+  }
+
+  delaySSE(urlPattern: string, delayMs: number, probability: number, eventType?: string, counting?: RequestCountingOptions) {
+    if (!this.config.sse!.delays) this.config.sse!.delays = [];
+    this.config.sse!.delays.push({ urlPattern, delayMs, probability, ...(eventType ? { eventType } : {}), ...counting });
+    return this;
+  }
+
+  corruptSSE(urlPattern: string, strategy: SSECorruptionStrategy, probability: number, eventType?: string, counting?: RequestCountingOptions) {
+    if (!this.config.sse!.corruptions) this.config.sse!.corruptions = [];
+    this.config.sse!.corruptions.push({ urlPattern, strategy, probability, ...(eventType ? { eventType } : {}), ...counting });
+    return this;
+  }
+
+  closeSSE(urlPattern: string, probability: number, opts?: { afterMs?: number }, counting?: RequestCountingOptions) {
+    if (!this.config.sse!.closes) this.config.sse!.closes = [];
+    this.config.sse!.closes.push({ urlPattern, probability, ...opts, ...counting });
+    return this;
   }
 
   /** Set the PRNG seed for reproducible chaos. */
