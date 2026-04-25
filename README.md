@@ -1,6 +1,6 @@
 # Chaos Maker
 
-[![Build Status](https://github.com/jvjithin/chaos-maker/actions/workflows/ci.yml/badge.svg)](https://github.com/jvjithin/chaos-maker/actions)
+[![Build Status](https://github.com/chaos-maker-dev/chaos-maker/actions/workflows/ci.yml/badge.svg)](https://github.com/chaos-maker-dev/chaos-maker/actions)
 [![npm](https://img.shields.io/npm/v/@chaos-maker/core)](https://www.npmjs.com/package/@chaos-maker/core)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -55,7 +55,7 @@ Page-side: `injectSWChaos` / `removeSWChaos` / `getSWChaosLog` in each adapter. 
 
 ## Full docs
 
-[Getting started](https://jvjithin.github.io/chaos-maker/getting-started/install) | [Concepts](https://jvjithin.github.io/chaos-maker/concepts/chaos-types) | [Recipes](https://jvjithin.github.io/chaos-maker/recipes/slow-checkout) | [API](https://jvjithin.github.io/chaos-maker/api/core)
+[Getting started](https://chaos-maker-dev.github.io/chaos-maker/getting-started/install) | [Concepts](https://chaos-maker-dev.github.io/chaos-maker/concepts/chaos-types) | [Recipes](https://chaos-maker-dev.github.io/chaos-maker/recipes/slow-checkout) | [API](https://chaos-maker-dev.github.io/chaos-maker/api/core)
 
 ## Development
 

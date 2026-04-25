@@ -1,6 +1,6 @@
 # @chaos-maker/puppeteer
 
-Puppeteer adapter for [`@chaos-maker/core`](https://github.com/jvjithin/chaos-maker) — inject network failures, UI assaults, and WebSocket chaos into Puppeteer tests with a single function call.
+Puppeteer adapter for [`@chaos-maker/core`](https://github.com/chaos-maker-dev/chaos-maker) — inject network failures, UI assaults, and WebSocket chaos into Puppeteer tests with a single function call.
 
 ## Install
 
