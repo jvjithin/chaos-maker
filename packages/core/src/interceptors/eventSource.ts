@@ -249,15 +249,18 @@ export function patchEventSource(
       if (!running) return;
       clearSourceTimers(source, 'close-interrupt');
       emitClose(emitter, url, 'chaos-maker-close');
-      try {
-        source.dispatchEvent(new Event('error'));
-      } catch {
-        // never thrown by EventTarget.dispatchEvent in practice; swallow defensively
-      }
+      // WHATWG SSE: on permanent failure, readyState must transition to
+      // CLOSED *before* the error dispatch — so app onerror handlers that
+      // branch on `readyState === CLOSED` see the correct state.
       try {
         source.close();
       } catch {
         // already closed
+      }
+      try {
+        source.dispatchEvent(new Event('error'));
+      } catch {
+        // never thrown by EventTarget.dispatchEvent in practice; swallow defensively
       }
     };
 

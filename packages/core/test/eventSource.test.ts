@@ -211,11 +211,18 @@ describe('close chaos', () => {
     }, ALWAYS);
     const es = new Wrapped('http://test/sse');
     let errorSeen = false;
-    es.addEventListener('error', () => { errorSeen = true; });
+    let readyStateAtError = -1;
+    es.addEventListener('error', () => {
+      errorSeen = true;
+      readyStateAtError = es.readyState;
+    });
     expect(es.closed).toBe(false);
     vi.advanceTimersByTime(1000);
     expect(errorSeen).toBe(true);
     expect(es.closed).toBe(true);
+    // SSE spec compliance: readyState must already be CLOSED when onerror fires
+    // for a permanently-failed connection.
+    expect(readyStateAtError).toBe(MockEventSource.CLOSED);
     const closes = emitter.getLog().filter(e => e.type === 'sse:close');
     expect(closes.length).toBe(1);
   });
