@@ -137,10 +137,53 @@ const webSocketConfigSchema = z.object({
   closes: z.array(webSocketCloseSchema).optional(),
 }).strict();
 
+// SSE event-type matcher: either '*' (all events), 'message' (default
+// unnamed events), or any other named event string. Empty strings are
+// rejected because they would silently never match.
+const sseEventType = z.string().min(1, 'eventType must not be empty');
+
+const sseDropSchema = z.object({
+  urlPattern: z.string().min(1, 'urlPattern must not be empty'),
+  eventType: sseEventType.optional(),
+  probability,
+  ...countingFields,
+}).strict().refine(...countingRefinement);
+
+const sseDelaySchema = z.object({
+  urlPattern: z.string().min(1, 'urlPattern must not be empty'),
+  eventType: sseEventType.optional(),
+  delayMs: z.number().min(0, 'delayMs must be >= 0'),
+  probability,
+  ...countingFields,
+}).strict().refine(...countingRefinement);
+
+const sseCorruptSchema = z.object({
+  urlPattern: z.string().min(1, 'urlPattern must not be empty'),
+  eventType: sseEventType.optional(),
+  strategy: z.enum(['truncate', 'malformed-json', 'empty', 'wrong-type']),
+  probability,
+  ...countingFields,
+}).strict().refine(...countingRefinement);
+
+const sseCloseSchema = z.object({
+  urlPattern: z.string().min(1, 'urlPattern must not be empty'),
+  afterMs: z.number().min(0, 'afterMs must be >= 0').optional(),
+  probability,
+  ...countingFields,
+}).strict().refine(...countingRefinement);
+
+const sseConfigSchema = z.object({
+  drops: z.array(sseDropSchema).optional(),
+  delays: z.array(sseDelaySchema).optional(),
+  corruptions: z.array(sseCorruptSchema).optional(),
+  closes: z.array(sseCloseSchema).optional(),
+}).strict();
+
 const chaosConfigSchema = z.object({
   network: networkConfigSchema.optional(),
   ui: uiConfigSchema.optional(),
   websocket: webSocketConfigSchema.optional(),
+  sse: sseConfigSchema.optional(),
   seed: z.number().int('Seed must be an integer').optional(),
 }).strict();
 

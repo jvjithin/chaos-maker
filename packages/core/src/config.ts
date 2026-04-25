@@ -130,10 +130,60 @@ export interface WebSocketConfig {
   closes?: WebSocketCloseConfig[];
 }
 
+/** Strategies for corrupting Server-Sent Event payloads.
+ *  All four strategies operate on `event.data` (always a string per the SSE
+ *  spec). Mirrors the fetch / WebSocket corruption shape so the same
+ *  vocabulary applies across protocols.
+ */
+export type SSECorruptionStrategy = 'truncate' | 'malformed-json' | 'empty' | 'wrong-type';
+
+/** Filter SSE chaos to a specific event type.
+ *  - `'message'` (default in the spec) targets unnamed events fired via
+ *    `onmessage` / `addEventListener('message', …)`.
+ *  - Any other string targets named events dispatched with `event:` lines.
+ *  - `'*'` matches every event regardless of name.
+ */
+export type SSEEventTypeMatcher = string | '*';
+
+export interface SSEDropConfig extends RequestCountingOptions {
+  urlPattern: string;
+  eventType?: SSEEventTypeMatcher;
+  probability: number;
+}
+
+export interface SSEDelayConfig extends RequestCountingOptions {
+  urlPattern: string;
+  eventType?: SSEEventTypeMatcher;
+  delayMs: number;
+  probability: number;
+}
+
+export interface SSECorruptConfig extends RequestCountingOptions {
+  urlPattern: string;
+  eventType?: SSEEventTypeMatcher;
+  strategy: SSECorruptionStrategy;
+  probability: number;
+}
+
+export interface SSECloseConfig extends RequestCountingOptions {
+  urlPattern: string;
+  /** Delay after `open` before dispatching `error` + closing, in ms. Default 0. */
+  afterMs?: number;
+  probability: number;
+}
+
+export interface SSEConfig {
+  drops?: SSEDropConfig[];
+  delays?: SSEDelayConfig[];
+  corruptions?: SSECorruptConfig[];
+  closes?: SSECloseConfig[];
+}
+
 export interface ChaosConfig {
   network?: NetworkConfig;
   ui?: UiConfig;
   websocket?: WebSocketConfig;
+  sse?: SSEConfig;
   /**
    * Seed for Chaos Maker's PRNG.
    *

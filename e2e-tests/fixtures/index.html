@@ -53,6 +53,19 @@
     <pre id="ws-log"></pre>
   </section>
 
+  <!-- Server-Sent Events -->
+  <section>
+    <h2>EventSource (SSE)</h2>
+    <button id="sse-connect">Connect</button>
+    <button id="sse-connect-named">Connect (named events)</button>
+    <button id="sse-close">Close</button>
+    <div id="sse-status">idle</div>
+    <div id="sse-message-count">0</div>
+    <div id="sse-tick-count">0</div>
+    <div id="sse-error-count">0</div>
+    <pre id="sse-log"></pre>
+  </section>
+
   <script>
     var API_URL = '/api/data.json';
 
@@ -208,6 +221,82 @@
     document.getElementById('ws-close').addEventListener('click', function () {
       if (!ws) return;
       ws.close();
+    });
+
+    // --- Server-Sent Events ---
+    var SSE_BASE = 'http://127.0.0.1:8082';
+    var es = null;
+    var sseMessageCount = 0;
+    var sseTickCount = 0;
+    var sseErrorCount = 0;
+
+    function sseLog(line) {
+      var pre = document.getElementById('sse-log');
+      pre.textContent += line + '\n';
+    }
+
+    function setSseStatus(text) {
+      document.getElementById('sse-status').textContent = text;
+    }
+
+    function setSseMessageCount(n) {
+      document.getElementById('sse-message-count').textContent = String(n);
+    }
+
+    function setSseTickCount(n) {
+      document.getElementById('sse-tick-count').textContent = String(n);
+    }
+
+    function setSseErrorCount(n) {
+      document.getElementById('sse-error-count').textContent = String(n);
+    }
+
+    function resetSseCounters() {
+      sseMessageCount = 0;
+      sseTickCount = 0;
+      sseErrorCount = 0;
+      setSseMessageCount(0);
+      setSseTickCount(0);
+      setSseErrorCount(0);
+    }
+
+    function connectSse(url) {
+      if (es && es.readyState !== EventSource.CLOSED) return;
+      resetSseCounters();
+      setSseStatus('connecting');
+      es = new EventSource(url);
+      es.addEventListener('open', function () { setSseStatus('open'); });
+      es.addEventListener('message', function (evt) {
+        sseMessageCount += 1;
+        setSseMessageCount(sseMessageCount);
+        sseLog('msg ' + Date.now() + ' ' + String(evt.data));
+      });
+      es.addEventListener('tick', function (evt) {
+        sseTickCount += 1;
+        setSseTickCount(sseTickCount);
+        sseLog('tick ' + Date.now() + ' ' + String(evt.data));
+      });
+      es.addEventListener('error', function () {
+        sseErrorCount += 1;
+        setSseErrorCount(sseErrorCount);
+        var state = es ? es.readyState : -1;
+        setSseStatus('error ' + state);
+        sseLog('err ' + Date.now() + ' state=' + state);
+      });
+    }
+
+    document.getElementById('sse-connect').addEventListener('click', function () {
+      connectSse(SSE_BASE + '/sse');
+    });
+
+    document.getElementById('sse-connect-named').addEventListener('click', function () {
+      connectSse(SSE_BASE + '/sse-named');
+    });
+
+    document.getElementById('sse-close').addEventListener('click', function () {
+      if (!es) return;
+      es.close();
+      setSseStatus('closed');
     });
   </script>
 </body>

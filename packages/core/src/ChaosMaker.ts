@@ -6,6 +6,7 @@ import { patchFetch } from './interceptors/networkFetch';
 import { patchXHR, patchXHROpen } from './interceptors/networkXHR';
 import { attachDomAssailant } from './interceptors/domAssailant';
 import { patchWebSocket, WebSocketPatchHandle } from './interceptors/websocket';
+import { patchEventSource, EventSourceLikeStatic, EventSourcePatchHandle } from './interceptors/eventSource';
 
 /**
  * Global context ChaosMaker patches against. Must expose at minimum `fetch`
@@ -37,6 +38,8 @@ export class ChaosMaker {
   private domObserver?: MutationObserver;
   private originalWebSocket?: typeof WebSocket;
   private webSocketHandle?: WebSocketPatchHandle;
+  private originalEventSource?: typeof EventSource;
+  private eventSourceHandle?: EventSourcePatchHandle;
   /** Shared counters keyed by config rule object reference. Shared across fetch + XHR + WS. */
   private requestCounters: Map<object, number> = new Map();
 
@@ -123,6 +126,18 @@ export class ChaosMaker {
       );
       target.WebSocket = this.webSocketHandle.Wrapped;
     }
+
+    if (this.config.sse && typeof target.EventSource !== 'undefined') {
+      this.originalEventSource = target.EventSource;
+      this.eventSourceHandle = patchEventSource(
+        this.originalEventSource as unknown as EventSourceLikeStatic,
+        this.config.sse,
+        this.emitter,
+        this.random,
+        this.requestCounters,
+      );
+      target.EventSource = this.eventSourceHandle.Wrapped;
+    }
   }
 
   public stop(): void {
@@ -151,6 +166,14 @@ export class ChaosMaker {
     if (this.webSocketHandle) {
       this.webSocketHandle.uninstall();
       this.webSocketHandle = undefined;
+    }
+    if (this.originalEventSource) {
+      target.EventSource = this.originalEventSource;
+      this.originalEventSource = undefined;
+    }
+    if (this.eventSourceHandle) {
+      this.eventSourceHandle.uninstall();
+      this.eventSourceHandle = undefined;
     }
   }
 }

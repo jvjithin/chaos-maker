@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **Service Worker chaos (Phase 1 of v0.4.0)**: chaos rules now apply to fetches issued from a service worker. New subpath export `@chaos-maker/core/sw` ships dual ESM (`sw.mjs`) + IIFE (`sw.js`) bundles excluding Zod, the UI assailant, and the builder. Users add one line to their service worker (`importScripts('/path/to/chaos-maker-sw.js')` for classic SWs, or `import { installChaosSW } from '@chaos-maker/core/sw'` for module SWs). New shared `SW_BRIDGE_SOURCE` constant + `injectSWChaos`, `removeSWChaos`, `getSWChaosLog`, and `getSWChaosLogFromSW` helpers in all 4 adapters. Auto-reapply on `controllerchange` so SW updates inherit config.
+- **SSE / EventSource chaos (Phase 2 of v0.4.0)**: new `sse` config block on `ChaosConfig` with `drops`, `delays`, `corruptions`, and `closes`. Mirrors the WebSocket interceptor's wrapper-constructor approach to patch `globalThis.EventSource` — intercepts inbound `MessageEvent`s, supports per-rule `urlPattern`, `eventType` (named events or `'*'` wildcard), `probability`, `onNth`/`everyNth`/`afterN`, and the four standard corruption strategies (`truncate`, `malformed-json`, `empty`, `wrong-type`). New events `sse:drop`, `sse:delay`, `sse:corrupt`, `sse:close`. Builder shortcuts `dropSSE`, `delaySSE`, `corruptSSE`, `closeSSE`. New `unreliableEventStream` preset (5% drops + 200ms delay + 2% close-after-2s). Wildcard rules auto-attach a chaos listener whenever the app subscribes to a new named event type. SSE types re-exported from all 4 adapters; new E2E coverage on Playwright (chromium+firefox+webkit+edge), Cypress (chrome+electron), and Puppeteer.
+
 ### Changed
 
 - **`@chaos-maker/core` — `globalThis` refactor (Phase 0 of v0.4.0)**: interceptors read their targets (`fetch`, `XMLHttpRequest`, `WebSocket`) through `globalThis` instead of `window`, so the same engine code now runs in both browser page contexts and service worker / worker contexts. No public API change beyond a new optional `ChaosMaker(config, { target })` constructor argument that defaults to `globalThis`.

@@ -8,7 +8,11 @@ export type ChaosEventType =
   | 'websocket:drop'
   | 'websocket:delay'
   | 'websocket:corrupt'
-  | 'websocket:close';
+  | 'websocket:close'
+  | 'sse:drop'
+  | 'sse:delay'
+  | 'sse:corrupt'
+  | 'sse:close';
 
 export interface ChaosEvent {
   type: ChaosEventType;
@@ -31,6 +35,8 @@ export interface ChaosEvent {
     closeCode?: number;
     /** WebSocket close reason (for `websocket:close` events). */
     closeReason?: string;
+    /** SSE event type (for `sse:*` events). `'message'` is the spec default. */
+    eventType?: string;
     /** Reason string for diagnostic `applied: false` events. */
     reason?: string;
   };

@@ -397,4 +397,81 @@ describe('validateConfig', () => {
       expect(() => validateConfig(config)).toThrow(ChaosConfigError);
     });
   });
+
+  describe('sse config', () => {
+    it('accepts valid drop/delay/corrupt/close rules', () => {
+      const config = {
+        sse: {
+          drops: [{ urlPattern: '/sse', probability: 0.5 }],
+          delays: [{ urlPattern: '/sse', delayMs: 100, probability: 1 }],
+          corruptions: [{ urlPattern: '/sse', strategy: 'truncate' as const, probability: 0.2 }],
+          closes: [{ urlPattern: '/sse', afterMs: 500, probability: 1 }],
+        },
+      };
+      expect(() => validateConfig(config)).not.toThrow();
+    });
+
+    it('accepts a named eventType', () => {
+      const config = {
+        sse: { drops: [{ urlPattern: '/sse', eventType: 'tick', probability: 1 }] },
+      };
+      expect(() => validateConfig(config)).not.toThrow();
+    });
+
+    it("accepts '*' eventType wildcard", () => {
+      const config = {
+        sse: { drops: [{ urlPattern: '/sse', eventType: '*', probability: 1 }] },
+      };
+      expect(() => validateConfig(config)).not.toThrow();
+    });
+
+    it('rejects empty eventType string', () => {
+      const config = {
+        sse: { drops: [{ urlPattern: '/sse', eventType: '', probability: 1 }] },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+
+    it('rejects empty urlPattern', () => {
+      const config = {
+        sse: { drops: [{ urlPattern: '', probability: 1 }] },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+
+    it('rejects negative delayMs', () => {
+      const config = {
+        sse: { delays: [{ urlPattern: '/sse', delayMs: -1, probability: 1 }] },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+
+    it('rejects negative afterMs on close', () => {
+      const config = {
+        sse: { closes: [{ urlPattern: '/sse', probability: 1, afterMs: -5 }] },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+
+    it('rejects multiple counting fields on a single sse rule', () => {
+      const config = {
+        sse: { drops: [{ urlPattern: '/sse', probability: 1, onNth: 1, everyNth: 2 }] },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+
+    it('rejects unknown corruption strategy', () => {
+      const config = {
+        sse: { corruptions: [{ urlPattern: '/sse', strategy: 'shred' as unknown as 'truncate', probability: 1 }] },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+
+    it('rejects unknown keys inside sse (strict)', () => {
+      const config = {
+        sse: { drops: [], extra: true } as unknown as Record<string, unknown>,
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+  });
 });
