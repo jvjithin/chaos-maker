@@ -208,6 +208,12 @@ export function patchEventSource(
           untrackTimer(source, timer);
           // After stop, swallow the deferred dispatch; the wrapper is disarmed.
           if (!running) return;
+          // App may have called source.close() while the message was queued.
+          // EventTarget.dispatchEvent still fires synchronously on a closed
+          // source, which would deliver a ghost message past close().
+          // CLOSED = 2 per spec; check via constant on the source instance to
+          // avoid hard-coding the literal here.
+          if (source.readyState === source.CLOSED) return;
           redispatch(source, msgEvt, payload);
         }, delayRule.delayMs),
         url, eventType,

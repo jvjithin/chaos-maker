@@ -467,7 +467,7 @@ describe('validateConfig', () => {
       expect(() => validateConfig(config)).toThrow(ChaosConfigError);
     });
 
-    it('rejects unknown top-level keys (strict)', () => {
+    it('rejects unknown keys inside sse (strict)', () => {
       const config = {
         sse: { drops: [], extra: true } as unknown as Record<string, unknown>,
       };

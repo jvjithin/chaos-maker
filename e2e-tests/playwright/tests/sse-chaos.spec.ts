@@ -34,8 +34,9 @@ test.describe('SSE drop', () => {
     const log = await getChaosLog(page);
     const drops = log.filter(e => e.type === 'sse:drop' && e.applied);
     expect(drops.length).toBeGreaterThan(0);
-    // dropped + delivered should equal total events the engine saw.
-    expect(drops.length + count).toBeGreaterThanOrEqual(drops.length);
+    // everyNth: 2 → drop / deliver should be roughly balanced. Loose bound
+    // tolerates ±1 jitter when a tick happens to land on a window boundary.
+    expect(Math.abs(drops.length - count)).toBeLessThanOrEqual(1);
   });
 });
 
@@ -136,39 +137,72 @@ test.describe('SSE named eventType', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Seeded replay — identical seeds → identical drop patterns.
+// Seeded replay — identical seeds → identical drop sequence.
+//
+// Server emits `tick N` with sequential N. App records delivered ticks in
+// `#sse-log` (`msg <ts> tick N`). The dropped tick numbers = {1..max} minus
+// the delivered set. Same seed + same probability + same engine-event order
+// must produce identical dropped-tick sets.
 // ---------------------------------------------------------------------------
 test.describe('SSE seeded replay', () => {
-  test('same seed produces identical drop outcomes', async ({ page }) => {
+  async function deliveredTickNumbers(page: Page): Promise<number[]> {
+    const text = await page.locator('#sse-log').textContent() ?? '';
+    return [...text.matchAll(/tick (\d+)/g)].map(m => Number(m[1]));
+  }
+
+  async function waitForTotalEvents(page: Page, target: number): Promise<void> {
+    await page.waitForFunction(([t]) => {
+      const win = globalThis as unknown as { chaosUtils?: { getLog: () => { type: string; applied: boolean }[] } };
+      const drops = win.chaosUtils
+        ? win.chaosUtils.getLog().filter(e => e.type === 'sse:drop' && e.applied).length
+        : 0;
+      const delivered = Number(document.getElementById('sse-message-count')?.textContent ?? 0);
+      return drops + delivered >= t;
+    }, [target], { timeout: 10_000 });
+  }
+
+  test('same seed produces identical dropped-tick sets', async ({ page }) => {
     const cfg = {
       seed: 9000,
       sse: { drops: [{ urlPattern: SSE_URL_PATTERN, probability: 0.5 }] },
     };
+    const TARGET = 6;
+
     await injectChaos(page, cfg);
     await page.goto(BASE_URL);
     await connectDefault(page);
-    await page.waitForTimeout(1500);
+    await waitForTotalEvents(page, TARGET);
     const seed1 = await getChaosSeed(page);
-    const drops1 = (await getChaosLog(page))
-      .filter(e => e.type === 'sse:drop')
-      .map(e => e.detail.eventType);
+    const delivered1 = await deliveredTickNumbers(page);
+    const drops1 = (await getChaosLog(page)).filter(e => e.type === 'sse:drop' && e.applied).length;
+    const max1 = Math.max(drops1 + delivered1.length, ...delivered1);
+    const dropped1 = new Set<number>();
+    for (let i = 1; i <= max1; i++) if (!delivered1.includes(i)) dropped1.add(i);
 
     const page2 = await page.context().newPage();
     await injectChaos(page2, cfg);
     await page2.goto(BASE_URL);
     await page2.click('#sse-connect');
     await expect(page2.locator('#sse-status')).toHaveText('open');
-    await page2.waitForTimeout(1500);
+    await waitForTotalEvents(page2, TARGET);
     const seed2 = await getChaosSeed(page2);
-    const drops2 = (await getChaosLog(page2))
-      .filter(e => e.type === 'sse:drop')
-      .map(e => e.detail.eventType);
+    const delivered2 = await deliveredTickNumbers(page2);
+    const drops2 = (await getChaosLog(page2)).filter(e => e.type === 'sse:drop' && e.applied).length;
+    const max2 = Math.max(drops2 + delivered2.length, ...delivered2);
+    const dropped2 = new Set<number>();
+    for (let i = 1; i <= max2; i++) if (!delivered2.includes(i)) dropped2.add(i);
 
     expect(seed1).toBe(9000);
     expect(seed2).toBe(9000);
-    // Server timing varies → counts may differ; assert prefix equality on
-    // the first N decisions where N is min length.
-    const minLen = Math.min(drops1.length, drops2.length);
-    expect(drops1.slice(0, minLen)).toEqual(drops2.slice(0, minLen));
+    // Two runs may stop after a different total tick count, so compare the
+    // shared prefix only — every tick index present in both windows must
+    // have the same drop/deliver outcome.
+    const sharedMax = Math.min(max1, max2);
+    const prefix1 = [...dropped1].filter(n => n <= sharedMax).sort((a, b) => a - b);
+    const prefix2 = [...dropped2].filter(n => n <= sharedMax).sort((a, b) => a - b);
+    expect(prefix1).toEqual(prefix2);
+    // Sanity: at least one drop in the shared window so the assertion isn't
+    // trivially satisfied by an empty set.
+    expect(prefix1.length).toBeGreaterThan(0);
   });
 });

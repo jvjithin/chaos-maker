@@ -254,6 +254,24 @@ describe('counting (onNth / everyNth / afterN)', () => {
   });
 });
 
+describe('user-initiated close while a delay is pending', () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+
+  it('does not redispatch a delayed message after source.close()', () => {
+    const { Wrapped } = setupPatch({
+      delays: [{ urlPattern: '/sse', delayMs: 500, probability: 1 }],
+    }, ALWAYS);
+    const es = new Wrapped('http://test/sse');
+    const received: unknown[] = [];
+    es.addEventListener('message', (e) => received.push((e as MessageEvent).data));
+    es.simulateMessage('queued');
+    // App closes while delay timer is still pending.
+    es.close();
+    vi.advanceTimersByTime(500);
+    expect(received).toEqual([]);
+  });
+});
+
 describe('uninstall', () => {
   beforeEach(() => { vi.useFakeTimers(); });
 
