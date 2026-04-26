@@ -43,5 +43,10 @@ export default defineConfig({
       url: 'http://127.0.0.1:8082/healthz',
       reuseExistingServer: !process.env.CI,
     },
+    {
+      command: 'node ../fixtures/graphql-server.cjs',
+      url: 'http://127.0.0.1:8083/healthz',
+      reuseExistingServer: !process.env.CI,
+    },
   ],
 });

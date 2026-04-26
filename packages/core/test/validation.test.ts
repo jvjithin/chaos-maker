@@ -474,4 +474,64 @@ describe('validateConfig', () => {
       expect(() => validateConfig(config)).toThrow(ChaosConfigError);
     });
   });
+
+  describe('graphqlOperation matcher', () => {
+    it('accepts a string graphqlOperation on every network rule type', () => {
+      const config = {
+        network: {
+          failures: [{ urlPattern: '/graphql', statusCode: 503, probability: 1, graphqlOperation: 'GetUser' }],
+          latencies: [{ urlPattern: '/graphql', delayMs: 100, probability: 1, graphqlOperation: 'GetUser' }],
+          aborts: [{ urlPattern: '/graphql', probability: 1, graphqlOperation: 'GetUser' }],
+          corruptions: [{ urlPattern: '/graphql', probability: 1, strategy: 'truncate' as const, graphqlOperation: 'GetUser' }],
+          cors: [{ urlPattern: '/graphql', probability: 1, graphqlOperation: 'GetUser' }],
+        },
+      };
+      expect(() => validateConfig(config)).not.toThrow();
+    });
+
+    it('accepts a RegExp graphqlOperation', () => {
+      const config = {
+        network: {
+          failures: [{ urlPattern: '/graphql', statusCode: 500, probability: 1, graphqlOperation: /^Get/ }],
+        },
+      };
+      expect(() => validateConfig(config)).not.toThrow();
+    });
+
+    it('rejects an empty graphqlOperation string', () => {
+      const config = {
+        network: {
+          failures: [{ urlPattern: '/graphql', statusCode: 500, probability: 1, graphqlOperation: '' }],
+        },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+
+    it('rejects a non-string non-RegExp graphqlOperation', () => {
+      const config = {
+        network: {
+          failures: [{ urlPattern: '/graphql', statusCode: 500, probability: 1, graphqlOperation: 42 as unknown as string }],
+        },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+
+    it('rejects a RegExp graphqlOperation with /g flag', () => {
+      const config = {
+        network: {
+          failures: [{ urlPattern: '/graphql', statusCode: 500, probability: 1, graphqlOperation: /^Get/g }],
+        },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+
+    it('rejects a RegExp graphqlOperation with /y flag', () => {
+      const config = {
+        network: {
+          failures: [{ urlPattern: '/graphql', statusCode: 500, probability: 1, graphqlOperation: /^Get/y }],
+        },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+  });
 });

@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import type { ChaosConfig, ChaosEvent } from '@chaos-maker/core';
+import { serializeForTransport } from '@chaos-maker/core';
 import './types';
 
 /**
@@ -74,7 +75,11 @@ export async function injectChaos(
   // `executeScript` bodies in a sandbox whose globals don't leak to the real
   // `window`, so setting `window.__CHAOS_CONFIG__` from the execute callback
   // alone leaves the UMD's auto-bootstrap with nothing to pick up.
-  const scriptSource = `window.__CHAOS_CONFIG__ = ${JSON.stringify(config)};\n${umdSource}`;
+  // Pre-serialize so RegExp matchers (e.g. `graphqlOperation: /^Get/`) survive
+  // the JSON.stringify into the inline <script> body. The in-page
+  // chaosUtils.start auto-deserializes via deserializeForTransport.
+  const serialized = serializeForTransport(config);
+  const scriptSource = `window.__CHAOS_CONFIG__ = ${JSON.stringify(serialized)};\n${umdSource}`;
   const started = await browser.execute((src: string) => {
     const script = document.createElement('script');
     script.textContent = src;
@@ -170,12 +175,14 @@ export type {
   ChaosConfig,
   ChaosEvent,
   ChaosEventType,
+  GraphQLOperationMatcher,
   NetworkConfig,
   NetworkFailureConfig,
   NetworkLatencyConfig,
   NetworkAbortConfig,
   NetworkCorruptionConfig,
   NetworkCorsConfig,
+  NetworkRuleMatchers,
   CorruptionStrategy,
   UiConfig,
   UiAssaultConfig,

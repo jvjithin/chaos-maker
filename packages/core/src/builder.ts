@@ -1,7 +1,24 @@
-import { ChaosConfig, CorruptionStrategy, RequestCountingOptions, SSECorruptionStrategy, WebSocketDirection, WebSocketCorruptionStrategy } from './config';
+import { ChaosConfig, CorruptionStrategy, GraphQLOperationMatcher, RequestCountingOptions, SSECorruptionStrategy, WebSocketDirection, WebSocketCorruptionStrategy } from './config';
+
+function cloneValue<T>(value: T): T {
+  if (value === null || typeof value !== 'object') return value;
+  if (value instanceof RegExp) {
+    // RegExp must be preserved literally — JSON.stringify would drop it,
+    // breaking `graphqlOperation: /^Get/` matchers.
+    return new RegExp(value.source, value.flags) as unknown as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => cloneValue(item)) as unknown as T;
+  }
+  const out: Record<string, unknown> = {};
+  for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
+    out[key] = cloneValue(val);
+  }
+  return out as T;
+}
 
 function cloneConfig(config: ChaosConfig): ChaosConfig {
-  return JSON.parse(JSON.stringify(config));
+  return cloneValue(config);
 }
 
 export class ChaosConfigBuilder {
@@ -151,6 +168,24 @@ export class ChaosConfigBuilder {
 
   delayMessagesOnNth(urlPattern: string, direction: WebSocketDirection, delayMs: number, n: number) {
     return this.delayMessages(urlPattern, direction, delayMs, 1, { onNth: n });
+  }
+
+  // --- GraphQL operation shortcuts ---
+
+  /** Fail every GraphQL request matching `operationName`.
+   *  Defaults `urlPattern` to `'*'`; pass an explicit pattern as the 4th
+   *  argument to scope to a specific endpoint. */
+  failGraphQLOperation(operationName: GraphQLOperationMatcher, statusCode: number, probability: number, urlPattern: string = '*') {
+    if (!this.config.network!.failures) this.config.network!.failures = [];
+    this.config.network!.failures.push({ urlPattern, statusCode, probability, graphqlOperation: operationName });
+    return this;
+  }
+
+  /** Add `delayMs` of latency to every GraphQL request matching `operationName`. */
+  delayGraphQLOperation(operationName: GraphQLOperationMatcher, delayMs: number, probability: number, urlPattern: string = '*') {
+    if (!this.config.network!.latencies) this.config.network!.latencies = [];
+    this.config.network!.latencies.push({ urlPattern, delayMs, probability, graphqlOperation: operationName });
+    return this;
   }
 
   // --- SSE / EventSource chaos ---

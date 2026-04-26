@@ -37,6 +37,10 @@ export interface ChaosEvent {
     closeReason?: string;
     /** SSE event type (for `sse:*` events). `'message'` is the spec default. */
     eventType?: string;
+    /** GraphQL operation name (for `network:*` events when the request was
+     *  detected as a GraphQL operation). Pivot on this to slice events by
+     *  operation in dashboards / assertions. */
+    operationName?: string;
     /** Reason string for diagnostic `applied: false` events. */
     reason?: string;
   };

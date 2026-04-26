@@ -13,6 +13,7 @@ const browserName = process.env.WDIO_BROWSER || 'chrome';
 let httpServer: ChildProcess | null = null;
 let wsServer: ChildProcess | null = null;
 let sseServer: ChildProcess | null = null;
+let graphqlServer: ChildProcess | null = null;
 
 async function waitForHttp(url: string, timeoutMs = 20_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
@@ -98,6 +99,7 @@ export const config: WebdriverIO.Config = {
     }
     const wsReady = await probeTcp('127.0.0.1', 8081);
     const sseReady = await probeTcp('127.0.0.1', 8082);
+    const graphqlReady = await probeTcp('127.0.0.1', 8083);
 
     if (!httpReady) {
       httpServer = spawn(
@@ -120,17 +122,27 @@ export const config: WebdriverIO.Config = {
         { stdio: 'inherit' },
       );
     }
+    if (!graphqlReady) {
+      graphqlServer = spawn(
+        'node',
+        [resolve(FIXTURES, 'graphql-server.cjs')],
+        { stdio: 'inherit' },
+      );
+    }
     if (!httpReady) await waitForHttp('http://127.0.0.1:8080');
     if (!wsReady) await waitForTcp('127.0.0.1', 8081);
     if (!sseReady) await waitForTcp('127.0.0.1', 8082);
+    if (!graphqlReady) await waitForTcp('127.0.0.1', 8083);
   },
   onComplete() {
     httpServer?.kill();
     wsServer?.kill();
     sseServer?.kill();
+    graphqlServer?.kill();
     httpServer = null;
     wsServer = null;
     sseServer = null;
+    graphqlServer = null;
   },
   async before() {
     registerChaosCommands(browser as never);

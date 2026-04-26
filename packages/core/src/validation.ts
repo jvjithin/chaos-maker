@@ -21,9 +21,28 @@ const countingRefinement = [
   { message: 'Only one of onNth, everyNth, or afterN may be set on a single rule' },
 ] as const;
 
-const networkFailureSchema = z.object({
+/** GraphQL operation matcher: a non-empty string (exact match) or a RegExp.
+ *  Empty strings are rejected because they would silently never match.
+ *  `/g` and `/y` flags are rejected because `RegExp.test()` mutates `lastIndex`
+ *  for those flags, which would flap match outcomes across consecutive calls
+ *  with the same matcher instance. */
+const graphqlOperationMatcher = z.union([
+  z.string().min(1, 'graphqlOperation must not be empty'),
+  z.instanceof(RegExp).refine(
+    (re) => !re.global && !re.sticky,
+    { message: 'graphqlOperation RegExp must not use global (g) or sticky (y) flags due to lastIndex mutation' },
+  ),
+]);
+
+/** Fields shared by every network chaos rule type. */
+const networkMatcherFields = {
   urlPattern: z.string().min(1, 'urlPattern must not be empty'),
   methods: z.array(z.string()).optional(),
+  graphqlOperation: graphqlOperationMatcher.optional(),
+};
+
+const networkFailureSchema = z.object({
+  ...networkMatcherFields,
   statusCode: z.number().int().min(100).max(599),
   probability,
   body: z.string().optional(),
@@ -33,32 +52,28 @@ const networkFailureSchema = z.object({
 }).strict().refine(...countingRefinement);
 
 const networkLatencySchema = z.object({
-  urlPattern: z.string().min(1, 'urlPattern must not be empty'),
-  methods: z.array(z.string()).optional(),
+  ...networkMatcherFields,
   delayMs: z.number().min(0, 'delayMs must be >= 0'),
   probability,
   ...countingFields,
 }).strict().refine(...countingRefinement);
 
 const networkAbortSchema = z.object({
-  urlPattern: z.string().min(1, 'urlPattern must not be empty'),
-  methods: z.array(z.string()).optional(),
+  ...networkMatcherFields,
   probability,
   timeout: z.number().min(0, 'timeout must be >= 0').optional(),
   ...countingFields,
 }).strict().refine(...countingRefinement);
 
 const networkCorruptionSchema = z.object({
-  urlPattern: z.string().min(1, 'urlPattern must not be empty'),
-  methods: z.array(z.string()).optional(),
+  ...networkMatcherFields,
   probability,
   strategy: z.enum(['truncate', 'malformed-json', 'empty', 'wrong-type']),
   ...countingFields,
 }).strict().refine(...countingRefinement);
 
 const networkCorsSchema = z.object({
-  urlPattern: z.string().min(1, 'urlPattern must not be empty'),
-  methods: z.array(z.string()).optional(),
+  ...networkMatcherFields,
   probability,
   ...countingFields,
 }).strict().refine(...countingRefinement);

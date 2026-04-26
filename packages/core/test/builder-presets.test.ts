@@ -161,6 +161,64 @@ describe('ChaosConfigBuilder', () => {
     expect(config.websocket?.drops?.[0]).toMatchObject({ onNth: 3, probability: 1 });
     expect(config.websocket?.delays?.[0]).toMatchObject({ onNth: 2, probability: 1 });
   });
+
+  it('failGraphQLOperation pushes a failure rule with graphqlOperation set', () => {
+    const config = new ChaosConfigBuilder()
+      .failGraphQLOperation('GetUser', 503, 0.5)
+      .build();
+    expect(config.network?.failures?.[0]).toMatchObject({
+      urlPattern: '*',
+      statusCode: 503,
+      probability: 0.5,
+      graphqlOperation: 'GetUser',
+    });
+  });
+
+  it('failGraphQLOperation accepts an explicit urlPattern', () => {
+    const config = new ChaosConfigBuilder()
+      .failGraphQLOperation('GetUser', 500, 1.0, '/graphql')
+      .build();
+    expect(config.network?.failures?.[0]).toMatchObject({
+      urlPattern: '/graphql',
+      graphqlOperation: 'GetUser',
+    });
+  });
+
+  it('delayGraphQLOperation pushes a latency rule with graphqlOperation set', () => {
+    const config = new ChaosConfigBuilder()
+      .delayGraphQLOperation('SearchProducts', 2000, 1.0)
+      .build();
+    expect(config.network?.latencies?.[0]).toMatchObject({
+      urlPattern: '*',
+      delayMs: 2000,
+      probability: 1.0,
+      graphqlOperation: 'SearchProducts',
+    });
+  });
+
+  it('preserves a RegExp graphqlOperation through build()', () => {
+    const re = /^Get/;
+    const config = new ChaosConfigBuilder()
+      .failGraphQLOperation(re, 500, 1.0, '/graphql')
+      .build();
+    const matcher = config.network?.failures?.[0].graphqlOperation;
+    expect(matcher).toBeInstanceOf(RegExp);
+    // Cloned RegExp must have the same pattern + flags as the source.
+    expect((matcher as RegExp).source).toBe(re.source);
+    expect((matcher as RegExp).flags).toBe(re.flags);
+    // And must be a fresh instance — mutating original flags shouldn't leak.
+    expect(matcher).not.toBe(re);
+  });
+
+  it('clones nested RegExp matchers across rule arrays independently per build()', () => {
+    const builder = new ChaosConfigBuilder()
+      .failGraphQLOperation(/^Get/i, 500, 1.0)
+      .delayGraphQLOperation(/Search/, 1000, 1.0);
+    const first = builder.build();
+    const second = builder.build();
+    expect(first.network?.failures?.[0].graphqlOperation).not.toBe(second.network?.failures?.[0].graphqlOperation);
+    expect((first.network?.failures?.[0].graphqlOperation as RegExp).flags).toBe('i');
+  });
 });
 
 describe('Presets', () => {

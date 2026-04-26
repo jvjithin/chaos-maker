@@ -10,6 +10,7 @@ const PNPM_BIN = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 let httpServer: ChildProcess | null = null;
 let wsServer: ChildProcess | null = null;
 let sseServer: ChildProcess | null = null;
+let graphqlServer: ChildProcess | null = null;
 
 function probeTcp(host: string, port: number, timeoutMs = 500): Promise<boolean> {
   return new Promise((resolve) => {
@@ -34,6 +35,7 @@ export async function setup(): Promise<void> {
   const httpReady = await probeTcp('127.0.0.1', 8080);
   const wsReady = await probeTcp('127.0.0.1', 8081);
   const sseReady = await probeTcp('127.0.0.1', 8082);
+  const graphqlReady = await probeTcp('127.0.0.1', 8083);
 
   if (!httpReady) {
     httpServer = spawn(
@@ -61,13 +63,24 @@ export async function setup(): Promise<void> {
     );
     await waitForTcp('127.0.0.1', 8082);
   }
+
+  if (!graphqlReady) {
+    graphqlServer = spawn(
+      'node',
+      [resolve(FIXTURES, 'graphql-server.cjs')],
+      { stdio: 'inherit' },
+    );
+    await waitForTcp('127.0.0.1', 8083);
+  }
 }
 
 export async function teardown(): Promise<void> {
   httpServer?.kill();
   wsServer?.kill();
   sseServer?.kill();
+  graphqlServer?.kill();
   httpServer = null;
   wsServer = null;
   sseServer = null;
+  graphqlServer = null;
 }

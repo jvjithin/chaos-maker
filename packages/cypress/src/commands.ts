@@ -1,5 +1,6 @@
 /// <reference types="cypress" />
 import type { ChaosConfig, ChaosEvent } from '@chaos-maker/core';
+import { serializeForTransport } from '@chaos-maker/core';
 import type { InjectChaosOptions } from './types';
 
 /**
@@ -41,11 +42,17 @@ function attachChaos(config: ChaosConfig, umdSource: string, persist: boolean): 
   // prior config rather than layering a second listener.
   detachBeforeLoad();
 
+  // Pre-serialize so RegExp matchers transit cleanly across the test ↔ AUT
+  // realm boundary. RegExp instances created in Cypress's runner realm fail
+  // `z.instanceof(RegExp)` validation in the AUT realm; reconstructing in-page
+  // via deserializeForTransport sidesteps the cross-realm constructor mismatch.
+  const serialized = serializeForTransport(config);
+
   const handler = (win: Cypress.AUTWindow): void => {
     // Setting the config BEFORE the UMD evaluates triggers the core's
     // auto-start path (packages/core/src/index.ts), which constructs a
     // ChaosMaker and calls .start() for us.
-    (win as unknown as { __CHAOS_CONFIG__: ChaosConfig }).__CHAOS_CONFIG__ = config;
+    (win as unknown as { __CHAOS_CONFIG__: ChaosConfig }).__CHAOS_CONFIG__ = serialized;
 
     const script = win.document.createElement('script');
     script.textContent = umdSource;
