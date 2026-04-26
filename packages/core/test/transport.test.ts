@@ -50,6 +50,25 @@ describe('deserializeForTransport', () => {
     expect(deserializeForTransport([1, 2, 3])).toEqual([1, 2, 3]);
   });
 
+  it('does not coerce an object that has __chaosMakerRegExp alongside sibling keys', () => {
+    // Outer object isn't an exclusive marker — siblings would be silently dropped
+    // if isRegExpMarker treated it as one. Preserve the whole shape instead.
+    const input = { __chaosMakerRegExp: { source: '^x', flags: '' }, sibling: 42 };
+    const out = deserializeForTransport(input) as Record<string, unknown>;
+    expect(out.sibling).toBe(42);
+    expect(out.__chaosMakerRegExp).toEqual({ source: '^x', flags: '' });
+    expect(out).not.toBeInstanceOf(RegExp);
+  });
+
+  it('does not coerce when the inner marker has unexpected keys', () => {
+    // Inner shape must be exactly { source, flags }. Extra keys mean it's not
+    // ours — leave it alone.
+    const input = { __chaosMakerRegExp: { source: '^x', flags: '', evil: true } };
+    const out = deserializeForTransport(input);
+    expect(out).not.toBeInstanceOf(RegExp);
+    expect(out).toEqual(input);
+  });
+
   it('round-trips a full ChaosConfig with mixed matchers', () => {
     const input = {
       network: {

@@ -13,7 +13,11 @@ export type GraphQLExtractResult =
  * Anonymous operations (`query { … }`) return `null`.
  */
 export function parseOperationFromQueryString(query: string): string | null {
-  const match = /\b(?:query|mutation|subscription)\s+([A-Za-z_][A-Za-z0-9_]*)/.exec(query);
+  // Strip GraphQL line comments (`# ...` to end-of-line) before matching so
+  // commented-out operation-like text doesn't false-match, and named
+  // operations split across comment lines (`query # note\nGetUser`) still do.
+  const withoutComments = query.replace(/#[^\r\n]*/g, ' ');
+  const match = /\b(?:query|mutation|subscription)\s+([A-Za-z_][A-Za-z0-9_]*)/.exec(withoutComments);
   return match?.[1] ?? null;
 }
 

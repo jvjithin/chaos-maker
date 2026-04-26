@@ -30,6 +30,18 @@ describe('parseOperationFromQueryString', () => {
   it('handles multi-line whitespace between keyword and name', () => {
     expect(parseOperationFromQueryString('query\n  GetUser\n{ user }')).toBe('GetUser');
   });
+
+  it('skips a commented-out operation and finds the real one', () => {
+    expect(parseOperationFromQueryString('# query Decoy { x }\nquery GetUser { user }')).toBe('GetUser');
+  });
+
+  it('finds an operation name split across a comment line', () => {
+    expect(parseOperationFromQueryString('query # explanatory note\nGetUser { user }')).toBe('GetUser');
+  });
+
+  it('returns null when only a commented-out operation is present', () => {
+    expect(parseOperationFromQueryString('# query GetUser { user }\n{ anonymous }')).toBeNull();
+  });
 });
 
 describe('extractGraphQLOperation', () => {

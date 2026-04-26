@@ -22,9 +22,20 @@ interface RegExpMarker {
 
 function isRegExpMarker(value: unknown): value is RegExpMarker {
   if (value === null || typeof value !== 'object') return false;
-  const marker = (value as Record<string, unknown>)[REGEX_MARKER];
+  const obj = value as Record<string, unknown>;
+  // Outer object must have exactly one own key — the marker — so an object
+  // that happens to contain `__chaosMakerRegExp` alongside sibling data isn't
+  // mis-coerced into a RegExp (which would silently drop the siblings).
+  const outerKeys = Object.keys(obj);
+  if (outerKeys.length !== 1 || outerKeys[0] !== REGEX_MARKER) return false;
+  const marker = obj[REGEX_MARKER];
   if (!marker || typeof marker !== 'object') return false;
   const m = marker as Record<string, unknown>;
+  // Inner object must only carry `source` + `flags` — extra keys mean it's
+  // not our marker shape and we should leave the value alone.
+  for (const k of Object.keys(m)) {
+    if (k !== 'source' && k !== 'flags') return false;
+  }
   return typeof m.source === 'string' && typeof m.flags === 'string';
 }
 
