@@ -17,6 +17,7 @@ export {
   presets,
   createPrng,
   generateSeed,
+  SW_BRIDGE_SOURCE,
 };
 ```
 
@@ -45,3 +46,13 @@ function generateSeed(): number;
 ```
 
 `generateSeed()` is the only intentional `Math.random()` use in core. All chaos decisions use `createPrng(seed).random`.
+
+## Service Worker subpath
+
+```typescript
+import { installChaosSW } from '@chaos-maker/core/sw';
+
+installChaosSW({ source: 'message' });
+```
+
+The main package also exports `SW_BRIDGE_SOURCE` for adapters. Most users should prefer adapter helpers such as `injectSWChaos()` instead of calling the bridge directly.

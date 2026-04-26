@@ -26,3 +26,17 @@ await injectChaos(page, {
 ```
 
 The seed belongs at the root config level, so it can be added to any preset before injection.
+
+## Built-in presets
+
+| Preset | Surface | Use case |
+| --- | --- | --- |
+| `unstableApi` | Network | Occasional API failures and latency. |
+| `slowNetwork` | Network | All requests are delayed. |
+| `offlineMode` | Network | Requests fail like an offline browser. |
+| `flakyConnection` | Network | Rare aborts and latency. |
+| `degradedUi` | UI | Buttons and links are disabled or hidden. |
+| `unreliableWebSocket` | WebSocket | Drops, delays, and corrupts socket messages. |
+| `unreliableEventStream` | SSE | Drops, delays, and occasionally closes EventSource streams. |
+
+Presets are plain config objects. You can spread them and add a seed or extra rules.
