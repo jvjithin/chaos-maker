@@ -15,10 +15,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/jvjithin/chaos-maker.git",
+    "url": "https://github.com/chaos-maker-dev/chaos-maker.git",
     "directory": "packages/webdriverio"
   },
-  "homepage": "https://github.com/jvjithin/chaos-maker",
+  "homepage": "https://github.com/chaos-maker-dev/chaos-maker",
   "engines": {
     "node": ">=18"
   },

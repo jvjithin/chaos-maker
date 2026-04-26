@@ -24,7 +24,7 @@ All notable changes to this project will be documented in this file.
 - **Puppeteer adapter** (`@chaos-maker/puppeteer`): one-line injection via `injectChaos(page, config)`, `removeChaos(page)`, `getChaosLog(page)`, `getChaosSeed(page)`, `useChaos(page, config)`. Uses `page.evaluateOnNewDocument` to patch `fetch`, `XMLHttpRequest`, and `WebSocket` before any page script runs; tracks init-script identifiers in a `WeakMap<ChaosPage>` so `removeChaos` + repeat `injectChaos` tear down cleanly without stacking.
   - E2E suite: 37 tests on headless Chromium, mirroring the Playwright suite where applicable.
   - New CI job `e2e-puppeteer (headless-new)`.
-- **Documentation site** (Starlight-powered, published to GitHub Pages at <https://jvjithin.github.io/chaos-maker/>): 28 pages covering Install, per-adapter Getting Started, Concepts (chaos types, presets, builder, seeded reproducibility, Nth counting, observability), eight Recipes, API reference, and a Rationale section. Search via Pagefind.
+- **Documentation site** (Starlight-powered, published to GitHub Pages at <https://chaos-maker-dev.github.io/chaos-maker/>): 28 pages covering Install, per-adapter Getting Started, Concepts (chaos types, presets, builder, seeded reproducibility, Nth counting, observability), eight Recipes, API reference, and a Rationale section. Search via Pagefind.
 - **Seeded determinism enforcement**: `Math.random` is now an ESLint error across `packages/**` (via `no-restricted-syntax` AST rule, exempt only in `prng.ts`). Every chaos probability decision must flow through `createPrng(seed)` so replays are bit-exact.
 
 ### Changed
