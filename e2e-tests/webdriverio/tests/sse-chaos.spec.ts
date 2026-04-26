@@ -54,13 +54,13 @@ describe('WDIO SSE drop', () => {
 });
 
 describe('WDIO SSE delay', () => {
-  it('delays inbound messages by at least 700ms from open', async () => {
+  it('delays inbound messages by at least delayMs and logs the delay', async () => {
     await visitAndInject({
       sse: { delays: [{ urlPattern: SSE_PATTERN, delayMs: 800, probability: 1 }] },
     });
-    await connectDefault();
 
     const startedAt = Date.now();
+    await connectDefault();
     await browser.waitUntil(async () => await messageCount() >= 1, {
       timeout: 10_000,
       timeoutMsg: 'SSE delayed message never arrived',
@@ -69,7 +69,9 @@ describe('WDIO SSE delay', () => {
 
     expect(elapsed).toBeGreaterThanOrEqual(700);
     const log = (await browser.getChaosLog()) as ChaosEvent[];
-    expect(log.some((e) => e.type === 'sse:delay' && e.applied)).toBe(true);
+    const delay = log.find((e) => e.type === 'sse:delay' && e.applied);
+    expect(delay).toBeDefined();
+    expect(delay?.detail.delayMs).toBe(800);
   });
 });
 
