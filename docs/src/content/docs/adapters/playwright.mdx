@@ -13,6 +13,9 @@ import {
   removeChaos,
   getChaosLog,
   getChaosSeed,
+  injectSWChaos,
+  removeSWChaos,
+  getSWChaosLog,
 } from '@chaos-maker/playwright';
 ```
 
@@ -22,6 +25,9 @@ import {
 | `removeChaos(page)` | Stops chaos and flushes trace attachments when tracing is active. |
 | `getChaosLog(page)` | Returns every emitted `ChaosEvent`. |
 | `getChaosSeed(page)` | Returns the seed for replay. |
+| `injectSWChaos(page, config, options?)` | Sends config to the active Service Worker after it controls the page. |
+| `removeSWChaos(page, options?)` | Stops chaos inside the active Service Worker. |
+| `getSWChaosLog(page)` | Returns Service Worker chaos events buffered on the page. |
 
 ## Trace options
 
@@ -37,3 +43,7 @@ Trace output includes named chaos steps and a `chaos-log.json` attachment. Direc
 ## Timing
 
 Call `injectChaos()` before navigation. The adapter uses Playwright `addInitScript()`, so app code observes patched browser APIs from the first script.
+
+For Service Worker chaos, navigate to the app, wait for `navigator.serviceWorker.controller`, then call `injectSWChaos()` before the user action that triggers SW fetches.
+
+SSE chaos and GraphQL operation matching need no extra adapter API. Pass `sse` rules or `graphqlOperation` network matchers to `injectChaos()`.

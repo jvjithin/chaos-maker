@@ -19,6 +19,9 @@ import '@chaos-maker/cypress/support';
 | `cy.removeChaos()` | Stops chaos in the current AUT window. |
 | `cy.getChaosLog()` | Yields `ChaosEvent[]`. |
 | `cy.getChaosSeed()` | Yields the active seed or `null`. |
+| `cy.injectSWChaos(config, options?)` | Sends config to the active Service Worker. |
+| `cy.removeSWChaos(options?)` | Stops Service Worker chaos. |
+| `cy.getSWChaosLog()` | Yields Service Worker chaos events buffered on the page. |
 
 ## Persistence
 
@@ -32,3 +35,7 @@ cy.visit('/checkout');
 ## Timing
 
 Call `cy.injectChaos()` before `cy.visit()` so Cypress can install the bundle before app code executes.
+
+For Service Worker chaos, call `cy.visit()` first, wait until `navigator.serviceWorker.controller` is present, then call `cy.injectSWChaos()` before the action that triggers SW fetches.
+
+SSE chaos and GraphQL operation matching use the same `cy.injectChaos()` command as network, UI, and WebSocket chaos.

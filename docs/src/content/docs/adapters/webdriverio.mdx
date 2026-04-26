@@ -14,6 +14,7 @@ import {
   getChaosLog,
   getChaosSeed,
   registerChaosCommands,
+  registerSWChaosCommands,
 } from '@chaos-maker/webdriverio';
 ```
 
@@ -24,6 +25,7 @@ import {
 | `getChaosLog(browser)` | Returns `ChaosEvent[]`. |
 | `getChaosSeed(browser)` | Returns the active seed or `null`. |
 | `registerChaosCommands(browser)` | Adds `browser.injectChaos()`, `browser.removeChaos()`, `browser.getChaosLog()`, and `browser.getChaosSeed()`. |
+| `registerSWChaosCommands(browser)` | Adds `browser.injectSWChaos()`, `browser.removeSWChaos()`, and SW log helpers. |
 
 ## Timing
 
@@ -36,3 +38,5 @@ await $('#reload').click();
 ```
 
 For first-load interception, use Playwright or Cypress.
+
+SSE chaos and GraphQL operation matching work when the EventSource or request is created after injection. For Service Worker chaos, call `browser.url()`, wait for `navigator.serviceWorker.controller`, then call `browser.injectSWChaos(config)`.
