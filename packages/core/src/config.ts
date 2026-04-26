@@ -12,9 +12,30 @@ export interface RequestCountingOptions {
   afterN?: number;
 }
 
-export interface NetworkFailureConfig extends RequestCountingOptions {
+/** Match a GraphQL operation by name. Applied AFTER `urlPattern` + `methods`
+ *  as an additive filter — never a replacement. Matches against:
+ *  - JSON `operationName` field on POST request bodies, OR
+ *  - the operation name parsed from the `query` field (e.g. `query GetUser { … }`),
+ *  - `?operationName=` query parameter for persisted-query GET requests.
+ *
+ *  When the rule has `graphqlOperation` set but the request body cannot be
+ *  parsed (multipart upload, ReadableStream, binary), the rule is skipped and
+ *  a diagnostic event is emitted with `applied: false, reason: 'graphql-body-unparseable'`.
+ *  XHR requests with non-string bodies are treated the same way.
+ *
+ *  - `string` matches the operation name exactly.
+ *  - `RegExp` matches when `.test(operationName)` returns true.
+ */
+export type GraphQLOperationMatcher = string | RegExp;
+
+/** Common matcher fields shared by every network chaos rule type. */
+export interface NetworkRuleMatchers {
   urlPattern: string;
   methods?: string[];
+  graphqlOperation?: GraphQLOperationMatcher;
+}
+
+export interface NetworkFailureConfig extends RequestCountingOptions, NetworkRuleMatchers {
   statusCode: number;
   probability: number;
   body?: string;
@@ -22,32 +43,24 @@ export interface NetworkFailureConfig extends RequestCountingOptions {
   headers?: Record<string, string>;
 }
 
-export interface NetworkLatencyConfig extends RequestCountingOptions {
-  urlPattern: string;
-  methods?: string[];
+export interface NetworkLatencyConfig extends RequestCountingOptions, NetworkRuleMatchers {
   delayMs: number;
   probability: number;
 }
 
-export interface NetworkAbortConfig extends RequestCountingOptions {
-  urlPattern: string;
-  methods?: string[];
+export interface NetworkAbortConfig extends RequestCountingOptions, NetworkRuleMatchers {
   probability: number;
   timeout?: number; // ms before abort; 0 or omitted = immediate
 }
 
 export type CorruptionStrategy = 'truncate' | 'malformed-json' | 'empty' | 'wrong-type';
 
-export interface NetworkCorruptionConfig extends RequestCountingOptions {
-  urlPattern: string;
-  methods?: string[];
+export interface NetworkCorruptionConfig extends RequestCountingOptions, NetworkRuleMatchers {
   probability: number;
   strategy: CorruptionStrategy;
 }
 
-export interface NetworkCorsConfig extends RequestCountingOptions {
-  urlPattern: string;
-  methods?: string[];
+export interface NetworkCorsConfig extends RequestCountingOptions, NetworkRuleMatchers {
   probability: number;
 }
 

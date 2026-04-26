@@ -240,6 +240,179 @@ describe('patchFetch', () => {
     ]);
   });
 
+  describe('graphqlOperation matching', () => {
+    it('fires only on the rule whose graphqlOperation matches the POST body operationName', async () => {
+      const emitter = new ChaosEventEmitter();
+      const config: NetworkConfig = {
+        failures: [
+          { urlPattern: '/graphql', statusCode: 503, probability: 1, graphqlOperation: 'GetUser' },
+          { urlPattern: '/graphql', statusCode: 401, probability: 1, graphqlOperation: 'CreatePost' },
+        ],
+      };
+      const patchedFetch = patchFetch(originalFetch, config, deterministicRandom, emitter);
+
+      const response = await patchedFetch('/graphql', {
+        method: 'POST',
+        body: JSON.stringify({ operationName: 'GetUser', query: 'query GetUser { user { id } }' }),
+      });
+
+      expect(response.status).toBe(503);
+      const failures = emitter.getLog().filter(e => e.type === 'network:failure');
+      expect(failures).toHaveLength(1);
+      expect(failures[0].applied).toBe(true);
+      expect(failures[0].detail.operationName).toBe('GetUser');
+      expect(failures[0].detail.statusCode).toBe(503);
+    });
+
+    it('falls back to parsing operationName from the query field when operationName is absent', async () => {
+      const emitter = new ChaosEventEmitter();
+      const config: NetworkConfig = {
+        failures: [{ urlPattern: '/graphql', statusCode: 500, probability: 1, graphqlOperation: 'GetUser' }],
+      };
+      const patchedFetch = patchFetch(originalFetch, config, deterministicRandom, emitter);
+
+      const response = await patchedFetch('/graphql', {
+        method: 'POST',
+        body: JSON.stringify({ query: 'query GetUser { user { id } }' }),
+      });
+
+      expect(response.status).toBe(500);
+      expect(emitter.getLog()[0].detail.operationName).toBe('GetUser');
+    });
+
+    it('matches on persisted-query GET requests via ?operationName=', async () => {
+      const emitter = new ChaosEventEmitter();
+      const config: NetworkConfig = {
+        failures: [{ urlPattern: '/graphql', statusCode: 502, probability: 1, graphqlOperation: 'GetUser' }],
+      };
+      const patchedFetch = patchFetch(originalFetch, config, deterministicRandom, emitter);
+
+      const response = await patchedFetch('http://example.com/graphql?operationName=GetUser&id=1');
+
+      expect(response.status).toBe(502);
+      expect(emitter.getLog()[0].detail.operationName).toBe('GetUser');
+    });
+
+    it('skips a rule whose graphqlOperation does not match the request', async () => {
+      const config: NetworkConfig = {
+        failures: [{ urlPattern: '/graphql', statusCode: 500, probability: 1, graphqlOperation: 'CreatePost' }],
+      };
+      const patchedFetch = patchFetch(originalFetch, config, deterministicRandom);
+
+      await patchedFetch('/graphql', {
+        method: 'POST',
+        body: JSON.stringify({ operationName: 'GetUser', query: 'query GetUser { user { id } }' }),
+      });
+
+      // Original fetch passed through — chaos rule didn't match.
+      expect(originalFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('combines urlPattern, methods, and graphqlOperation as AND filters', async () => {
+      const emitter = new ChaosEventEmitter();
+      const config: NetworkConfig = {
+        failures: [{
+          urlPattern: '/graphql',
+          methods: ['POST'],
+          statusCode: 503,
+          probability: 1,
+          graphqlOperation: 'GetUser',
+        }],
+      };
+      const patchedFetch = patchFetch(originalFetch, config, deterministicRandom, emitter);
+
+      // Wrong op: GetProducts — should pass through.
+      await patchedFetch('/graphql', {
+        method: 'POST',
+        body: JSON.stringify({ operationName: 'GetProducts' }),
+      });
+      expect(originalFetch).toHaveBeenCalledTimes(1);
+
+      // Right op + right url + right method: should fail.
+      const r = await patchedFetch('/graphql', {
+        method: 'POST',
+        body: JSON.stringify({ operationName: 'GetUser' }),
+      });
+      expect(r.status).toBe(503);
+    });
+
+    it('matches via a RegExp graphqlOperation', async () => {
+      const emitter = new ChaosEventEmitter();
+      const config: NetworkConfig = {
+        latencies: [{ urlPattern: '/graphql', delayMs: 0, probability: 1, graphqlOperation: /^Get/ }],
+      };
+      const patchedFetch = patchFetch(originalFetch, config, deterministicRandom, emitter);
+
+      await patchedFetch('/graphql', {
+        method: 'POST',
+        body: JSON.stringify({ operationName: 'GetUser' }),
+      });
+      const matched = emitter.getLog().filter(e => e.type === 'network:latency' && e.applied);
+      expect(matched).toHaveLength(1);
+      expect(matched[0].detail.operationName).toBe('GetUser');
+    });
+
+    it('emits a graphql-body-unparseable diagnostic when body is multipart and rule has graphqlOperation', async () => {
+      const emitter = new ChaosEventEmitter();
+      const config: NetworkConfig = {
+        failures: [{ urlPattern: '/graphql', statusCode: 500, probability: 1, graphqlOperation: 'GetUser' }],
+      };
+      const patchedFetch = patchFetch(originalFetch, config, deterministicRandom, emitter);
+
+      const form = new FormData();
+      form.append('operations', JSON.stringify({ operationName: 'GetUser', query: 'query GetUser { user { id } }' }));
+      form.append('0', new Blob(['x'], { type: 'text/plain' }));
+
+      await patchedFetch('/graphql', { method: 'POST', body: form });
+
+      // Chaos must NOT have applied — body unparseable.
+      expect(originalFetch).toHaveBeenCalledTimes(1);
+      const diag = emitter.getLog().find(e => e.detail.reason === 'graphql-body-unparseable');
+      expect(diag).toBeDefined();
+      expect(diag?.applied).toBe(false);
+      expect(diag?.type).toBe('network:failure');
+    });
+
+    it('skips body extraction entirely when no rule has graphqlOperation (fast path)', async () => {
+      // The body extractor would call .clone() on a Request — this test passes
+      // a Request and asserts the body wasn't read by chaos when no rule
+      // declares a graphqlOperation matcher. URL-only chaos still fires.
+      const config: NetworkConfig = {
+        failures: [{ urlPattern: '/graphql', statusCode: 500, probability: 1 }],
+      };
+      const patchedFetch = patchFetch(originalFetch, config, deterministicRandom);
+
+      const req = new Request('http://example.com/graphql', {
+        method: 'POST',
+        body: JSON.stringify({ operationName: 'GetUser' }),
+      });
+      const cloneSpy = vi.spyOn(req, 'clone');
+
+      const r = await patchedFetch(req);
+      expect(r.status).toBe(500);
+      expect(cloneSpy).not.toHaveBeenCalled();
+    });
+
+    it('skips rules whose graphqlOperation does not match without consuming the request body for downstream', async () => {
+      // Body must remain readable by the original fetch when chaos doesn't apply.
+      // We assert the request reaches originalFetch with a body the consumer
+      // can clone and re-read — i.e. patchFetch must not lock the stream.
+      const config: NetworkConfig = {
+        failures: [{ urlPattern: '/graphql', statusCode: 500, probability: 1, graphqlOperation: 'WrongOp' }],
+      };
+      const patchedFetch = patchFetch(originalFetch, config, deterministicRandom);
+
+      const req = new Request('http://example.com/graphql', {
+        method: 'POST',
+        body: JSON.stringify({ operationName: 'GetUser', query: 'query GetUser { user { id } }' }),
+      });
+      await patchedFetch(req);
+      expect(originalFetch).toHaveBeenCalledTimes(1);
+      // Original Request body must not be consumed by chaos extraction.
+      expect(req.bodyUsed).toBe(false);
+    });
+  });
+
   it('should log abort as not applied when the request completes before the timeout fires', async () => {
     vi.useFakeTimers();
     const emitter = new ChaosEventEmitter();

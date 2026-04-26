@@ -10,6 +10,7 @@ const PNPM_BIN = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 let httpServer: ChildProcess | null = null;
 let wsServer: ChildProcess | null = null;
 let sseServer: ChildProcess | null = null;
+let graphqlServer: ChildProcess | null = null;
 
 async function waitForHttp(url: string, timeoutMs = 20_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
@@ -70,17 +71,25 @@ export default defineConfig({
           [path.join(FIXTURES, 'sse-server.cjs')],
           { stdio: 'pipe' },
         );
+        graphqlServer = spawn(
+          'node',
+          [path.join(FIXTURES, 'graphql-server.cjs')],
+          { stdio: 'pipe' },
+        );
         await waitForHttp('http://127.0.0.1:8080');
         await waitForHttp('http://127.0.0.1:8082/healthz');
+        await waitForHttp('http://127.0.0.1:8083/healthz');
       }
 
       on('after:run', () => {
         httpServer?.kill();
         wsServer?.kill();
         sseServer?.kill();
+        graphqlServer?.kill();
         httpServer = null;
         wsServer = null;
         sseServer = null;
+        graphqlServer = null;
       });
 
       return config;

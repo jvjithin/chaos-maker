@@ -1,5 +1,5 @@
 import { ChaosMaker } from './ChaosMaker';
-import { ChaosConfig, CorruptionStrategy, NetworkFailureConfig, NetworkLatencyConfig, NetworkAbortConfig, NetworkCorruptionConfig, NetworkCorsConfig, NetworkConfig, UiAssaultConfig, UiConfig, WebSocketConfig, WebSocketDropConfig, WebSocketDelayConfig, WebSocketCorruptConfig, WebSocketCloseConfig, WebSocketDirection, WebSocketCorruptionStrategy, SSEConfig, SSEDropConfig, SSEDelayConfig, SSECorruptConfig, SSECloseConfig, SSECorruptionStrategy, SSEEventTypeMatcher } from './config';
+import { ChaosConfig, CorruptionStrategy, GraphQLOperationMatcher, NetworkFailureConfig, NetworkLatencyConfig, NetworkAbortConfig, NetworkCorruptionConfig, NetworkCorsConfig, NetworkConfig, NetworkRuleMatchers, UiAssaultConfig, UiConfig, WebSocketConfig, WebSocketDropConfig, WebSocketDelayConfig, WebSocketCorruptConfig, WebSocketCloseConfig, WebSocketDirection, WebSocketCorruptionStrategy, SSEConfig, SSEDropConfig, SSEDelayConfig, SSECorruptConfig, SSECloseConfig, SSECorruptionStrategy, SSEEventTypeMatcher } from './config';
 import { ChaosConfigError } from './errors';
 import { validateConfig } from './validation';
 import { ChaosEvent, ChaosEventType, ChaosEventListener, ChaosEventEmitter } from './events';
@@ -9,7 +9,9 @@ import { createPrng, generateSeed } from './prng';
 
 export { ChaosMaker, ChaosConfigError, validateConfig, ChaosEventEmitter, ChaosConfigBuilder, presets, createPrng, generateSeed };
 export { SW_BRIDGE_SOURCE } from './sw-bridge-source';
-export type { ChaosConfig, CorruptionStrategy, NetworkFailureConfig, NetworkLatencyConfig, NetworkAbortConfig, NetworkCorruptionConfig, NetworkCorsConfig, NetworkConfig, UiAssaultConfig, UiConfig, WebSocketConfig, WebSocketDropConfig, WebSocketDelayConfig, WebSocketCorruptConfig, WebSocketCloseConfig, WebSocketDirection, WebSocketCorruptionStrategy, SSEConfig, SSEDropConfig, SSEDelayConfig, SSECorruptConfig, SSECloseConfig, SSECorruptionStrategy, SSEEventTypeMatcher, ChaosEvent, ChaosEventType, ChaosEventListener };
+export { extractGraphQLOperation, parseOperationFromQueryString, operationNameMatches } from './graphql';
+export type { GraphQLExtractResult, GraphQLRuleOutcome } from './graphql';
+export type { ChaosConfig, CorruptionStrategy, GraphQLOperationMatcher, NetworkFailureConfig, NetworkLatencyConfig, NetworkAbortConfig, NetworkCorruptionConfig, NetworkCorsConfig, NetworkConfig, NetworkRuleMatchers, UiAssaultConfig, UiConfig, WebSocketConfig, WebSocketDropConfig, WebSocketDelayConfig, WebSocketCorruptConfig, WebSocketCloseConfig, WebSocketDirection, WebSocketCorruptionStrategy, SSEConfig, SSEDropConfig, SSEDelayConfig, SSECorruptConfig, SSECloseConfig, SSECorruptionStrategy, SSEEventTypeMatcher, ChaosEvent, ChaosEventType, ChaosEventListener };
 
 // --- NEW INTERFACE ---
 interface ChaosUtilsApi {

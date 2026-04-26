@@ -53,6 +53,21 @@
     <pre id="ws-log"></pre>
   </section>
 
+  <!-- GraphQL -->
+  <section>
+    <h2>GraphQL</h2>
+    <button id="gql-get-user">POST GetUser</button>
+    <button id="gql-search-products">POST SearchProducts</button>
+    <button id="gql-create-post">POST CreatePost (mutation)</button>
+    <button id="gql-anonymous">POST anonymous { __typename }</button>
+    <button id="gql-persisted-get">GET persisted GetUser</button>
+    <button id="gql-multipart">POST multipart upload (unparseable)</button>
+    <button id="gql-xhr-get-user">XHR POST GetUser</button>
+    <div id="gql-status">idle</div>
+    <div id="gql-last-op"></div>
+    <pre id="gql-result"></pre>
+  </section>
+
   <!-- Server-Sent Events -->
   <section>
     <h2>EventSource (SSE)</h2>
@@ -297,6 +312,122 @@
       if (!es) return;
       es.close();
       setSseStatus('closed');
+    });
+
+    // --- GraphQL ---
+    var GQL_BASE = 'http://127.0.0.1:8083';
+
+    function setGqlStatus(text) {
+      document.getElementById('gql-status').textContent = text;
+    }
+
+    function setGqlLastOp(text) {
+      document.getElementById('gql-last-op').textContent = text;
+    }
+
+    function setGqlResult(text) {
+      document.getElementById('gql-result').textContent = text;
+    }
+
+    function postGraphQL(operationName, query, variables) {
+      setGqlStatus('loading ' + operationName);
+      setGqlLastOp(operationName);
+      setGqlResult('');
+      var body = { operationName: operationName, query: query };
+      if (variables) body.variables = variables;
+      return fetch(GQL_BASE + '/graphql', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }).then(function (response) {
+        return response.text().then(function (text) {
+          setGqlStatus(response.ok ? 'ok ' + response.status : 'error ' + response.status);
+          setGqlResult(text);
+        });
+      }).catch(function (err) {
+        setGqlStatus('network-error');
+        setGqlResult(String(err));
+      });
+    }
+
+    document.getElementById('gql-get-user').addEventListener('click', function () {
+      postGraphQL('GetUser', 'query GetUser { user { id name } }');
+    });
+
+    document.getElementById('gql-search-products').addEventListener('click', function () {
+      postGraphQL('SearchProducts', 'query SearchProducts($q: String!) { search(q: $q) { id title } }', { q: 'widget' });
+    });
+
+    document.getElementById('gql-create-post').addEventListener('click', function () {
+      postGraphQL('CreatePost', 'mutation CreatePost($title: String!) { createPost(title: $title) { id ok } }', { title: 'hello' });
+    });
+
+    document.getElementById('gql-anonymous').addEventListener('click', function () {
+      // Anonymous query — no operationName field, no `query Foo` keyword.
+      setGqlStatus('loading anonymous');
+      setGqlLastOp('(anonymous)');
+      setGqlResult('');
+      fetch(GQL_BASE + '/graphql', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: '{ __typename }' }),
+      }).then(function (r) {
+        return r.text().then(function (t) {
+          setGqlStatus((r.ok ? 'ok ' : 'error ') + r.status);
+          setGqlResult(t);
+        });
+      }).catch(function (e) { setGqlStatus('network-error'); setGqlResult(String(e)); });
+    });
+
+    document.getElementById('gql-persisted-get').addEventListener('click', function () {
+      setGqlStatus('loading GetUser (GET)');
+      setGqlLastOp('GetUser');
+      setGqlResult('');
+      var u = GQL_BASE + '/graphql?operationName=GetUser&query=' + encodeURIComponent('query GetUser { user { id name } }');
+      fetch(u).then(function (r) {
+        return r.text().then(function (t) {
+          setGqlStatus((r.ok ? 'ok ' : 'error ') + r.status);
+          setGqlResult(t);
+        });
+      }).catch(function (e) { setGqlStatus('network-error'); setGqlResult(String(e)); });
+    });
+
+    document.getElementById('gql-multipart').addEventListener('click', function () {
+      // FormData → multipart/form-data; chaos-maker cannot extract operationName
+      // from this body. Rules with `graphqlOperation` should emit a
+      // `reason: 'graphql-body-unparseable'` diagnostic.
+      setGqlStatus('loading multipart');
+      setGqlLastOp('CreatePost (multipart)');
+      setGqlResult('');
+      var form = new FormData();
+      form.append('operations', JSON.stringify({
+        operationName: 'CreatePost',
+        query: 'mutation CreatePost($file: Upload!) { uploadFile(file: $file) { id } }',
+        variables: { file: null },
+      }));
+      form.append('map', JSON.stringify({ '0': ['variables.file'] }));
+      form.append('0', new Blob(['hello'], { type: 'text/plain' }), 'hello.txt');
+      fetch(GQL_BASE + '/graphql', { method: 'POST', body: form })
+        .then(function (r) { return r.text().then(function (t) {
+          setGqlStatus((r.ok ? 'ok ' : 'error ') + r.status);
+          setGqlResult(t);
+        }); })
+        .catch(function (e) { setGqlStatus('network-error'); setGqlResult(String(e)); });
+    });
+
+    document.getElementById('gql-xhr-get-user').addEventListener('click', function () {
+      setGqlStatus('xhr loading GetUser');
+      setGqlLastOp('GetUser (xhr)');
+      setGqlResult('');
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', GQL_BASE + '/graphql');
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.addEventListener('load', function () {
+        setGqlStatus(xhr.status >= 200 && xhr.status < 300 ? 'xhr ok ' + xhr.status : 'xhr error ' + xhr.status);
+        setGqlResult(xhr.responseText);
+      });
+      xhr.addEventListener('error', function () { setGqlStatus('xhr network-error'); });
+      xhr.send(JSON.stringify({ operationName: 'GetUser', query: 'query GetUser { user { id name } }' }));
     });
   </script>
 </body>
