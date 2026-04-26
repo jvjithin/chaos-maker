@@ -15,17 +15,18 @@ Both packages are required. `webdriverio` (>=8) is a peer dependency.
 Register the custom commands once in `wdio.conf.ts`:
 
 ```ts
-import { registerChaosCommands } from '@chaos-maker/webdriverio';
+import { registerChaosCommands, registerSWChaosCommands } from '@chaos-maker/webdriverio';
 
 export const config: WebdriverIO.Config = {
   // ...
   async before() {
     registerChaosCommands(browser);
+    registerSWChaosCommands(browser);
   },
 };
 ```
 
-That's it — every spec now has `browser.injectChaos`, `browser.removeChaos`, `browser.getChaosLog`, and `browser.getChaosSeed`.
+That's it. Every spec now has `browser.injectChaos`, `browser.removeChaos`, `browser.getChaosLog`, `browser.getChaosSeed`, and the Service Worker helpers.
 
 ## Usage
 
@@ -63,6 +64,29 @@ WebDriver has no cross-browser pre-navigation hook, so `@chaos-maker/webdriverio
 If your app fires its first API call on boot and you need that request to be chaotic too, use [`@chaos-maker/playwright`](../playwright/) or [`@chaos-maker/cypress`](../cypress/) instead — both support pre-navigation injection.
 
 For requests fired on user interaction (clicks, form submits), the adapter works identically to the Playwright and Cypress ones.
+
+## SSE and GraphQL
+
+Inject after `browser.url()` and before the click or action that creates the stream or request.
+
+```ts
+await browser.url('/dashboard');
+await browser.injectChaos({
+  seed: 42,
+  sse: {
+    drops: [{ urlPattern: '/events', eventType: 'token', probability: 0.1 }],
+  },
+  network: {
+    failures: [{
+      urlPattern: '/graphql',
+      graphqlOperation: /^Get/,
+      statusCode: 503,
+      probability: 1,
+    }],
+  },
+});
+await $('#refresh').click();
+```
 
 ## Content Security Policy
 

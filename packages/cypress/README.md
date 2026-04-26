@@ -34,7 +34,7 @@ Register the custom commands in `cypress/support/e2e.ts`:
 import '@chaos-maker/cypress/support';
 ```
 
-That's it — every spec now has `cy.injectChaos`, `cy.removeChaos`, `cy.getChaosLog`, and `cy.getChaosSeed`.
+That's it. Every spec now has `cy.injectChaos`, `cy.removeChaos`, `cy.getChaosLog`, `cy.getChaosSeed`, and the Service Worker helpers.
 
 ## Usage
 
@@ -101,6 +101,28 @@ it('logs the seed so failures can be replayed', () => {
   });
 });
 ```
+
+### SSE and GraphQL
+
+```ts
+cy.injectChaos({
+  seed: 42,
+  sse: {
+    delays: [{ urlPattern: '/events', eventType: 'token', delayMs: 500, probability: 1 }],
+  },
+  network: {
+    failures: [{
+      urlPattern: '/graphql',
+      graphqlOperation: 'GetUser',
+      statusCode: 503,
+      probability: 1,
+    }],
+  },
+});
+cy.visit('/dashboard');
+```
+
+SSE chaos and GraphQL operation matching use the same `cy.injectChaos()` command as network, UI, and WebSocket chaos.
 
 ## API
 

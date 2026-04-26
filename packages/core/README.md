@@ -1,6 +1,6 @@
 # @chaos-maker/core
 
-Core chaos engine for web applications. Intercepts `fetch`, `XMLHttpRequest`, and DOM mutations to inject controlled failures, latency, aborts, corruption, and UI disruptions.
+Core chaos engine for web applications. Intercepts `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, DOM mutations, and Service Worker fetches to inject controlled failures, latency, aborts, corruption, drops, closes, and UI disruptions.
 
 Framework-agnostic. Works with Playwright, Cypress, Selenium, or any browser environment.
 
@@ -82,6 +82,9 @@ const config = new ChaosConfigBuilder()
 | Corruption | `network.corruptions` | Corrupt response bodies |
 | CORS | `network.cors` | Simulate CORS errors |
 | UI Assault | `ui.assaults` | Disable, hide, or remove DOM elements |
+| WebSocket | `websocket.*` | Drop, delay, corrupt, or close socket messages |
+| SSE | `sse.*` | Drop, delay, corrupt, or close EventSource events |
+| GraphQL | `graphqlOperation` | Target one operation on a shared endpoint |
 
 ## Configuration Reference
 
@@ -93,6 +96,7 @@ const config = new ChaosConfigBuilder()
 | `statusCode` | `number` | Yes | HTTP status code (100-599) |
 | `probability` | `number` | Yes | 0.0-1.0 chance of applying |
 | `methods` | `string[]` | No | HTTP methods to match (default: all) |
+| `graphqlOperation` | `string \| RegExp` | No | Operation name matcher for GraphQL requests |
 | `body` | `string` | No | Custom response body |
 | `statusText` | `string` | No | Custom status text |
 | `headers` | `Record<string, string>` | No | Custom response headers |
@@ -105,6 +109,7 @@ const config = new ChaosConfigBuilder()
 | `delayMs` | `number` | Yes | Delay in milliseconds |
 | `probability` | `number` | Yes | 0.0-1.0 chance of applying |
 | `methods` | `string[]` | No | HTTP methods to match |
+| `graphqlOperation` | `string \| RegExp` | No | Operation name matcher for GraphQL requests |
 
 ### NetworkAbortConfig
 
@@ -114,6 +119,7 @@ const config = new ChaosConfigBuilder()
 | `probability` | `number` | Yes | 0.0-1.0 chance of applying |
 | `timeout` | `number` | No | ms before abort (0 or omitted = immediate) |
 | `methods` | `string[]` | No | HTTP methods to match |
+| `graphqlOperation` | `string \| RegExp` | No | Operation name matcher for GraphQL requests |
 
 ### NetworkCorruptionConfig
 
@@ -123,6 +129,7 @@ const config = new ChaosConfigBuilder()
 | `strategy` | `CorruptionStrategy` | Yes | `'truncate'` \| `'malformed-json'` \| `'empty'` \| `'wrong-type'` |
 | `probability` | `number` | Yes | 0.0-1.0 chance of applying |
 | `methods` | `string[]` | No | HTTP methods to match |
+| `graphqlOperation` | `string \| RegExp` | No | Operation name matcher for GraphQL requests |
 
 ### NetworkCorsConfig
 
@@ -131,6 +138,7 @@ const config = new ChaosConfigBuilder()
 | `urlPattern` | `string` | Yes | Substring match against request URL |
 | `probability` | `number` | Yes | 0.0-1.0 chance of applying |
 | `methods` | `string[]` | No | HTTP methods to match |
+| `graphqlOperation` | `string \| RegExp` | No | Operation name matcher for GraphQL requests |
 
 ### UiAssaultConfig
 
@@ -139,6 +147,34 @@ const config = new ChaosConfigBuilder()
 | `selector` | `string` | Yes | CSS selector |
 | `action` | `string` | Yes | `'disable'` \| `'hide'` \| `'remove'` |
 | `probability` | `number` | Yes | 0.0-1.0 chance of applying |
+
+### SSEConfig
+
+```ts
+sse: {
+  drops: [{ urlPattern: '/events', eventType: 'token', probability: 0.1 }],
+  delays: [{ urlPattern: '/events', delayMs: 500, probability: 1 }],
+  corruptions: [{ urlPattern: '/events', strategy: 'truncate', probability: 0.05 }],
+  closes: [{ urlPattern: '/events', afterMs: 2000, probability: 0.02 }],
+}
+```
+
+`eventType` defaults to `message`; use a named event or `'*'` for all data events.
+
+### GraphQL operation matching
+
+```ts
+network: {
+  failures: [{
+    urlPattern: '/graphql',
+    graphqlOperation: 'GetUser',
+    statusCode: 503,
+    probability: 1,
+  }],
+}
+```
+
+`graphqlOperation` is an additional matcher on top of `urlPattern` and `methods`.
 
 ## Event System
 
@@ -151,7 +187,7 @@ const log = chaos.getLog();   // all events since start
 chaos.clearLog();
 ```
 
-Event types: `network:failure`, `network:latency`, `network:abort`, `network:corruption`, `network:cors`, `ui:assault`
+Event types: `network:failure`, `network:latency`, `network:abort`, `network:corruption`, `network:cors`, `ui:assault`, `websocket:drop`, `websocket:delay`, `websocket:corrupt`, `websocket:close`, `sse:drop`, `sse:delay`, `sse:corrupt`, `sse:close`
 
 ## Config Validation
 
