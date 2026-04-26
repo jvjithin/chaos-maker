@@ -90,6 +90,28 @@ test('checkout handles combined chaos', async ({ page }) => {
 });
 ```
 
+### SSE and GraphQL
+
+```ts
+await injectChaos(page, {
+  seed: 42,
+  sse: {
+    drops: [{ urlPattern: '/events', eventType: 'token', probability: 0.1 }],
+  },
+  network: {
+    failures: [{
+      urlPattern: '/graphql',
+      graphqlOperation: 'GetUser',
+      statusCode: 503,
+      probability: 1,
+    }],
+  },
+});
+await page.goto('/dashboard');
+```
+
+SSE chaos and GraphQL operation matching use the same pre-navigation `injectChaos()` timing as fetch, XHR, and WebSocket chaos.
+
 ## API
 
 ### `injectChaos(page, config, opts?)`

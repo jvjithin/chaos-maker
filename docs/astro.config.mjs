@@ -39,6 +39,8 @@ export default defineConfig({
           label: 'Concepts',
           items: [
             { label: 'Chaos Types', link: '/concepts/chaos-types/' },
+            { label: 'Service Worker Chaos', link: '/concepts/service-worker-chaos/' },
+            { label: 'SSE Chaos', link: '/concepts/sse-chaos/' },
             { label: 'Presets', link: '/concepts/presets/' },
             { label: 'Config Builder', link: '/concepts/builder/' },
             { label: 'Seeded Reproducibility', link: '/concepts/seeded-reproducibility/' },
@@ -66,6 +68,8 @@ export default defineConfig({
             { label: 'Nth Request Fails', link: '/recipes/nth-request-fails/' },
             { label: 'CORS Preflight Block', link: '/recipes/cors-preflight-block/' },
             { label: 'Corrupt JSON Response', link: '/recipes/corrupt-json-response/' },
+            { label: 'AI Chat SSE Streaming', link: '/recipes/ai-chat-streaming-sse/' },
+            { label: 'Fail GraphQL Operation', link: '/recipes/fail-graphql-operation/' },
           ],
         },
         {

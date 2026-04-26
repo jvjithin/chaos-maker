@@ -1,6 +1,6 @@
 # @chaos-maker/puppeteer
 
-Puppeteer adapter for [`@chaos-maker/core`](https://github.com/chaos-maker-dev/chaos-maker) — inject network failures, UI assaults, and WebSocket chaos into Puppeteer tests with a single function call.
+Puppeteer adapter for [`@chaos-maker/core`](https://github.com/chaos-maker-dev/chaos-maker). Inject network, UI, WebSocket, Service Worker, SSE, and GraphQL operation chaos into Puppeteer tests.
 
 ## Install
 
@@ -81,6 +81,28 @@ await removeSWChaos(page);
 ```
 
 User's SW must `importScripts('/chaos-maker-sw.js')` (classic) or `import { installChaosSW } from '@chaos-maker/core/sw'` (module).
+
+## SSE and GraphQL
+
+```ts
+await injectChaos(page, {
+  seed: 42,
+  sse: {
+    closes: [{ urlPattern: '/events', afterMs: 2000, probability: 0.02 }],
+  },
+  network: {
+    failures: [{
+      urlPattern: '/graphql',
+      graphqlOperation: 'GetUser',
+      statusCode: 503,
+      probability: 1,
+    }],
+  },
+});
+await page.goto('http://localhost:3000/dashboard');
+```
+
+SSE chaos and GraphQL operation matching use the same pre-navigation `injectChaos()` timing as fetch, XHR, and WebSocket chaos.
 
 ## Notes
 

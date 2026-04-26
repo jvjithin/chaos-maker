@@ -3,7 +3,7 @@ title: Chaos Maker
 description: Frontend chaos engineering toolkit for testing resilience across Playwright, Cypress, WebdriverIO, and Puppeteer.
 template: splash
 hero:
-  tagline: Inject network failures, latency, UI assaults, and WebSocket chaos into your E2E tests without touching your backend.
+  tagline: Inject network, UI, WebSocket, Service Worker, SSE, and GraphQL chaos into your E2E tests without touching your backend.
   actions:
     - text: Get started
       link: /chaos-maker/getting-started/install/
@@ -24,8 +24,8 @@ import { CardGrid, Card } from '@astrojs/starlight/components';
   <Card title="Reproducible chaos" icon="random">
     Seeded PRNG makes probability-driven chaos decisions replayable. Log the seed on failure and run the same interaction sequence again.
   </Card>
-  <Card title="Full chaos surface" icon="warning">
-    Network failures, latency, aborts, corruption, CORS errors, WebSocket drops/delays/corruption/force-close, and DOM UI assaults.
+  <Card title="Protocol coverage" icon="warning">
+    Page requests, Service Worker fetches, WebSocket messages, Server-Sent Events, and GraphQL operations share one config model.
   </Card>
   <Card title="Nth-request targeting" icon="list-format">
     Apply chaos on the 3rd request (`onNth`), every 5th (`everyNth`), or only after the first 10 pass through (`afterN`).
@@ -34,7 +34,7 @@ import { CardGrid, Card } from '@astrojs/starlight/components';
     Structured event log for every chaos decision. Playwright trace integration surfaces chaos inline in the trace viewer.
   </Card>
   <Card title="Zero backend changes" icon="approve-check">
-    Patches `fetch`, `XMLHttpRequest`, and `WebSocket` at the JavaScript layer in the test browser page. Your API is untouched.
+    Patches browser APIs in the test context and records every decision as a structured event. Your API is untouched.
   </Card>
 </CardGrid>
 

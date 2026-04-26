@@ -42,9 +42,20 @@ test('shows error state when payment API fails', async ({ page }) => {
 });
 ```
 
+## Adapter coverage
+
+| Surface | Playwright | Cypress | WebdriverIO | Puppeteer |
+| --- | --- | --- | --- | --- |
+| Network fetch/XHR | Yes | Yes | Yes | Yes |
+| UI assaults | Yes | Yes | Yes | Yes |
+| WebSocket | Yes | Yes | Yes | Yes |
+| Service Worker fetch | Yes | Yes | Yes | Yes |
+| Server-Sent Events | Yes | Yes | Yes | Yes |
+| GraphQL operation matcher | Yes | Yes | Yes | Yes |
+
 ## Service Worker chaos
 
-PWAs and offline-first apps serve fetches from a Service Worker — those bypass page-side chaos. Add one line to your SW and chaos applies there too:
+PWAs and offline-first apps serve fetches from a Service Worker. Those bypass page-side chaos, so add one line to your SW and chaos applies there too:
 
 ```js
 // classic sw.js
@@ -52,6 +63,24 @@ importScripts('/chaos-maker-sw.js');
 ```
 
 Page-side: `injectSWChaos` / `removeSWChaos` / `getSWChaosLog` in each adapter. See adapter READMEs.
+
+## SSE and GraphQL
+
+```typescript
+await injectChaos(page, {
+  sse: {
+    drops: [{ urlPattern: '/events', eventType: 'token', probability: 0.1 }],
+  },
+  network: {
+    failures: [{
+      urlPattern: '/graphql',
+      graphqlOperation: 'GetUser',
+      statusCode: 503,
+      probability: 1,
+    }],
+  },
+});
+```
 
 ## Full docs
 

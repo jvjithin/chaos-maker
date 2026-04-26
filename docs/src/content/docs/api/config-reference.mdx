@@ -10,6 +10,7 @@ interface ChaosConfig {
   network?: NetworkConfig;
   ui?: UiConfig;
   websocket?: WebSocketConfig;
+  sse?: SSEConfig;
   seed?: number;
 }
 ```
@@ -28,7 +29,7 @@ interface NetworkConfig {
 }
 ```
 
-Each network rule supports `urlPattern`, optional `methods`, `probability`, and optional request counting.
+Each network rule supports `urlPattern`, optional `methods`, `probability`, optional request counting, and optional GraphQL operation matching.
 
 ```typescript
 interface RequestCountingOptions {
@@ -36,7 +37,15 @@ interface RequestCountingOptions {
   everyNth?: number;
   afterN?: number;
 }
+
+interface NetworkRuleMatchers {
+  urlPattern: string;
+  methods?: string[];
+  graphqlOperation?: string | RegExp;
+}
 ```
+
+`graphqlOperation` is an additional matcher. It matches an `operationName` field, a named `query` / `mutation` / `subscription`, or a persisted-query GET parameter. Anonymous operations do not match a non-null matcher. If a request body cannot be parsed for GraphQL operation detection (for example multipart, streaming, or XHR `Blob` bodies), Chaos Maker emits a diagnostic event with `reason: 'graphql-body-unparseable'` and `applied: false`.
 
 ## UI
 
@@ -66,6 +75,22 @@ type WebSocketDirection = 'inbound' | 'outbound' | 'both';
 type WebSocketCorruptionStrategy = 'truncate' | 'malformed-json' | 'empty' | 'wrong-type';
 ```
 
+## Server-Sent Events
+
+```typescript
+interface SSEConfig {
+  drops?: SSEDropConfig[];
+  delays?: SSEDelayConfig[];
+  corruptions?: SSECorruptConfig[];
+  closes?: SSECloseConfig[];
+}
+
+type SSEEventTypeMatcher = string | '*';
+type SSECorruptionStrategy = 'truncate' | 'malformed-json' | 'empty' | 'wrong-type';
+```
+
+Drop, delay, and corruption rules accept optional `eventType`. The default is `message`; use a named event like `token` or the `'*'` wildcard for all data events.
+
 ## ChaosEvent
 
 ```typescript
@@ -77,4 +102,4 @@ interface ChaosEvent {
 }
 ```
 
-Use `applied` to distinguish "matched and rolled false" from "chaos actually changed browser behavior".
+Use `applied` to distinguish "matched and rolled false" from "chaos actually changed browser behavior". `sse:drop`, `sse:delay`, and `sse:corrupt` events include `detail.eventType`; `sse:close` includes `detail.reason` instead. GraphQL-aware network events include `detail.operationName` when one was identified.

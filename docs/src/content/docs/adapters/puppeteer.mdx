@@ -14,6 +14,9 @@ import {
   getChaosLog,
   getChaosSeed,
   useChaos,
+  injectSWChaos,
+  removeSWChaos,
+  getSWChaosLog,
 } from '@chaos-maker/puppeteer';
 ```
 
@@ -24,10 +27,15 @@ import {
 | `getChaosLog(page)` | Returns `ChaosEvent[]`. |
 | `getChaosSeed(page)` | Returns the active seed or `null`. |
 | `useChaos(page, config)` | Injects chaos and returns an async teardown function. |
+| `injectSWChaos(page, config, options?)` | Sends config to the active Service Worker after it controls the page. |
+| `removeSWChaos(page, options?)` | Stops chaos inside the active Service Worker. |
+| `getSWChaosLog(page)` | Returns Service Worker chaos events buffered on the page. |
 
 ## Timing
 
-Call before `page.goto()` for network and WebSocket chaos. Puppeteer v21+ headless Chromium is the supported mode for v0.3.0.
+Call before `page.goto()` for network, WebSocket, SSE, and GraphQL chaos. Puppeteer v21+ headless Chromium is the supported mode for v0.4.0.
+
+SSE chaos and GraphQL operation matching also use `injectChaos()` before navigation. For Service Worker chaos, navigate first, wait for `navigator.serviceWorker.controller`, then call `injectSWChaos()` before the user action that triggers SW fetches.
 
 UI chaos requires the DOM to exist, so do **not** pass a `ui` config into the pre-navigation `injectChaos()` call — the auto-bootstrap would run before `document.body` is available. Instead:
 
