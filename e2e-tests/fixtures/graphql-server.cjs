@@ -103,7 +103,10 @@ const server = http.createServer(async (req, res) => {
       respond(res, 400, { errors: [{ message: 'invalid JSON body' }] });
       return;
     }
-    const op = parsed && (parsed.operationName || parseOperationFromQuery(parsed.query));
+    // GraphQL-over-HTTP allows batched arrays — first entry drives the response
+    // shape so the fixture can back batched-body E2E coverage.
+    const first = Array.isArray(parsed) ? parsed[0] : parsed;
+    const op = first && (first.operationName || parseOperationFromQuery(first.query));
     respond(res, 200, pickResponse(op));
     return;
   }

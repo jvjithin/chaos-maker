@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import type { ChaosConfig, ChaosEvent } from '@chaos-maker/core';
+import { serializeForTransport } from '@chaos-maker/core';
 
 /**
  * Minimal structural type for a Puppeteer `Page` object. Typed this way so we
@@ -92,10 +93,13 @@ export async function injectChaos(page: ChaosPage, config: ChaosConfig): Promise
   }
 
   // Set config in the page realm before the UMD loads so the auto-bootstrap
-  // picks it up. Serialized as an argument — Puppeteer JSON-encodes it.
+  // picks it up. Puppeteer JSON-encodes the argument, which would drop RegExp
+  // matchers — pre-serialize to a transport-safe form. The in-page
+  // chaosUtils.start auto-deserializes via deserializeForTransport.
+  const serialized = serializeForTransport(config);
   const configHandle = await page.evaluateOnNewDocument((cfg: unknown) => {
     (globalThis as unknown as Record<string, unknown>)['__CHAOS_CONFIG__'] = cfg;
-  }, config as unknown);
+  }, serialized as unknown);
 
   // Inject UMD source as a raw script string — fires before any navigation
   // script so all patching happens at document creation time.

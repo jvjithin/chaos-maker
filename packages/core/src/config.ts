@@ -16,7 +16,8 @@ export interface RequestCountingOptions {
  *  as an additive filter — never a replacement. Matches against:
  *  - JSON `operationName` field on POST request bodies, OR
  *  - the operation name parsed from the `query` field (e.g. `query GetUser { … }`),
- *  - `?operationName=` query parameter for persisted-query GET requests.
+ *  - `?operationName=` query parameter for persisted-query GET requests, OR
+ *  - operation name parsed from `?query=` in GET requests carrying GraphQL text.
  *
  *  When the rule has `graphqlOperation` set but the request body cannot be
  *  parsed (multipart upload, ReadableStream, binary), the rule is skipped and

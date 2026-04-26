@@ -99,10 +99,19 @@ export function extractGraphQLOperation(
   return { kind: 'not-graphql' };
 }
 
-/** Decide whether a rule's `graphqlOperation` matcher accepts the extracted name. */
+/** Decide whether a rule's `graphqlOperation` matcher accepts the extracted name.
+ *
+ *  Defensive `lastIndex` reset: validation rejects `/g` and `/y` flags up-front,
+ *  but matchers can also be constructed dynamically (in-page, after deserialization),
+ *  so reset here too — `RegExp.test()` mutates `lastIndex` for stateful flags
+ *  and would flap match outcomes across consecutive calls with the same instance.
+ */
 export function operationNameMatches(matcher: GraphQLOperationMatcher, operationName: string | null): boolean {
   if (operationName === null) return false;
   if (typeof matcher === 'string') return matcher === operationName;
+  if (matcher.global || matcher.sticky) {
+    matcher.lastIndex = 0;
+  }
   return matcher.test(operationName);
 }
 

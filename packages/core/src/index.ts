@@ -6,10 +6,12 @@ import { ChaosEvent, ChaosEventType, ChaosEventListener, ChaosEventEmitter } fro
 import { ChaosConfigBuilder } from './builder';
 import { presets } from './presets';
 import { createPrng, generateSeed } from './prng';
+import { deserializeForTransport } from './transport';
 
 export { ChaosMaker, ChaosConfigError, validateConfig, ChaosEventEmitter, ChaosConfigBuilder, presets, createPrng, generateSeed };
 export { SW_BRIDGE_SOURCE } from './sw-bridge-source';
 export { extractGraphQLOperation, parseOperationFromQueryString, operationNameMatches } from './graphql';
+export { serializeForTransport, deserializeForTransport } from './transport';
 export type { GraphQLExtractResult, GraphQLRuleOutcome } from './graphql';
 export type { ChaosConfig, CorruptionStrategy, GraphQLOperationMatcher, NetworkFailureConfig, NetworkLatencyConfig, NetworkAbortConfig, NetworkCorruptionConfig, NetworkCorsConfig, NetworkConfig, NetworkRuleMatchers, UiAssaultConfig, UiConfig, WebSocketConfig, WebSocketDropConfig, WebSocketDelayConfig, WebSocketCorruptConfig, WebSocketCloseConfig, WebSocketDirection, WebSocketCorruptionStrategy, SSEConfig, SSEDropConfig, SSEDelayConfig, SSECorruptConfig, SSECloseConfig, SSECorruptionStrategy, SSEEventTypeMatcher, ChaosEvent, ChaosEventType, ChaosEventListener };
 
@@ -35,7 +37,10 @@ if (typeof window !== 'undefined') {
         if (chaosUtilsApi.instance) {
           chaosUtilsApi.instance.stop();
         }
-        chaosUtilsApi.instance = new ChaosMaker(config);
+        // Reconstruct any RegExp matchers shipped via JSON-encoding adapters.
+        // Idempotent for already-deserialized configs.
+        const cfg = deserializeForTransport(config);
+        chaosUtilsApi.instance = new ChaosMaker(cfg);
         chaosUtilsApi.instance.start();
         return { success: true, message: "Chaos started" };
       } catch (e: any) {

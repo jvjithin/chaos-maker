@@ -22,10 +22,16 @@ const countingRefinement = [
 ] as const;
 
 /** GraphQL operation matcher: a non-empty string (exact match) or a RegExp.
- *  Empty strings are rejected because they would silently never match. */
+ *  Empty strings are rejected because they would silently never match.
+ *  `/g` and `/y` flags are rejected because `RegExp.test()` mutates `lastIndex`
+ *  for those flags, which would flap match outcomes across consecutive calls
+ *  with the same matcher instance. */
 const graphqlOperationMatcher = z.union([
   z.string().min(1, 'graphqlOperation must not be empty'),
-  z.instanceof(RegExp),
+  z.instanceof(RegExp).refine(
+    (re) => !re.global && !re.sticky,
+    { message: 'graphqlOperation RegExp must not use global (g) or sticky (y) flags due to lastIndex mutation' },
+  ),
 ]);
 
 /** Fields shared by every network chaos rule type. */

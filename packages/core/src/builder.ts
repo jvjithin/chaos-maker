@@ -172,9 +172,9 @@ export class ChaosConfigBuilder {
 
   // --- GraphQL operation shortcuts ---
 
-  /** Fail every GraphQL request matching `operationName`. Defaults to matching
-   *  any URL — combine with `urlPattern` via direct config when you need to
-   *  scope to a specific endpoint. */
+  /** Fail every GraphQL request matching `operationName`.
+   *  Defaults `urlPattern` to `'*'`; pass an explicit pattern as the 4th
+   *  argument to scope to a specific endpoint. */
   failGraphQLOperation(operationName: GraphQLOperationMatcher, statusCode: number, probability: number, urlPattern: string = '*') {
     if (!this.config.network!.failures) this.config.network!.failures = [];
     this.config.network!.failures.push({ urlPattern, statusCode, probability, graphqlOperation: operationName });

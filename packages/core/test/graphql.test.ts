@@ -113,6 +113,19 @@ describe('operationNameMatches', () => {
     expect(operationNameMatches('GetUser', null)).toBe(false);
     expect(operationNameMatches(/.*/, null)).toBe(false);
   });
+
+  it('matches deterministically when regex has /g flag (lastIndex reset guard)', () => {
+    const re = /^Get/g;
+    expect(operationNameMatches(re, 'GetUser')).toBe(true);
+    expect(operationNameMatches(re, 'GetUser')).toBe(true);
+    expect(operationNameMatches(re, 'GetUser')).toBe(true);
+  });
+
+  it('matches deterministically when regex has /y flag (lastIndex reset guard)', () => {
+    const re = /^Get/y;
+    expect(operationNameMatches(re, 'GetUser')).toBe(true);
+    expect(operationNameMatches(re, 'GetUser')).toBe(true);
+  });
 });
 
 describe('evaluateGraphQLRule', () => {

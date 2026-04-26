@@ -43,28 +43,19 @@ test.describe('GraphQL operation matching', () => {
   });
 
   test('matches via a RegExp when the operation name starts with Get', async ({ page }) => {
+    // RegExp matchers now ride through `injectChaos` directly via the
+    // serializeForTransport / deserializeForTransport round-trip.
     await injectChaos(page, {
       network: {
-        // RegExp serialised through addInitScript via JSON loses RegExp-ness;
-        // build the config in-page so the matcher stays a real RegExp.
+        failures: [{
+          urlPattern: GQL_URL_PATTERN,
+          statusCode: 502,
+          probability: 1,
+          graphqlOperation: /^Get/,
+        }],
       },
     });
     await page.goto(BASE_URL);
-    await page.evaluate(() => {
-      const cfg = {
-        network: {
-          failures: [{
-            urlPattern: '127.0.0.1:8083/graphql',
-            statusCode: 502,
-            probability: 1,
-            graphqlOperation: /^Get/,
-          }],
-        },
-      };
-      const w = globalThis as unknown as { chaosUtils: { stop: () => void; start: (c: unknown) => void } };
-      w.chaosUtils.stop();
-      w.chaosUtils.start(cfg);
-    });
 
     await fireOp(page, 'gql-get-user', 'error');
     await expect(page.locator('#gql-status')).toContainText('502');

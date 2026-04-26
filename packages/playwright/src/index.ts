@@ -1,5 +1,6 @@
 import type { Page, TestInfo } from '@playwright/test';
 import type { ChaosConfig, ChaosEvent } from '@chaos-maker/core';
+import { serializeForTransport } from '@chaos-maker/core';
 import { resolve, dirname } from 'path';
 import { createRequire } from 'module';
 import { fileURLToPath } from 'url';
@@ -99,11 +100,14 @@ export async function injectChaos(
     }
   }
 
-  // Set config before the UMD script runs so it auto-starts with this config
+  // addInitScript JSON-encodes its argument, which would drop RegExp matchers
+  // (e.g. `graphqlOperation: /^Get/`). Serialize to a transport-safe form here;
+  // the in-page chaosUtils.start auto-deserializes via deserializeForTransport.
+  const serialized = serializeForTransport(config);
   await page.addInitScript((cfg: unknown) => {
     const win = globalThis as any;
     win.__CHAOS_CONFIG__ = cfg;
-  }, config);
+  }, serialized);
 
   // Load core UMD bundle by path — no eval needed
   await page.addInitScript({ path: umdPath });

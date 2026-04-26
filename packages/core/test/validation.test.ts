@@ -515,5 +515,23 @@ describe('validateConfig', () => {
       };
       expect(() => validateConfig(config)).toThrow(ChaosConfigError);
     });
+
+    it('rejects a RegExp graphqlOperation with /g flag', () => {
+      const config = {
+        network: {
+          failures: [{ urlPattern: '/graphql', statusCode: 500, probability: 1, graphqlOperation: /^Get/g }],
+        },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+
+    it('rejects a RegExp graphqlOperation with /y flag', () => {
+      const config = {
+        network: {
+          failures: [{ urlPattern: '/graphql', statusCode: 500, probability: 1, graphqlOperation: /^Get/y }],
+        },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
   });
 });
