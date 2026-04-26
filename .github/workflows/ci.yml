@@ -21,17 +21,8 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v5
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'pnpm'
-
-      - name: Install Dependencies
-        run: pnpm install
+      - name: Setup
+        uses: ./.github/actions/setup
 
       - name: Run ESLint
         run: pnpm lint
@@ -45,17 +36,8 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v5
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'pnpm'
-
-      - name: Install Dependencies
-        run: pnpm install
+      - name: Setup
+        uses: ./.github/actions/setup
 
       - name: Run Unit Tests
         run: pnpm test
@@ -69,17 +51,8 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v5
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'pnpm'
-
-      - name: Install Dependencies
-        run: pnpm install
+      - name: Setup
+        uses: ./.github/actions/setup
 
       - name: Build All Packages
         run: pnpm build
@@ -117,17 +90,10 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v5
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
+      - name: Setup
+        uses: ./.github/actions/setup
         with:
-          node-version-file: '.nvmrc'
-          cache: 'pnpm'
-
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
+          frozen-lockfile: 'true'
 
       - name: Build Docs
         run: pnpm --filter chaos-maker-docs build
@@ -162,17 +128,8 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v5
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'pnpm'
-
-      - name: Install Dependencies
-        run: pnpm install
+      - name: Setup
+        uses: ./.github/actions/setup
 
       - name: Download Build Artifact
         uses: actions/download-artifact@v4
@@ -226,15 +183,8 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v5
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'pnpm'
-
+      # Restore Cypress binary cache before install so the cypress postinstall
+      # hook reuses the cached binary instead of re-downloading.
       - name: Cache Cypress Binary
         id: cypress-cache
         uses: actions/cache@v4
@@ -242,8 +192,8 @@ jobs:
           path: ~/.cache/Cypress
           key: cypress-${{ hashFiles('pnpm-lock.yaml') }}
 
-      - name: Install Dependencies
-        run: pnpm install
+      - name: Setup
+        uses: ./.github/actions/setup
 
       - name: Install Cypress Binary
         if: steps.cypress-cache.outputs.cache-hit != 'true'
@@ -281,17 +231,8 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v5
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'pnpm'
-
-      - name: Install Dependencies
-        run: pnpm install
+      - name: Setup
+        uses: ./.github/actions/setup
 
       - name: Download Build Artifact
         uses: actions/download-artifact@v4
@@ -315,15 +256,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v5
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'pnpm'
-
       - name: Cache Puppeteer Chrome
         id: puppeteer-cache
         uses: actions/cache@v4
@@ -331,10 +263,10 @@ jobs:
           path: ~/.cache/puppeteer
           key: puppeteer-${{ hashFiles('e2e-tests/puppeteer/package.json', 'pnpm-lock.yaml') }}
 
-      - name: Install Dependencies
-        env:
-          PUPPETEER_SKIP_DOWNLOAD: 'true'
-        run: pnpm install
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          skip-puppeteer-download: 'true'
 
       - name: Download Build Artifact
         uses: actions/download-artifact@v4
