@@ -45,7 +45,7 @@ Chaos Maker emits:
 | `sse:corrupt` | `event.data` was rewritten. |
 | `sse:close` | The `EventSource` was closed by chaos. |
 
-Each event includes `detail.url` and `detail.eventType`. Corruption events include `detail.strategy`.
+Each SSE event includes `detail.url`. Drop, delay, and corruption events include `detail.eventType`, and corruption events also include `detail.strategy`. Close events include `detail.reason` instead of `detail.eventType`.
 
 ## Preset
 

@@ -227,7 +227,7 @@ installChaosSW({ source: 'message' });
 
 Page-side config is delivered via `postMessage` + `MessageChannel` ack. Use the adapter helpers (`injectSWChaos` / `removeSWChaos` / `getSWChaosLog`) in `@chaos-maker/{playwright,cypress,webdriverio,puppeteer}`.
 
-Limitations: `caches.match` hits bypass chaos (v0.5.0); push/sync events not covered; cross-origin SWs not supported.
+Limitations: `caches.match` hits bypass chaos (planned for v0.5.0); push/sync events not covered; cross-origin SWs not supported.
 
 ## License
 

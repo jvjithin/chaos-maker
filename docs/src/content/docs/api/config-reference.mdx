@@ -45,7 +45,7 @@ interface NetworkRuleMatchers {
 }
 ```
 
-`graphqlOperation` is an additional matcher. It matches an `operationName` field, a named `query` / `mutation` / `subscription`, or a persisted-query GET parameter. Anonymous operations do not match a non-null matcher. Multipart and streaming bodies emit a diagnostic event with `reason: 'graphql-body-unparseable'`.
+`graphqlOperation` is an additional matcher. It matches an `operationName` field, a named `query` / `mutation` / `subscription`, or a persisted-query GET parameter. Anonymous operations do not match a non-null matcher. If a request body cannot be parsed for GraphQL operation detection (for example multipart, streaming, or XHR `Blob` bodies), Chaos Maker emits a diagnostic event with `reason: 'graphql-body-unparseable'` and `applied: false`.
 
 ## UI
 
@@ -102,4 +102,4 @@ interface ChaosEvent {
 }
 ```
 
-Use `applied` to distinguish "matched and rolled false" from "chaos actually changed browser behavior". SSE events include `detail.eventType`; GraphQL-aware network events include `detail.operationName` when one was identified.
+Use `applied` to distinguish "matched and rolled false" from "chaos actually changed browser behavior". `sse:drop`, `sse:delay`, and `sse:corrupt` events include `detail.eventType`; `sse:close` includes `detail.reason` instead. GraphQL-aware network events include `detail.operationName` when one was identified.

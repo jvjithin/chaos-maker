@@ -9,10 +9,12 @@ async function visitAndInject(config: Parameters<WebdriverIO.Browser['injectChao
 }
 
 async function fireGraphQLOp(buttonId: string): Promise<void> {
+  const previous = await $('#gql-status').getText();
   await $(`#${buttonId}`).click();
   await browser.waitUntil(async () => {
     const status = await $('#gql-status').getText();
-    return /^(ok |error |network-error|xhr ok |xhr error |xhr network-error)/.test(status);
+    return status !== previous
+      && /^(ok |error |network-error|xhr ok |xhr error |xhr network-error)/.test(status);
   }, {
     timeout: 10_000,
     timeoutMsg: `${buttonId} did not finish`,

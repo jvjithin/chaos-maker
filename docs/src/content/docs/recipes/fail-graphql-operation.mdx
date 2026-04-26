@@ -100,3 +100,5 @@ await page.waitForSelector('[data-testid="products"]');
 </Tabs>
 
 `graphqlOperation` is an additional matcher. `urlPattern` and `methods` still apply, so a rule can target only `POST GetUser` or only persisted-query `GET GetUser` when needed.
+
+If a rule with `graphqlOperation` seems inactive, check the chaos log for a `reason: 'graphql-body-unparseable'` diagnostic. Multipart, streaming, and XHR `Blob` bodies cannot be inspected for an operation name and emit this event with `applied: false` instead of matching.

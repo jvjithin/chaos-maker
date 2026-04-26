@@ -69,7 +69,7 @@ describe('WDIO SSE delay', () => {
 
     expect(elapsed).toBeGreaterThanOrEqual(700);
     const log = (await browser.getChaosLog()) as ChaosEvent[];
-    expect(log.some((e) => e.type === 'sse:delay')).toBe(true);
+    expect(log.some((e) => e.type === 'sse:delay' && e.applied)).toBe(true);
   });
 });
 
