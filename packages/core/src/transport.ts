@@ -63,7 +63,16 @@ export function deserializeForTransport<T>(value: T): T {
   if (value instanceof RegExp) return value;
   if (isRegExpMarker(value)) {
     const { source, flags } = (value as unknown as RegExpMarker)[REGEX_MARKER];
-    return new RegExp(source, flags) as unknown as T;
+    try {
+      return new RegExp(source, flags) as unknown as T;
+    } catch (err) {
+      // Malformed pattern or flags would otherwise crash bootstrap before any
+      // chaos rule runs. Surface a one-line warning and pass through the marker
+      // unchanged — downstream Zod validation will then reject the rule with a
+      // clear message rather than the page going dark.
+      console.warn(`[chaos-maker] deserializeForTransport: invalid RegExp { source: ${JSON.stringify(source)}, flags: ${JSON.stringify(flags)} } — ${(err as Error).message}`);
+      return value;
+    }
   }
   if (Array.isArray(value)) {
     return value.map((item) => deserializeForTransport(item)) as unknown as T;

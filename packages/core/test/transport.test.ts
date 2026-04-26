@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { serializeForTransport, deserializeForTransport } from '../src/transport';
 
 describe('serializeForTransport', () => {
@@ -58,6 +58,28 @@ describe('deserializeForTransport', () => {
     expect(out.sibling).toBe(42);
     expect(out.__chaosMakerRegExp).toEqual({ source: '^x', flags: '' });
     expect(out).not.toBeInstanceOf(RegExp);
+  });
+
+  it('returns the marker unchanged and warns when RegExp construction throws', () => {
+    // Malformed pattern (unterminated group). Must not crash bootstrap — pass
+    // the original marker through and emit a warning so downstream validation
+    // can reject with a clearer message.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const input = { __chaosMakerRegExp: { source: '(', flags: '' } };
+    const out = deserializeForTransport(input);
+    expect(out).toBe(input);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][0]).toMatch(/invalid RegExp/);
+    warn.mockRestore();
+  });
+
+  it('returns the marker unchanged when flags are invalid', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const input = { __chaosMakerRegExp: { source: '^x', flags: 'zzz' } };
+    const out = deserializeForTransport(input);
+    expect(out).toBe(input);
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
   });
 
   it('does not coerce when the inner marker has unexpected keys', () => {
