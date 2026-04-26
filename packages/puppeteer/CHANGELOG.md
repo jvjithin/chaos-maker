@@ -1,6 +1,6 @@
 # @chaos-maker/puppeteer Changelog
 
-## Unreleased
+## 0.4.0 - 2026-04-26
 
 ### Added
 
