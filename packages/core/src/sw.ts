@@ -71,6 +71,14 @@ export interface ChaosSWClearLogMessage {
   __chaosMakerClearLog: true;
 }
 
+/** Message sent by page -> SW to toggle a rule group without restarting chaos. */
+export interface ChaosSWToggleGroupMessage {
+  __chaosMakerToggleGroup: {
+    name: string;
+    enabled: boolean;
+  };
+}
+
 /** Ack sent SW → port (or broadcast) after a config / stop message lands. */
 export interface ChaosSWAck {
   __chaosMakerAck: true;
@@ -300,7 +308,7 @@ export function installChaosSW(opts: InstallChaosSWOptions = {}): SWChaosHandle 
     const evt = raw as { data?: unknown; ports?: readonly unknown[] };
     const data = evt.data;
     if (!data || typeof data !== 'object') return;
-    const asCfg = data as Partial<ChaosSWConfigMessage & ChaosSWStopMessage & ChaosSWGetLogMessage & ChaosSWClearLogMessage>;
+    const asCfg = data as Partial<ChaosSWConfigMessage & ChaosSWStopMessage & ChaosSWGetLogMessage & ChaosSWClearLogMessage & ChaosSWToggleGroupMessage>;
 
     if (asCfg.__chaosMakerConfig) {
       const seed = startEngine(state, asCfg.__chaosMakerConfig);
@@ -317,6 +325,22 @@ export function installChaosSW(opts: InstallChaosSWOptions = {}): SWChaosHandle 
       replyViaPortOrBroadcast(target, evt, {
         __chaosMakerAck: true,
         running: false,
+      } satisfies ChaosSWAck);
+      return;
+    }
+
+    if (asCfg.__chaosMakerToggleGroup) {
+      const { name, enabled } = asCfg.__chaosMakerToggleGroup;
+      state.groups.setEnabled(name, enabled);
+      state.emitter.emit({
+        type: enabled ? 'rule-group:enabled' : 'rule-group:disabled',
+        timestamp: Date.now(),
+        applied: true,
+        detail: { groupName: name },
+      });
+      replyViaPortOrBroadcast(target, evt, {
+        __chaosMakerAck: true,
+        running: state.running,
       } satisfies ChaosSWAck);
       return;
     }

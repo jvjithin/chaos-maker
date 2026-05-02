@@ -2,13 +2,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { ChaosConfig, ChaosEvent } from '../src';
 
 /**
- * Phase A SW group tests.
+ * SW group tests.
  *
- * Phase A only adds the registry data layer: SW configs may carry `group: …`
- * on rules, the SW state owns a `RuleGroupRegistry`, and a disabled group on
- * an incoming config blocks chaos. Phase B will introduce a dedicated
- * `__chaosMakerToggleGroup` message and an ack pattern; the toggle-message
- * tests live in `sw-groups.test.ts` then.
+ * SW configs may carry `group: ...` on rules, the SW state owns a
+ * `RuleGroupRegistry`, disabled groups block chaos, and
+ * `__chaosMakerToggleGroup` toggles runtime state without restarting.
  */
 
 type MessageListener = (event: { data: unknown; ports?: unknown[] }) => void;
@@ -35,6 +33,13 @@ interface SWLikeTarget {
   addEventListener: (type: string, fn: MessageListener) => void;
   removeEventListener: (type: string, fn: MessageListener) => void;
   dispatchMessage: (data: unknown, ports?: unknown[]) => void;
+}
+
+function makePort(): { messages: unknown[]; postMessage(m: unknown): void } {
+  return {
+    messages: [],
+    postMessage(m) { this.messages.push(m); },
+  };
 }
 
 function makeSWTarget(clients: FakeClient[]): SWLikeTarget {
@@ -70,7 +75,7 @@ async function flushMicrotasks(): Promise<void> {
   await Promise.resolve();
 }
 
-describe('SW chaos — rule groups (Phase A)', () => {
+describe('SW chaos - rule groups', () => {
   let origSelf: unknown;
   beforeEach(() => {
     vi.resetModules();
@@ -160,6 +165,46 @@ describe('SW chaos — rule groups (Phase A)', () => {
     // was auto-registered as default-on.
     const r = await target.fetch('/api/pay');
     expect(r.status).toBe(500);
+
+    handle.uninstall();
+  });
+
+  it('__chaosMakerToggleGroup toggles groups without resetting counters', async () => {
+    const target = makeSWTarget([]);
+    const { installChaosSW } = await importSwWithTarget(target);
+    const handle = installChaosSW();
+
+    const cfg: ChaosConfig = {
+      network: {
+        failures: [
+          { urlPattern: '/api/pay', statusCode: 500, probability: 1, afterN: 1, group: 'payments' },
+        ],
+      },
+      seed: 12,
+    };
+    target.dispatchMessage({ __chaosMakerConfig: cfg });
+    await flushMicrotasks();
+
+    const disablePort = makePort();
+    target.dispatchMessage({ __chaosMakerToggleGroup: { name: 'payments', enabled: false } }, [disablePort]);
+    expect(disablePort.messages).toEqual([
+      { __chaosMakerAck: true, running: true },
+    ]);
+
+    const warmup = await target.fetch('/api/pay');
+    const gated = await target.fetch('/api/pay');
+    expect(warmup.status).toBe(200);
+    expect(gated.status).toBe(200);
+    expect(handle.getLog().some((e) => e.type === 'rule-group:gated' && e.detail.groupName === 'payments')).toBe(true);
+
+    const enablePort = makePort();
+    target.dispatchMessage({ __chaosMakerToggleGroup: { name: 'payments', enabled: true } }, [enablePort]);
+    expect(enablePort.messages).toEqual([
+      { __chaosMakerAck: true, running: true },
+    ]);
+
+    const applied = await target.fetch('/api/pay');
+    expect(applied.status).toBe(500);
 
     handle.uninstall();
   });

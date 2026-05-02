@@ -24,7 +24,7 @@ export interface RuleGroup {
   readonly name: string;
   enabled: boolean;
   /** True when registered via `ChaosConfig.groups` or `createGroup()`. False when auto-registered from `isActive()`. */
-  readonly explicit: boolean;
+  explicit: boolean;
 }
 
 export class RuleGroupRegistry {
@@ -48,7 +48,10 @@ export class RuleGroupRegistry {
   ensure(name: string, opts?: { enabled?: boolean; explicit?: boolean }): RuleGroup {
     const existing = this.groups.get(name);
     if (existing) {
-      if (opts?.explicit && opts.enabled !== undefined) {
+      if (opts?.explicit) {
+        existing.explicit = true;
+      }
+      if (opts?.enabled !== undefined) {
         existing.enabled = opts.enabled;
       }
       return existing;

@@ -179,6 +179,21 @@ describe('ChaosMaker public group API', () => {
     expect(cm.getGroupState('payments')).toBe(true);
   });
 
+  it('public group APIs trim names and reject empty names', () => {
+    const cm = new ChaosMaker({});
+    cm.createGroup(' payments ', { enabled: false });
+    expect(cm.getGroupState('payments')).toBe(false);
+    cm.enableGroup(' payments ');
+    expect(cm.getGroupState('payments')).toBe(true);
+    cm.disableGroup(' payments ');
+    expect(cm.getGroupState('payments')).toBe(false);
+    expect(cm.removeGroup(' payments ')).toBe(true);
+    expect(() => cm.createGroup('   ')).toThrow('[chaos-maker] Group name cannot be empty');
+    expect(() => cm.enableGroup('')).toThrow('[chaos-maker] Group name cannot be empty');
+    expect(() => cm.disableGroup('')).toThrow('[chaos-maker] Group name cannot be empty');
+    expect(() => cm.removeGroup('')).toThrow('[chaos-maker] Group name cannot be empty');
+  });
+
   it('config.groups pre-registers groups as initially disabled', () => {
     const cm = new ChaosMaker({
       groups: [{ name: 'payments', enabled: false }],

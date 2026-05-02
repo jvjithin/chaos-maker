@@ -22,6 +22,14 @@ function cloneConfig(config: ChaosConfig): ChaosConfig {
   return cloneValue(config);
 }
 
+function normalizeGroupName(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    throw new Error('[chaos-maker] Group name cannot be empty');
+  }
+  return trimmed;
+}
+
 export class ChaosConfigBuilder {
   private config: ChaosConfig;
   /** Single-shot group name applied to the next rule pushed and then cleared.
@@ -40,7 +48,7 @@ export class ChaosConfigBuilder {
   /** Tag the next rule pushed with this group name (RFC-001).
    *  Single-shot: cleared after the next builder method that pushes a rule. */
   inGroup(name: string): this {
-    this.pendingGroup = name;
+    this.pendingGroup = normalizeGroupName(name);
     return this;
   }
 
@@ -48,7 +56,7 @@ export class ChaosConfigBuilder {
    *  initially disabled). Equivalent to setting `ChaosConfig.groups` directly. */
   defineGroup(name: string, opts?: { enabled?: boolean }): this {
     if (!this.config.groups) this.config.groups = [];
-    const entry: RuleGroupConfig = { name };
+    const entry: RuleGroupConfig = { name: normalizeGroupName(name) };
     if (opts?.enabled !== undefined) entry.enabled = opts.enabled;
     this.config.groups.push(entry);
     return this;

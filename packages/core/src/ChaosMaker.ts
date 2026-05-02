@@ -27,6 +27,14 @@ export interface ChaosMakerOptions {
   target?: ChaosTarget;
 }
 
+function normalizeGroupName(name: string): string {
+  const nameNorm = name.trim();
+  if (!nameNorm) {
+    throw new Error('[chaos-maker] Group name cannot be empty');
+  }
+  return nameNorm;
+}
+
 export class ChaosMaker {
   private config: ChaosConfig;
   private emitter: ChaosEventEmitter;
@@ -107,36 +115,40 @@ export class ChaosMaker {
   /** Enable a rule group at runtime (RFC-001). Auto-creates the group if unknown.
    *  Engine state and per-rule counters are preserved — no restart. */
   public enableGroup(name: string): void {
-    this.groups.setEnabled(name, true);
+    const nameNorm = normalizeGroupName(name);
+    this.groups.setEnabled(nameNorm, true);
     this.emitter.emit({
       type: 'rule-group:enabled',
       timestamp: Date.now(),
       applied: true,
-      detail: { groupName: name },
+      detail: { groupName: nameNorm },
     });
   }
 
   /** Disable a rule group at runtime (RFC-001). Subsequent matches are skipped
    *  and a single `rule-group:gated` event is emitted per cycle. */
   public disableGroup(name: string): void {
-    this.groups.setEnabled(name, false);
+    const nameNorm = normalizeGroupName(name);
+    this.groups.setEnabled(nameNorm, false);
     this.emitter.emit({
       type: 'rule-group:disabled',
       timestamp: Date.now(),
       applied: true,
-      detail: { groupName: name },
+      detail: { groupName: nameNorm },
     });
   }
 
   /** Pre-register a group (typically used to ship one as initially disabled). */
   public createGroup(name: string, opts?: { enabled?: boolean }): void {
-    this.groups.ensure(name, { ...opts, explicit: true });
+    const nameNorm = normalizeGroupName(name);
+    this.groups.ensure(nameNorm, { ...opts, explicit: true });
   }
 
   /** Remove a group from the registry. Throws when still referenced unless
    *  `{ force: true }`. `'default'` cannot be removed. */
   public removeGroup(name: string, opts?: { force?: boolean }): boolean {
-    return this.groups.remove(name, this.collectReferencedGroups(), opts);
+    const nameNorm = normalizeGroupName(name);
+    return this.groups.remove(nameNorm, this.collectReferencedGroups(), opts);
   }
 
   public hasGroup(name: string): boolean {

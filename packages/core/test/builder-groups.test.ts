@@ -15,6 +15,11 @@ describe('ChaosConfigBuilder rule groups', () => {
     expect(latencies[0].group).toBeUndefined();
   });
 
+  it('.inGroup rejects empty or whitespace-only names', () => {
+    expect(() => new ChaosConfigBuilder().inGroup('')).toThrow('[chaos-maker] Group name cannot be empty');
+    expect(() => new ChaosConfigBuilder().inGroup('   ')).toThrow('[chaos-maker] Group name cannot be empty');
+  });
+
   it('.inGroup applies regardless of which builder method consumes it next', () => {
     const cfg = new ChaosConfigBuilder()
       .failRequests('/preceding', 500, 1)
@@ -38,13 +43,18 @@ describe('ChaosConfigBuilder rule groups', () => {
 
   it('.defineGroup writes a groups entry on the config', () => {
     const cfg = new ChaosConfigBuilder()
-      .defineGroup('analytics', { enabled: false })
+      .defineGroup(' analytics ', { enabled: false })
       .defineGroup('payments')
       .build();
     expect(cfg.groups).toEqual([
       { name: 'analytics', enabled: false },
       { name: 'payments' },
     ]);
+  });
+
+  it('.defineGroup rejects empty or whitespace-only names', () => {
+    expect(() => new ChaosConfigBuilder().defineGroup('')).toThrow('[chaos-maker] Group name cannot be empty');
+    expect(() => new ChaosConfigBuilder().defineGroup('   ')).toThrow('[chaos-maker] Group name cannot be empty');
   });
 
   it('build() round-trip preserves group on rules', () => {

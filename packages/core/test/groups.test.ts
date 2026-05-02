@@ -25,11 +25,18 @@ describe('RuleGroupRegistry', () => {
       expect(r.isActive('payments')).toBe(false);
     });
 
-    it('non-explicit re-ensure does NOT change enabled even if enabled is supplied', () => {
+    it('re-ensure updates enabled when supplied', () => {
       const r = new RuleGroupRegistry();
       r.ensure('payments', { enabled: false, explicit: true });
-      r.ensure('payments', { enabled: true }); // implicit; should not flip
-      expect(r.isActive('payments')).toBe(false);
+      r.ensure('payments', { enabled: true });
+      expect(r.isActive('payments')).toBe(true);
+    });
+
+    it('explicit ensure() upgrades an implicit group to explicit', () => {
+      const r = new RuleGroupRegistry();
+      r.ensure('payments');
+      r.ensure('payments', { explicit: true });
+      expect(r.list().find((g) => g.name === 'payments')!.explicit).toBe(true);
     });
   });
 
