@@ -12,7 +12,15 @@ export type ChaosEventType =
   | 'sse:drop'
   | 'sse:delay'
   | 'sse:corrupt'
-  | 'sse:close';
+  | 'sse:close'
+  /** Emitted once per `enableGroup()` call. `applied: true`. (RFC-001) */
+  | 'rule-group:enabled'
+  /** Emitted once per `disableGroup()` call. `applied: true`. (RFC-001) */
+  | 'rule-group:disabled'
+  /** Emitted once per group per toggle cycle when a rule is skipped because
+   *  its group is disabled. Deduped — at most one event per group between
+   *  toggles to avoid log floods. `applied: false`. (RFC-001) */
+  | 'rule-group:gated';
 
 export interface ChaosEvent {
   type: ChaosEventType;
@@ -43,6 +51,8 @@ export interface ChaosEvent {
     operationName?: string;
     /** Reason string for diagnostic `applied: false` events. */
     reason?: string;
+    /** Group name (for `rule-group:*` events, and on gated rule diagnostics). */
+    groupName?: string;
   };
 }
 

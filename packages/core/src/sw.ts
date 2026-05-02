@@ -21,6 +21,8 @@ import { ChaosEventEmitter } from './events';
 import { createPrng } from './prng';
 import { patchFetch } from './interceptors/networkFetch';
 import { patchWebSocket, WebSocketPatchHandle } from './interceptors/websocket';
+import { DEFAULT_GROUP_NAME, RuleGroupRegistry } from './groups';
+import { forEachRule } from './utils';
 
 /**
  * Service-Worker global scope. Typed manually so this file compiles under the
@@ -151,6 +153,8 @@ interface SWEngineState {
   originalWebSocket?: typeof WebSocket;
   webSocketHandle?: WebSocketPatchHandle;
   requestCounters: Map<object, number>;
+  /** Rule-group registry (RFC-001). Survives `startEngine()` swaps. */
+  groups: RuleGroupRegistry;
 }
 
 function startEngine(state: SWEngineState, config: ChaosConfig): number {
@@ -160,6 +164,18 @@ function startEngine(state: SWEngineState, config: ChaosConfig): number {
   state.seed = prng.seed;
   state.random = prng.random;
   state.requestCounters = new Map();
+
+  // Rebuild the group registry from this config. Phase B will preserve toggles
+  // across reconfigure by carrying overrides forward; Phase A wipes & rebuilds
+  // because there is no toggle entry point yet.
+  state.groups = new RuleGroupRegistry();
+  for (const g of config.groups ?? []) {
+    state.groups.ensure(g.name, { enabled: g.enabled ?? true, explicit: true });
+  }
+  forEachRule(config, (rule) => {
+    if (rule.group) state.groups.ensure(rule.group);
+  });
+  state.groups.ensure(DEFAULT_GROUP_NAME, { enabled: true });
 
   if (config.network) {
     const target = state.target;
@@ -171,6 +187,7 @@ function startEngine(state: SWEngineState, config: ChaosConfig): number {
         state.random,
         state.emitter,
         state.requestCounters,
+        state.groups,
       ) as typeof globalThis.fetch;
     }
   }
@@ -183,6 +200,7 @@ function startEngine(state: SWEngineState, config: ChaosConfig): number {
       state.emitter,
       state.random,
       state.requestCounters,
+      state.groups,
     );
     state.target.WebSocket = state.webSocketHandle.Wrapped;
   }
@@ -271,6 +289,7 @@ export function installChaosSW(opts: InstallChaosSWOptions = {}): SWChaosHandle 
     seed: null,
     random: placeholder.random,
     requestCounters: new Map(),
+    groups: new RuleGroupRegistry(),
   };
 
   emitter.on('*', (event) => {

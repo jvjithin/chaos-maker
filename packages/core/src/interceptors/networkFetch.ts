@@ -1,5 +1,6 @@
 import { NetworkAbortConfig, NetworkConfig, NetworkCorruptionConfig, NetworkRuleMatchers } from '../config';
-import { shouldApplyChaos, corruptText, matchUrl, incrementCounter, checkCountingCondition } from '../utils';
+import { shouldApplyChaos, corruptText, matchUrl, incrementCounter, checkCountingCondition, gateGroup } from '../utils';
+import type { RuleGroupRegistry } from '../groups';
 import {
   evaluateGraphQLRule,
   extractGraphQLOperation,
@@ -214,7 +215,7 @@ function ruleHasGraphQLConstraint(rule: NetworkRuleMatchers): boolean {
   return rule.graphqlOperation !== undefined;
 }
 
-export function patchFetch(originalFetch: typeof globalThis.fetch, config: NetworkConfig, random: () => number, emitter?: ChaosEventEmitter, counters: Map<object, number> = new Map()) {
+export function patchFetch(originalFetch: typeof globalThis.fetch, config: NetworkConfig, random: () => number, emitter?: ChaosEventEmitter, counters: Map<object, number> = new Map(), groups?: RuleGroupRegistry) {
   return async (
     input: RequestInfo | URL,
     init?: RequestInit
@@ -252,6 +253,7 @@ export function patchFetch(originalFetch: typeof globalThis.fetch, config: Netwo
         }
         const count = incrementCounter(cors, counters);
         if (!checkCountingCondition(cors, count)) continue;
+        if (!gateGroup(cors, groups, emitter, { url, method })) continue;
         const applied = shouldApplyChaos(cors.probability, random);
         emitter?.emit({
           type: 'network:cors',
@@ -297,6 +299,7 @@ export function patchFetch(originalFetch: typeof globalThis.fetch, config: Netwo
           }
           continue;
         }
+        if (!gateGroup(abort, groups, emitter, { url, method, timeoutMs: abort.timeout })) continue;
         const applied = shouldApplyChaos(abort.probability, random);
         if (!applied) {
           emitAbortEvent(emitter, abort, url, method, false, gate.outcome);
@@ -348,6 +351,7 @@ export function patchFetch(originalFetch: typeof globalThis.fetch, config: Netwo
           }
           continue;
         }
+        if (!gateGroup(failure, groups, emitter, { url, method, statusCode: failure.statusCode })) continue;
         const applied = shouldApplyChaos(failure.probability, random);
         emitter?.emit({
           type: 'network:failure',
@@ -378,6 +382,7 @@ export function patchFetch(originalFetch: typeof globalThis.fetch, config: Netwo
           }
           continue;
         }
+        if (!gateGroup(latency, groups, emitter, { url, method, delayMs: latency.delayMs })) continue;
         const applied = shouldApplyChaos(latency.probability, random);
         emitter?.emit({
           type: 'network:latency',
@@ -404,6 +409,7 @@ export function patchFetch(originalFetch: typeof globalThis.fetch, config: Netwo
           }
           continue;
         }
+        if (!gateGroup(corruption, groups, emitter, { url, method, strategy: corruption.strategy })) continue;
         const applied = shouldApplyChaos(corruption.probability, random);
         if (!applied) {
           emitCorruptionEvent(emitter, corruption, url, method, false, gate.outcome);
