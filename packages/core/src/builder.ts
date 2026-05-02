@@ -1,4 +1,5 @@
 import { ChaosConfig, CorruptionStrategy, GraphQLOperationMatcher, RequestCountingOptions, SSECorruptionStrategy, WebSocketDirection, WebSocketCorruptionStrategy } from './config';
+import type { RuleGroupConfig } from './groups';
 
 function cloneValue<T>(value: T): T {
   if (value === null || typeof value !== 'object') return value;
@@ -21,8 +22,20 @@ function cloneConfig(config: ChaosConfig): ChaosConfig {
   return cloneValue(config);
 }
 
+function normalizeGroupName(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    throw new Error('[chaos-maker] Group name cannot be empty');
+  }
+  return trimmed;
+}
+
 export class ChaosConfigBuilder {
   private config: ChaosConfig;
+  /** Single-shot group name applied to the next rule pushed and then cleared.
+   *  Sticky semantics intentionally rejected — silent capture of stale groups
+   *  is harder to debug than the explicit re-chain. */
+  private pendingGroup?: string;
 
   constructor(initialConfig?: ChaosConfig) {
     this.config = initialConfig ? cloneConfig(initialConfig) : { network: {}, ui: {}, websocket: {}, sse: {} };
@@ -32,33 +45,58 @@ export class ChaosConfigBuilder {
     if (!this.config.sse) this.config.sse = {};
   }
 
+  /** Tag the next rule pushed with this group name (RFC-001).
+   *  Single-shot: cleared after the next builder method that pushes a rule. */
+  inGroup(name: string): this {
+    this.pendingGroup = normalizeGroupName(name);
+    return this;
+  }
+
+  /** Pre-register a group on the config (typically used to ship one as
+   *  initially disabled). Equivalent to setting `ChaosConfig.groups` directly. */
+  defineGroup(name: string, opts?: { enabled?: boolean }): this {
+    if (!this.config.groups) this.config.groups = [];
+    const entry: RuleGroupConfig = { name: normalizeGroupName(name) };
+    if (opts?.enabled !== undefined) entry.enabled = opts.enabled;
+    this.config.groups.push(entry);
+    return this;
+  }
+
+  /** Apply `pendingGroup` (single-shot) to a rule literal before it is pushed.
+   *  MUST be called at every rule-push site so `.inGroup(...)` is honored. */
+  private withGroup<T extends object>(rule: T): T & { group?: string } {
+    const g = this.pendingGroup;
+    this.pendingGroup = undefined;
+    return g ? { ...rule, group: g } : rule;
+  }
+
   failRequests(urlPattern: string, statusCode: number, probability: number, methods?: string[], body?: string, headers?: Record<string, string>, counting?: RequestCountingOptions) {
     if (!this.config.network!.failures) this.config.network!.failures = [];
-    this.config.network!.failures.push({ urlPattern, statusCode, probability, methods, body, headers, ...counting });
+    this.config.network!.failures.push(this.withGroup({ urlPattern, statusCode, probability, methods, body, headers, ...counting }));
     return this;
   }
 
   addLatency(urlPattern: string, delayMs: number, probability: number, methods?: string[], counting?: RequestCountingOptions) {
     if (!this.config.network!.latencies) this.config.network!.latencies = [];
-    this.config.network!.latencies.push({ urlPattern, delayMs, probability, methods, ...counting });
+    this.config.network!.latencies.push(this.withGroup({ urlPattern, delayMs, probability, methods, ...counting }));
     return this;
   }
 
   abortRequests(urlPattern: string, probability: number, timeout?: number, methods?: string[], counting?: RequestCountingOptions) {
     if (!this.config.network!.aborts) this.config.network!.aborts = [];
-    this.config.network!.aborts.push({ urlPattern, probability, timeout, methods, ...counting });
+    this.config.network!.aborts.push(this.withGroup({ urlPattern, probability, timeout, methods, ...counting }));
     return this;
   }
 
   corruptResponses(urlPattern: string, strategy: CorruptionStrategy, probability: number, methods?: string[], counting?: RequestCountingOptions) {
     if (!this.config.network!.corruptions) this.config.network!.corruptions = [];
-    this.config.network!.corruptions.push({ urlPattern, strategy, probability, methods, ...counting });
+    this.config.network!.corruptions.push(this.withGroup({ urlPattern, strategy, probability, methods, ...counting }));
     return this;
   }
 
   simulateCors(urlPattern: string, probability: number, methods?: string[], counting?: RequestCountingOptions) {
     if (!this.config.network!.cors) this.config.network!.cors = [];
-    this.config.network!.cors.push({ urlPattern, probability, methods, ...counting });
+    this.config.network!.cors.push(this.withGroup({ urlPattern, probability, methods, ...counting }));
     return this;
   }
 
@@ -130,7 +168,7 @@ export class ChaosConfigBuilder {
 
   assaultUi(selector: string, action: 'disable' | 'hide' | 'remove', probability: number) {
     if (!this.config.ui!.assaults) this.config.ui!.assaults = [];
-    this.config.ui!.assaults.push({ selector, action, probability });
+    this.config.ui!.assaults.push(this.withGroup({ selector, action, probability }));
     return this;
   }
 
@@ -138,25 +176,25 @@ export class ChaosConfigBuilder {
 
   dropMessages(urlPattern: string, direction: WebSocketDirection, probability: number, counting?: RequestCountingOptions) {
     if (!this.config.websocket!.drops) this.config.websocket!.drops = [];
-    this.config.websocket!.drops.push({ urlPattern, direction, probability, ...counting });
+    this.config.websocket!.drops.push(this.withGroup({ urlPattern, direction, probability, ...counting }));
     return this;
   }
 
   delayMessages(urlPattern: string, direction: WebSocketDirection, delayMs: number, probability: number, counting?: RequestCountingOptions) {
     if (!this.config.websocket!.delays) this.config.websocket!.delays = [];
-    this.config.websocket!.delays.push({ urlPattern, direction, delayMs, probability, ...counting });
+    this.config.websocket!.delays.push(this.withGroup({ urlPattern, direction, delayMs, probability, ...counting }));
     return this;
   }
 
   corruptMessages(urlPattern: string, direction: WebSocketDirection, strategy: WebSocketCorruptionStrategy, probability: number, counting?: RequestCountingOptions) {
     if (!this.config.websocket!.corruptions) this.config.websocket!.corruptions = [];
-    this.config.websocket!.corruptions.push({ urlPattern, direction, strategy, probability, ...counting });
+    this.config.websocket!.corruptions.push(this.withGroup({ urlPattern, direction, strategy, probability, ...counting }));
     return this;
   }
 
   closeConnection(urlPattern: string, probability: number, opts?: { code?: number; reason?: string; afterMs?: number }, counting?: RequestCountingOptions) {
     if (!this.config.websocket!.closes) this.config.websocket!.closes = [];
-    this.config.websocket!.closes.push({ urlPattern, probability, ...opts, ...counting });
+    this.config.websocket!.closes.push(this.withGroup({ urlPattern, probability, ...opts, ...counting }));
     return this;
   }
 
@@ -177,14 +215,14 @@ export class ChaosConfigBuilder {
    *  argument to scope to a specific endpoint. */
   failGraphQLOperation(operationName: GraphQLOperationMatcher, statusCode: number, probability: number, urlPattern: string = '*') {
     if (!this.config.network!.failures) this.config.network!.failures = [];
-    this.config.network!.failures.push({ urlPattern, statusCode, probability, graphqlOperation: operationName });
+    this.config.network!.failures.push(this.withGroup({ urlPattern, statusCode, probability, graphqlOperation: operationName }));
     return this;
   }
 
   /** Add `delayMs` of latency to every GraphQL request matching `operationName`. */
   delayGraphQLOperation(operationName: GraphQLOperationMatcher, delayMs: number, probability: number, urlPattern: string = '*') {
     if (!this.config.network!.latencies) this.config.network!.latencies = [];
-    this.config.network!.latencies.push({ urlPattern, delayMs, probability, graphqlOperation: operationName });
+    this.config.network!.latencies.push(this.withGroup({ urlPattern, delayMs, probability, graphqlOperation: operationName }));
     return this;
   }
 
@@ -192,25 +230,25 @@ export class ChaosConfigBuilder {
 
   dropSSE(urlPattern: string, probability: number, eventType?: string, counting?: RequestCountingOptions) {
     if (!this.config.sse!.drops) this.config.sse!.drops = [];
-    this.config.sse!.drops.push({ urlPattern, probability, ...(eventType ? { eventType } : {}), ...counting });
+    this.config.sse!.drops.push(this.withGroup({ urlPattern, probability, ...(eventType ? { eventType } : {}), ...counting }));
     return this;
   }
 
   delaySSE(urlPattern: string, delayMs: number, probability: number, eventType?: string, counting?: RequestCountingOptions) {
     if (!this.config.sse!.delays) this.config.sse!.delays = [];
-    this.config.sse!.delays.push({ urlPattern, delayMs, probability, ...(eventType ? { eventType } : {}), ...counting });
+    this.config.sse!.delays.push(this.withGroup({ urlPattern, delayMs, probability, ...(eventType ? { eventType } : {}), ...counting }));
     return this;
   }
 
   corruptSSE(urlPattern: string, strategy: SSECorruptionStrategy, probability: number, eventType?: string, counting?: RequestCountingOptions) {
     if (!this.config.sse!.corruptions) this.config.sse!.corruptions = [];
-    this.config.sse!.corruptions.push({ urlPattern, strategy, probability, ...(eventType ? { eventType } : {}), ...counting });
+    this.config.sse!.corruptions.push(this.withGroup({ urlPattern, strategy, probability, ...(eventType ? { eventType } : {}), ...counting }));
     return this;
   }
 
   closeSSE(urlPattern: string, probability: number, opts?: { afterMs?: number }, counting?: RequestCountingOptions) {
     if (!this.config.sse!.closes) this.config.sse!.closes = [];
-    this.config.sse!.closes.push({ urlPattern, probability, ...opts, ...counting });
+    this.config.sse!.closes.push(this.withGroup({ urlPattern, probability, ...opts, ...counting }));
     return this;
   }
 

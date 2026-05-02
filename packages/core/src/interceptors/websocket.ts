@@ -30,7 +30,8 @@ import {
   RequestCountingOptions,
 } from '../config';
 import { ChaosEventEmitter } from '../events';
-import { shouldApplyChaos, matchUrl, incrementCounter, checkCountingCondition } from '../utils';
+import { shouldApplyChaos, matchUrl, incrementCounter, checkCountingCondition, gateGroup } from '../utils';
+import type { RuleGroupRegistry } from '../groups';
 
 type Direction = 'inbound' | 'outbound';
 type PayloadType = 'text' | 'binary';
@@ -105,12 +106,14 @@ function corruptBinaryPayload(
   return new Uint8Array(view.buffer.slice(view.byteOffset, view.byteOffset + end));
 }
 
-function findFiringRule<T extends RequestCountingOptions & { urlPattern: string; direction: WebSocketDirection; probability: number }>(
+function findFiringRule<T extends RequestCountingOptions & { urlPattern: string; direction: WebSocketDirection; probability: number; group?: string }>(
   rules: T[] | undefined,
   url: string,
   direction: Direction,
   random: () => number,
   counters: Map<object, number>,
+  groups: RuleGroupRegistry | undefined,
+  emitter: ChaosEventEmitter | undefined,
 ): T | null {
   if (!rules) return null;
   for (const rule of rules) {
@@ -118,6 +121,7 @@ function findFiringRule<T extends RequestCountingOptions & { urlPattern: string;
     if (!directionApplies(rule.direction, direction)) continue;
     const count = incrementCounter(rule, counters);
     if (!checkCountingCondition(rule, count)) continue;
+    if (!gateGroup(rule, groups, emitter, { url, direction })) continue;
     if (!shouldApplyChaos(rule.probability, random)) continue;
     return rule;
   }
@@ -191,6 +195,7 @@ export function patchWebSocket(
   emitter: ChaosEventEmitter,
   random: () => number,
   counters: Map<object, number>,
+  groups?: RuleGroupRegistry,
 ): WebSocketPatchHandle {
   const pendingTimersBySocket = new Map<WebSocket, Set<PendingTimer>>();
   // Set to false in uninstall() so that already-wrapped sockets stop applying
@@ -249,13 +254,13 @@ export function patchWebSocket(
     const direction: Direction = 'outbound';
     const payloadType = getPayloadType(data);
 
-    if (findFiringRule<WebSocketDropConfig>(config.drops, url, direction, random, counters)) {
+    if (findFiringRule<WebSocketDropConfig>(config.drops, url, direction, random, counters, groups, emitter)) {
       emitDrop(emitter, url, direction, payloadType);
       return { handled: true, data };
     }
 
     let payload = data;
-    const corruptRule = findFiringRule<WebSocketCorruptConfig>(config.corruptions, url, direction, random, counters);
+    const corruptRule = findFiringRule<WebSocketCorruptConfig>(config.corruptions, url, direction, random, counters, groups, emitter);
     if (corruptRule) {
       if (payloadType === 'text') {
         payload = corruptTextPayload(payload as string, corruptRule.strategy);
@@ -271,7 +276,7 @@ export function patchWebSocket(
       }
     }
 
-    const delayRule = findFiringRule<WebSocketDelayConfig>(config.delays, url, direction, random, counters);
+    const delayRule = findFiringRule<WebSocketDelayConfig>(config.delays, url, direction, random, counters, groups, emitter);
     if (delayRule) {
       emitDelay(emitter, url, direction, payloadType, delayRule.delayMs);
       const timer: PendingDelayTimer = {
@@ -303,7 +308,7 @@ export function patchWebSocket(
       const direction: Direction = 'inbound';
       const payloadType = getPayloadType(msgEvt.data);
 
-      if (findFiringRule<WebSocketDropConfig>(config.drops, url, direction, random, counters)) {
+      if (findFiringRule<WebSocketDropConfig>(config.drops, url, direction, random, counters, groups, emitter)) {
         msgEvt.stopImmediatePropagation();
         emitDrop(emitter, url, direction, payloadType);
         return;
@@ -311,7 +316,7 @@ export function patchWebSocket(
 
       let payload: unknown = msgEvt.data;
       let wasCorrupted = false;
-      const corruptRule = findFiringRule<WebSocketCorruptConfig>(config.corruptions, url, direction, random, counters);
+      const corruptRule = findFiringRule<WebSocketCorruptConfig>(config.corruptions, url, direction, random, counters, groups, emitter);
       if (corruptRule) {
         if (payloadType === 'text') {
           payload = corruptTextPayload(payload as string, corruptRule.strategy);
@@ -329,7 +334,7 @@ export function patchWebSocket(
         }
       }
 
-      const delayRule = findFiringRule<WebSocketDelayConfig>(config.delays, url, direction, random, counters);
+      const delayRule = findFiringRule<WebSocketDelayConfig>(config.delays, url, direction, random, counters, groups, emitter);
       if (delayRule) {
         msgEvt.stopImmediatePropagation();
         emitDelay(emitter, url, direction, payloadType, delayRule.delayMs);
@@ -358,6 +363,7 @@ export function patchWebSocket(
       if (!matchUrl(url, rule.urlPattern)) continue;
       const count = incrementCounter(rule, counters);
       if (!checkCountingCondition(rule, count)) continue;
+      if (!gateGroup(rule, groups, emitter, { url })) continue;
       if (!shouldApplyChaos(rule.probability, random)) continue;
       // Default to 1000 (Normal Closure) — the only 1xxx code browsers accept
       // as input to `socket.close(code)`. Reserved codes like 1006 throw

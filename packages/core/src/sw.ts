@@ -21,6 +21,8 @@ import { ChaosEventEmitter } from './events';
 import { createPrng } from './prng';
 import { patchFetch } from './interceptors/networkFetch';
 import { patchWebSocket, WebSocketPatchHandle } from './interceptors/websocket';
+import { DEFAULT_GROUP_NAME, RuleGroupRegistry } from './groups';
+import { forEachRule } from './utils';
 
 /**
  * Service-Worker global scope. Typed manually so this file compiles under the
@@ -67,6 +69,14 @@ export interface ChaosSWGetLogMessage {
 /** Message sent by page → SW to clear the accumulated event log. */
 export interface ChaosSWClearLogMessage {
   __chaosMakerClearLog: true;
+}
+
+/** Message sent by page -> SW to toggle a rule group without restarting chaos. */
+export interface ChaosSWToggleGroupMessage {
+  __chaosMakerToggleGroup: {
+    name: string;
+    enabled: boolean;
+  };
 }
 
 /** Ack sent SW → port (or broadcast) after a config / stop message lands. */
@@ -151,6 +161,8 @@ interface SWEngineState {
   originalWebSocket?: typeof WebSocket;
   webSocketHandle?: WebSocketPatchHandle;
   requestCounters: Map<object, number>;
+  /** Rule-group registry (RFC-001). Survives `startEngine()` swaps. */
+  groups: RuleGroupRegistry;
 }
 
 function startEngine(state: SWEngineState, config: ChaosConfig): number {
@@ -160,6 +172,18 @@ function startEngine(state: SWEngineState, config: ChaosConfig): number {
   state.seed = prng.seed;
   state.random = prng.random;
   state.requestCounters = new Map();
+
+  // Rebuild the group registry from this config. Phase B will preserve toggles
+  // across reconfigure by carrying overrides forward; Phase A wipes & rebuilds
+  // because there is no toggle entry point yet.
+  state.groups = new RuleGroupRegistry();
+  for (const g of config.groups ?? []) {
+    state.groups.ensure(g.name, { enabled: g.enabled ?? true, explicit: true });
+  }
+  forEachRule(config, (rule) => {
+    if (rule.group) state.groups.ensure(rule.group);
+  });
+  state.groups.ensure(DEFAULT_GROUP_NAME, { enabled: true });
 
   if (config.network) {
     const target = state.target;
@@ -171,6 +195,7 @@ function startEngine(state: SWEngineState, config: ChaosConfig): number {
         state.random,
         state.emitter,
         state.requestCounters,
+        state.groups,
       ) as typeof globalThis.fetch;
     }
   }
@@ -183,6 +208,7 @@ function startEngine(state: SWEngineState, config: ChaosConfig): number {
       state.emitter,
       state.random,
       state.requestCounters,
+      state.groups,
     );
     state.target.WebSocket = state.webSocketHandle.Wrapped;
   }
@@ -271,6 +297,7 @@ export function installChaosSW(opts: InstallChaosSWOptions = {}): SWChaosHandle 
     seed: null,
     random: placeholder.random,
     requestCounters: new Map(),
+    groups: new RuleGroupRegistry(),
   };
 
   emitter.on('*', (event) => {
@@ -281,7 +308,7 @@ export function installChaosSW(opts: InstallChaosSWOptions = {}): SWChaosHandle 
     const evt = raw as { data?: unknown; ports?: readonly unknown[] };
     const data = evt.data;
     if (!data || typeof data !== 'object') return;
-    const asCfg = data as Partial<ChaosSWConfigMessage & ChaosSWStopMessage & ChaosSWGetLogMessage & ChaosSWClearLogMessage>;
+    const asCfg = data as Partial<ChaosSWConfigMessage & ChaosSWStopMessage & ChaosSWGetLogMessage & ChaosSWClearLogMessage & ChaosSWToggleGroupMessage>;
 
     if (asCfg.__chaosMakerConfig) {
       const seed = startEngine(state, asCfg.__chaosMakerConfig);
@@ -298,6 +325,22 @@ export function installChaosSW(opts: InstallChaosSWOptions = {}): SWChaosHandle 
       replyViaPortOrBroadcast(target, evt, {
         __chaosMakerAck: true,
         running: false,
+      } satisfies ChaosSWAck);
+      return;
+    }
+
+    if (asCfg.__chaosMakerToggleGroup) {
+      const { name, enabled } = asCfg.__chaosMakerToggleGroup;
+      state.groups.setEnabled(name, enabled);
+      state.emitter.emit({
+        type: enabled ? 'rule-group:enabled' : 'rule-group:disabled',
+        timestamp: Date.now(),
+        applied: true,
+        detail: { groupName: name },
+      });
+      replyViaPortOrBroadcast(target, evt, {
+        __chaosMakerAck: true,
+        running: state.running,
       } satisfies ChaosSWAck);
       return;
     }

@@ -7,6 +7,8 @@ import { patchXHR, patchXHROpen } from './interceptors/networkXHR';
 import { attachDomAssailant } from './interceptors/domAssailant';
 import { patchWebSocket, WebSocketPatchHandle } from './interceptors/websocket';
 import { patchEventSource, EventSourceLikeStatic, EventSourcePatchHandle } from './interceptors/eventSource';
+import { DEFAULT_GROUP_NAME, RuleGroup, RuleGroupRegistry } from './groups';
+import { forEachRule } from './utils';
 
 /**
  * Global context ChaosMaker patches against. Must expose at minimum `fetch`
@@ -23,6 +25,14 @@ export interface ChaosMakerOptions {
    * `window` or `self` explicitly only for cross-context testing.
    */
   target?: ChaosTarget;
+}
+
+function normalizeGroupName(name: string): string {
+  const nameNorm = name.trim();
+  if (!nameNorm) {
+    throw new Error('[chaos-maker] Group name cannot be empty');
+  }
+  return nameNorm;
 }
 
 export class ChaosMaker {
@@ -42,6 +52,8 @@ export class ChaosMaker {
   private eventSourceHandle?: EventSourcePatchHandle;
   /** Shared counters keyed by config rule object reference. Shared across fetch + XHR + WS. */
   private requestCounters: Map<object, number> = new Map();
+  /** Rule-group registry (RFC-001). Default-on; default group always exists. */
+  private groups: RuleGroupRegistry;
 
   constructor(config: ChaosConfig, options: ChaosMakerOptions = {}) {
     this.config = validateConfig(config);
@@ -50,7 +62,33 @@ export class ChaosMaker {
     this.random = prng.random;
     this.seed = prng.seed;
     this.target = options.target ?? globalThis;
+    this.groups = new RuleGroupRegistry();
+    // Pre-register groups declared in config first (explicit, may flip enabled).
+    for (const g of this.config.groups ?? []) {
+      this.groups.ensure(g.name, { enabled: g.enabled ?? true, explicit: true });
+    }
+    // Walk every rule so referenced groups are observable from `listGroups()`
+    // before any request fires. Runtime auto-create still surfaces typos that
+    // appear only at probe time.
+    this.seedGroupsFromRules();
+    // Default group is always present; ensures `getGroupsSnapshot()` includes it.
+    this.groups.ensure(DEFAULT_GROUP_NAME, { enabled: true });
     console.log(`Chaos Maker initialized (seed: ${this.seed})`);
+  }
+
+  private seedGroupsFromRules(): void {
+    forEachRule(this.config, (rule) => {
+      if (rule.group) this.groups.ensure(rule.group);
+    });
+  }
+
+  /** Compute the set of group names currently referenced by any rule. Used by `removeGroup`. */
+  private collectReferencedGroups(): Set<string> {
+    const referenced = new Set<string>();
+    forEachRule(this.config, (rule) => {
+      if (rule.group) referenced.add(rule.group);
+    });
+    return referenced;
   }
 
   /** Get the seed used by this instance. Log this on failure to reproduce exact chaos decisions. */
@@ -74,6 +112,63 @@ export class ChaosMaker {
     this.emitter.clearLog();
   }
 
+  /** Enable a rule group at runtime (RFC-001). Auto-creates the group if unknown.
+   *  Engine state and per-rule counters are preserved — no restart. */
+  public enableGroup(name: string): void {
+    const nameNorm = normalizeGroupName(name);
+    this.groups.setEnabled(nameNorm, true);
+    this.emitter.emit({
+      type: 'rule-group:enabled',
+      timestamp: Date.now(),
+      applied: true,
+      detail: { groupName: nameNorm },
+    });
+  }
+
+  /** Disable a rule group at runtime (RFC-001). Subsequent matches are skipped
+   *  and a single `rule-group:gated` event is emitted per cycle. */
+  public disableGroup(name: string): void {
+    const nameNorm = normalizeGroupName(name);
+    this.groups.setEnabled(nameNorm, false);
+    this.emitter.emit({
+      type: 'rule-group:disabled',
+      timestamp: Date.now(),
+      applied: true,
+      detail: { groupName: nameNorm },
+    });
+  }
+
+  /** Pre-register a group (typically used to ship one as initially disabled). */
+  public createGroup(name: string, opts?: { enabled?: boolean }): void {
+    const nameNorm = normalizeGroupName(name);
+    this.groups.ensure(nameNorm, { ...opts, explicit: true });
+  }
+
+  /** Remove a group from the registry. Throws when still referenced unless
+   *  `{ force: true }`. `'default'` cannot be removed. */
+  public removeGroup(name: string, opts?: { force?: boolean }): boolean {
+    const nameNorm = normalizeGroupName(name);
+    return this.groups.remove(nameNorm, this.collectReferencedGroups(), opts);
+  }
+
+  public hasGroup(name: string): boolean {
+    return this.groups.has(name);
+  }
+
+  /** True iff the named group is currently enabled (auto-creates unknown names). */
+  public getGroupState(name: string): boolean {
+    return this.groups.isActive(name);
+  }
+
+  /** Snapshot of every known group as `{ name: enabled }`. */
+  public getGroupsSnapshot(): Record<string, boolean> {
+    return this.groups.getSnapshot();
+  }
+
+  public listGroups(): RuleGroup[] {
+    return this.groups.list();
+  }
+
   public start(): void {
     if (this.running) {
       console.warn('Chaos Maker is already running. Call stop() first.');
@@ -90,7 +185,7 @@ export class ChaosMaker {
     if (this.config.network) {
       if (typeof target.fetch === 'function') {
         this.originalFetch = target.fetch;
-        target.fetch = patchFetch(this.originalFetch.bind(target), this.config.network, this.random, this.emitter, this.requestCounters);
+        target.fetch = patchFetch(this.originalFetch.bind(target), this.config.network, this.random, this.emitter, this.requestCounters, this.groups);
       }
 
       if (typeof target.XMLHttpRequest === 'function') {
@@ -98,7 +193,7 @@ export class ChaosMaker {
         target.XMLHttpRequest.prototype.open = patchXHROpen(this.originalXhrOpen);
 
         this.originalXhrSend = target.XMLHttpRequest.prototype.send;
-        target.XMLHttpRequest.prototype.send = patchXHR(this.originalXhrSend, this.config.network, this.random, this.emitter, this.requestCounters);
+        target.XMLHttpRequest.prototype.send = patchXHR(this.originalXhrSend, this.config.network, this.random, this.emitter, this.requestCounters, this.groups);
       }
     }
 
@@ -106,7 +201,7 @@ export class ChaosMaker {
       if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') {
         console.warn('Chaos Maker: UI config ignored — no DOM available in current context.');
       } else {
-        this.domObserver = attachDomAssailant(this.config.ui, this.random, this.emitter);
+        this.domObserver = attachDomAssailant(this.config.ui, this.random, this.emitter, this.groups);
         this.domObserver.observe(document.body, {
           childList: true,
           subtree: true,
@@ -123,6 +218,7 @@ export class ChaosMaker {
         this.emitter,
         this.random,
         this.requestCounters,
+        this.groups,
       );
       target.WebSocket = this.webSocketHandle.Wrapped;
     }
@@ -135,6 +231,7 @@ export class ChaosMaker {
         this.emitter,
         this.random,
         this.requestCounters,
+        this.groups,
       );
       target.EventSource = this.eventSourceHandle.Wrapped;
     }
