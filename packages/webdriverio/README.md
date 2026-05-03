@@ -28,10 +28,11 @@ export const config: WebdriverIO.Config = {
 
 That's it. Every spec now has `browser.injectChaos`, `browser.removeChaos`, `browser.getChaosLog`, `browser.getChaosSeed`, `browser.enableGroup`, `browser.disableGroup`, and the Service Worker group helpers:
 
-- `browser.enableSWGroup(name)`
-- `browser.disableSWGroup(name)`
+- `browser.enableSWGroup(name, opts?: SWChaosOptions)`
+- `browser.disableSWGroup(name, opts?: SWChaosOptions)`
 
 These mirror browser-side `browser.enableGroup(name)` and `browser.disableGroup(name)` but operate in the Service Worker context.
+Pass `opts.timeoutMs` to override how long the command waits for the Service Worker acknowledgement.
 
 ## Usage
 
@@ -118,10 +119,11 @@ Service Worker commands are registered separately with `registerSWChaosCommands(
 
 Attach Service Worker-specific commands on the given `browser` object. This includes the Service Worker group helpers:
 
-- `browser.enableSWGroup(name)`
-- `browser.disableSWGroup(name)`
+- `browser.enableSWGroup(name, opts?: SWChaosOptions)`
+- `browser.disableSWGroup(name, opts?: SWChaosOptions)`
 
 These mirror browser-side `browser.enableGroup(name)` and `browser.disableGroup(name)` but operate in the Service Worker context.
+Pass `opts.timeoutMs` to override how long the command waits for the Service Worker acknowledgement.
 
 ### `injectChaos(browser, config)`
 
