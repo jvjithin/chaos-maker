@@ -534,4 +534,86 @@ describe('validateConfig', () => {
       expect(() => validateConfig(config)).toThrow(ChaosConfigError);
     });
   });
+
+  describe('rule groups (RFC-001)', () => {
+    it('accepts group: "x" on every rule type', () => {
+      const config = {
+        network: {
+          failures: [{ urlPattern: '/x', statusCode: 500, probability: 1, group: 'a' }],
+          latencies: [{ urlPattern: '/x', delayMs: 1, probability: 1, group: 'a' }],
+          aborts: [{ urlPattern: '/x', probability: 1, group: 'a' }],
+          corruptions: [{ urlPattern: '/x', strategy: 'truncate' as const, probability: 1, group: 'a' }],
+          cors: [{ urlPattern: '/x', probability: 1, group: 'a' }],
+        },
+        ui: {
+          assaults: [{ selector: '.x', action: 'hide' as const, probability: 1, group: 'a' }],
+        },
+        websocket: {
+          drops: [{ urlPattern: 'ws://x', direction: 'both' as const, probability: 1, group: 'a' }],
+          delays: [{ urlPattern: 'ws://x', direction: 'both' as const, delayMs: 1, probability: 1, group: 'a' }],
+          corruptions: [{ urlPattern: 'ws://x', direction: 'both' as const, strategy: 'truncate' as const, probability: 1, group: 'a' }],
+          closes: [{ urlPattern: 'ws://x', probability: 1, group: 'a' }],
+        },
+        sse: {
+          drops: [{ urlPattern: '/sse', probability: 1, group: 'a' }],
+          delays: [{ urlPattern: '/sse', delayMs: 1, probability: 1, group: 'a' }],
+          corruptions: [{ urlPattern: '/sse', strategy: 'truncate' as const, probability: 1, group: 'a' }],
+          closes: [{ urlPattern: '/sse', probability: 1, group: 'a' }],
+        },
+      };
+      expect(() => validateConfig(config)).not.toThrow();
+    });
+
+    it('rejects an empty group field on a rule', () => {
+      const config = {
+        network: { failures: [{ urlPattern: '/x', statusCode: 500, probability: 1, group: '' }] },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+
+    it('rejects a whitespace-only group field on a rule', () => {
+      const config = {
+        network: { failures: [{ urlPattern: '/x', statusCode: 500, probability: 1, group: '   ' }] },
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+
+    it("trims surrounding whitespace on rule's group ('payments ' → 'payments')", () => {
+      const config = {
+        network: { failures: [{ urlPattern: '/x', statusCode: 500, probability: 1, group: 'payments ' }] },
+      };
+      const parsed = validateConfig(config);
+      expect(parsed.network!.failures![0].group).toBe('payments');
+    });
+
+    it('accepts groups: [{ name, enabled }] on the top-level config', () => {
+      const config = {
+        groups: [
+          { name: 'payments', enabled: false },
+          { name: 'analytics' },
+        ],
+      };
+      expect(() => validateConfig(config)).not.toThrow();
+    });
+
+    it('rejects empty / whitespace-only group name in groups array', () => {
+      expect(() => validateConfig({ groups: [{ name: '' }] })).toThrow(ChaosConfigError);
+      expect(() => validateConfig({ groups: [{ name: '   ' }] })).toThrow(ChaosConfigError);
+    });
+
+    it('trims surrounding whitespace on groups[].name', () => {
+      const parsed = validateConfig({ groups: [{ name: 'payments ' }] });
+      expect(parsed.groups![0].name).toBe('payments');
+    });
+
+    it('rejects duplicate group names after normalization', () => {
+      const config = {
+        groups: [
+          { name: 'payments' },
+          { name: ' payments ' },
+        ],
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
+  });
 });

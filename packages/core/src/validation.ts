@@ -13,6 +13,13 @@ const countingFields = {
   afterN: z.number().int().min(0).optional(),
 };
 
+/** Optional `group` field shared by every rule type (RFC-001).
+ *  `.trim()` runs before `.min(1)` so `'payments '` and `'payments'` collapse
+ *  to one group and whitespace-only names are rejected. */
+const groupField = {
+  group: z.string().trim().min(1, 'group must not be empty').optional(),
+};
+
 const mutuallyExclusiveCounting = (data: { onNth?: number; everyNth?: number; afterN?: number }) =>
   [data.onNth, data.everyNth, data.afterN].filter(v => v !== undefined).length <= 1;
 
@@ -49,6 +56,7 @@ const networkFailureSchema = z.object({
   statusText: z.string().optional(),
   headers: z.record(z.string()).optional(),
   ...countingFields,
+  ...groupField,
 }).strict().refine(...countingRefinement);
 
 const networkLatencySchema = z.object({
@@ -56,6 +64,7 @@ const networkLatencySchema = z.object({
   delayMs: z.number().min(0, 'delayMs must be >= 0'),
   probability,
   ...countingFields,
+  ...groupField,
 }).strict().refine(...countingRefinement);
 
 const networkAbortSchema = z.object({
@@ -63,6 +72,7 @@ const networkAbortSchema = z.object({
   probability,
   timeout: z.number().min(0, 'timeout must be >= 0').optional(),
   ...countingFields,
+  ...groupField,
 }).strict().refine(...countingRefinement);
 
 const networkCorruptionSchema = z.object({
@@ -70,12 +80,14 @@ const networkCorruptionSchema = z.object({
   probability,
   strategy: z.enum(['truncate', 'malformed-json', 'empty', 'wrong-type']),
   ...countingFields,
+  ...groupField,
 }).strict().refine(...countingRefinement);
 
 const networkCorsSchema = z.object({
   ...networkMatcherFields,
   probability,
   ...countingFields,
+  ...groupField,
 }).strict().refine(...countingRefinement);
 
 const networkConfigSchema = z.object({
@@ -90,6 +102,7 @@ const uiAssaultSchema = z.object({
   selector: z.string().min(1, 'selector must not be empty'),
   action: z.enum(['disable', 'hide', 'remove']),
   probability,
+  ...groupField,
 }).strict();
 
 const uiConfigSchema = z.object({
@@ -103,6 +116,7 @@ const webSocketDropSchema = z.object({
   direction: webSocketDirection,
   probability,
   ...countingFields,
+  ...groupField,
 }).strict().refine(...countingRefinement);
 
 const webSocketDelaySchema = z.object({
@@ -111,6 +125,7 @@ const webSocketDelaySchema = z.object({
   delayMs: z.number().min(0, 'delayMs must be >= 0'),
   probability,
   ...countingFields,
+  ...groupField,
 }).strict().refine(...countingRefinement);
 
 const webSocketCorruptSchema = z.object({
@@ -119,6 +134,7 @@ const webSocketCorruptSchema = z.object({
   strategy: z.enum(['truncate', 'malformed-json', 'empty', 'wrong-type']),
   probability,
   ...countingFields,
+  ...groupField,
 }).strict().refine(...countingRefinement);
 
 // WebSocket close code spec: only 1000 or the 3000–4999 range are valid as input
@@ -143,6 +159,7 @@ const webSocketCloseSchema = z.object({
   afterMs: z.number().min(0, 'afterMs must be >= 0').optional(),
   probability,
   ...countingFields,
+  ...groupField,
 }).strict().refine(...countingRefinement);
 
 const webSocketConfigSchema = z.object({
@@ -162,6 +179,7 @@ const sseDropSchema = z.object({
   eventType: sseEventType.optional(),
   probability,
   ...countingFields,
+  ...groupField,
 }).strict().refine(...countingRefinement);
 
 const sseDelaySchema = z.object({
@@ -170,6 +188,7 @@ const sseDelaySchema = z.object({
   delayMs: z.number().min(0, 'delayMs must be >= 0'),
   probability,
   ...countingFields,
+  ...groupField,
 }).strict().refine(...countingRefinement);
 
 const sseCorruptSchema = z.object({
@@ -178,6 +197,7 @@ const sseCorruptSchema = z.object({
   strategy: z.enum(['truncate', 'malformed-json', 'empty', 'wrong-type']),
   probability,
   ...countingFields,
+  ...groupField,
 }).strict().refine(...countingRefinement);
 
 const sseCloseSchema = z.object({
@@ -185,6 +205,7 @@ const sseCloseSchema = z.object({
   afterMs: z.number().min(0, 'afterMs must be >= 0').optional(),
   probability,
   ...countingFields,
+  ...groupField,
 }).strict().refine(...countingRefinement);
 
 const sseConfigSchema = z.object({
@@ -194,11 +215,36 @@ const sseConfigSchema = z.object({
   closes: z.array(sseCloseSchema).optional(),
 }).strict();
 
+/** Declarative group config (RFC-001) accepted on `ChaosConfig.groups`.
+ *  Same `.trim().min(1)` discipline as the per-rule `group` field so
+ *  `'payments '` and `'payments'` collapse to one group. */
+const groupConfigSchema = z.object({
+  name: z.string().trim().min(1, 'group name must not be empty'),
+  enabled: z.boolean().optional(),
+}).strict();
+
+const groupConfigListSchema = z.array(groupConfigSchema).superRefine((groups, ctx) => {
+  const seen = new Set<string>();
+  for (const [index, group] of groups.entries()) {
+    const norm = group.name.trim();
+    if (seen.has(norm)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'duplicate group name after normalization',
+        path: [index, 'name'],
+      });
+      continue;
+    }
+    seen.add(norm);
+  }
+});
+
 const chaosConfigSchema = z.object({
   network: networkConfigSchema.optional(),
   ui: uiConfigSchema.optional(),
   websocket: webSocketConfigSchema.optional(),
   sse: sseConfigSchema.optional(),
+  groups: groupConfigListSchema.optional(),
   seed: z.number().int('Seed must be an integer').optional(),
 }).strict();
 

@@ -1,3 +1,5 @@
+import type { RuleGroupConfig } from './groups';
+
 /** Counting options shared by all network chaos config types.
  *  At most one of `onNth`, `everyNth`, or `afterN` may be set on a single rule.
  *  Counting is per-rule and shared across fetch + XHR (only increments when a
@@ -10,6 +12,15 @@ export interface RequestCountingOptions {
   onNth?: number;
   everyNth?: number;
   afterN?: number;
+}
+
+/** Optional group membership shared by every rule type (RFC-001).
+ *  Rules without a `group` belong to the implicit `'default'` group, which is
+ *  always enabled. Toggling a group at runtime via `enableGroup` /
+ *  `disableGroup` skips its rules without restarting the engine — counters
+ *  stay intact across toggles. */
+export interface RuleGroupAssignment {
+  group?: string;
 }
 
 /** Match a GraphQL operation by name. Applied AFTER `urlPattern` + `methods`
@@ -36,7 +47,7 @@ export interface NetworkRuleMatchers {
   graphqlOperation?: GraphQLOperationMatcher;
 }
 
-export interface NetworkFailureConfig extends RequestCountingOptions, NetworkRuleMatchers {
+export interface NetworkFailureConfig extends RequestCountingOptions, NetworkRuleMatchers, RuleGroupAssignment {
   statusCode: number;
   probability: number;
   body?: string;
@@ -44,24 +55,24 @@ export interface NetworkFailureConfig extends RequestCountingOptions, NetworkRul
   headers?: Record<string, string>;
 }
 
-export interface NetworkLatencyConfig extends RequestCountingOptions, NetworkRuleMatchers {
+export interface NetworkLatencyConfig extends RequestCountingOptions, NetworkRuleMatchers, RuleGroupAssignment {
   delayMs: number;
   probability: number;
 }
 
-export interface NetworkAbortConfig extends RequestCountingOptions, NetworkRuleMatchers {
+export interface NetworkAbortConfig extends RequestCountingOptions, NetworkRuleMatchers, RuleGroupAssignment {
   probability: number;
   timeout?: number; // ms before abort; 0 or omitted = immediate
 }
 
 export type CorruptionStrategy = 'truncate' | 'malformed-json' | 'empty' | 'wrong-type';
 
-export interface NetworkCorruptionConfig extends RequestCountingOptions, NetworkRuleMatchers {
+export interface NetworkCorruptionConfig extends RequestCountingOptions, NetworkRuleMatchers, RuleGroupAssignment {
   probability: number;
   strategy: CorruptionStrategy;
 }
 
-export interface NetworkCorsConfig extends RequestCountingOptions, NetworkRuleMatchers {
+export interface NetworkCorsConfig extends RequestCountingOptions, NetworkRuleMatchers, RuleGroupAssignment {
   probability: number;
 }
 
@@ -73,7 +84,7 @@ export interface NetworkConfig {
   cors?: NetworkCorsConfig[];
 }
 
-export interface UiAssaultConfig {
+export interface UiAssaultConfig extends RuleGroupAssignment {
   selector: string;
   action: 'disable' | 'hide' | 'remove';
   probability: number;
@@ -90,13 +101,13 @@ export interface UiConfig {
  */
 export type WebSocketDirection = 'inbound' | 'outbound' | 'both';
 
-export interface WebSocketDropConfig extends RequestCountingOptions {
+export interface WebSocketDropConfig extends RequestCountingOptions, RuleGroupAssignment {
   urlPattern: string;
   direction: WebSocketDirection;
   probability: number;
 }
 
-export interface WebSocketDelayConfig extends RequestCountingOptions {
+export interface WebSocketDelayConfig extends RequestCountingOptions, RuleGroupAssignment {
   urlPattern: string;
   direction: WebSocketDirection;
   delayMs: number;
@@ -111,14 +122,14 @@ export interface WebSocketDelayConfig extends RequestCountingOptions {
  */
 export type WebSocketCorruptionStrategy = 'truncate' | 'malformed-json' | 'empty' | 'wrong-type';
 
-export interface WebSocketCorruptConfig extends RequestCountingOptions {
+export interface WebSocketCorruptConfig extends RequestCountingOptions, RuleGroupAssignment {
   urlPattern: string;
   direction: WebSocketDirection;
   strategy: WebSocketCorruptionStrategy;
   probability: number;
 }
 
-export interface WebSocketCloseConfig extends RequestCountingOptions {
+export interface WebSocketCloseConfig extends RequestCountingOptions, RuleGroupAssignment {
   urlPattern: string;
   /**
    * WebSocket close code. Must be either `1000` (Normal Closure) or in the
@@ -159,27 +170,27 @@ export type SSECorruptionStrategy = 'truncate' | 'malformed-json' | 'empty' | 'w
  */
 export type SSEEventTypeMatcher = string | '*';
 
-export interface SSEDropConfig extends RequestCountingOptions {
+export interface SSEDropConfig extends RequestCountingOptions, RuleGroupAssignment {
   urlPattern: string;
   eventType?: SSEEventTypeMatcher;
   probability: number;
 }
 
-export interface SSEDelayConfig extends RequestCountingOptions {
+export interface SSEDelayConfig extends RequestCountingOptions, RuleGroupAssignment {
   urlPattern: string;
   eventType?: SSEEventTypeMatcher;
   delayMs: number;
   probability: number;
 }
 
-export interface SSECorruptConfig extends RequestCountingOptions {
+export interface SSECorruptConfig extends RequestCountingOptions, RuleGroupAssignment {
   urlPattern: string;
   eventType?: SSEEventTypeMatcher;
   strategy: SSECorruptionStrategy;
   probability: number;
 }
 
-export interface SSECloseConfig extends RequestCountingOptions {
+export interface SSECloseConfig extends RequestCountingOptions, RuleGroupAssignment {
   urlPattern: string;
   /** Delay after `open` before dispatching `error` + closing, in ms. Default 0. */
   afterMs?: number;
@@ -198,6 +209,15 @@ export interface ChaosConfig {
   ui?: UiConfig;
   websocket?: WebSocketConfig;
   sse?: SSEConfig;
+  /**
+   * Pre-register rule groups (RFC-001) with an explicit initial enabled state.
+   *
+   * Rules opt into a group by setting `group: 'name'`; groups referenced from
+   * rules but not listed here are auto-registered as enabled. Use this field
+   * only to ship a group as initially disabled (e.g. `{ name: 'payments',
+   * enabled: false }`) or to reserve a group name with no rules attached yet.
+   */
+  groups?: RuleGroupConfig[];
   /**
    * Seed for Chaos Maker's PRNG.
    *

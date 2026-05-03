@@ -34,7 +34,8 @@ import {
   RequestCountingOptions,
 } from '../config';
 import { ChaosEventEmitter } from '../events';
-import { shouldApplyChaos, matchUrl, incrementCounter, checkCountingCondition, corruptText } from '../utils';
+import { shouldApplyChaos, matchUrl, incrementCounter, checkCountingCondition, corruptText, gateGroup } from '../utils';
+import type { RuleGroupRegistry } from '../groups';
 
 const INTERCEPT_MARKER = Symbol.for('chaos-maker.eventsource.intercepted');
 
@@ -74,12 +75,14 @@ function eventTypeMatches(rule: WildcardOrString, actual: string): boolean {
   return rule === actual;
 }
 
-function findFiringRule<T extends RequestCountingOptions & { urlPattern: string; eventType?: WildcardOrString; probability: number }>(
+function findFiringRule<T extends RequestCountingOptions & { urlPattern: string; eventType?: WildcardOrString; probability: number; group?: string }>(
   rules: T[] | undefined,
   url: string,
   eventType: string,
   random: () => number,
   counters: Map<object, number>,
+  groups: RuleGroupRegistry | undefined,
+  emitter: ChaosEventEmitter | undefined,
 ): T | null {
   if (!rules) return null;
   for (const rule of rules) {
@@ -87,6 +90,7 @@ function findFiringRule<T extends RequestCountingOptions & { urlPattern: string;
     if (!eventTypeMatches(rule.eventType, eventType)) continue;
     const count = incrementCounter(rule, counters);
     if (!checkCountingCondition(rule, count)) continue;
+    if (!gateGroup(rule, groups, emitter, { url, eventType })) continue;
     if (!shouldApplyChaos(rule.probability, random)) continue;
     return rule;
   }
@@ -135,6 +139,7 @@ export function patchEventSource(
   emitter: ChaosEventEmitter,
   random: () => number,
   counters: Map<object, number>,
+  groups?: RuleGroupRegistry,
 ): EventSourcePatchHandle {
   const pendingTimersBySource = new Map<EventSource, Set<PendingTimer>>();
   let running = true;
@@ -182,7 +187,7 @@ export function patchEventSource(
     // for unnamed events.
     const eventType = msgEvt.type || 'message';
 
-    if (findFiringRule<SSEDropConfig>(config.drops, url, eventType, random, counters)) {
+    if (findFiringRule<SSEDropConfig>(config.drops, url, eventType, random, counters, groups, emitter)) {
       msgEvt.stopImmediatePropagation();
       emitDrop(emitter, url, eventType);
       return;
@@ -191,14 +196,14 @@ export function patchEventSource(
     let payload = typeof msgEvt.data === 'string' ? msgEvt.data : String(msgEvt.data);
     let mutated = false;
 
-    const corruptRule = findFiringRule<SSECorruptConfig>(config.corruptions, url, eventType, random, counters);
+    const corruptRule = findFiringRule<SSECorruptConfig>(config.corruptions, url, eventType, random, counters, groups, emitter);
     if (corruptRule) {
       payload = corruptText(payload, corruptRule.strategy);
       mutated = true;
       emitCorrupt(emitter, url, eventType, corruptRule.strategy);
     }
 
-    const delayRule = findFiringRule<SSEDelayConfig>(config.delays, url, eventType, random, counters);
+    const delayRule = findFiringRule<SSEDelayConfig>(config.delays, url, eventType, random, counters, groups, emitter);
     if (delayRule) {
       msgEvt.stopImmediatePropagation();
       emitDelay(emitter, url, eventType, delayRule.delayMs);
@@ -234,6 +239,7 @@ export function patchEventSource(
       if (!matchUrl(url, rule.urlPattern)) continue;
       const count = incrementCounter(rule, counters);
       if (!checkCountingCondition(rule, count)) continue;
+      if (!gateGroup(rule, groups, emitter, { url })) continue;
       if (!shouldApplyChaos(rule.probability, random)) continue;
       return rule;
     }

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { patchFetch } from '../src/interceptors/networkFetch';
 import { NetworkConfig } from '../src/config';
 import { ChaosEventEmitter } from '../src/events';
+import { RuleGroupRegistry } from '../src/groups';
 // Import the mock from setup.ts
 import { mockFetch } from './setup';
 
@@ -371,6 +372,85 @@ describe('patchFetch', () => {
       expect(diag).toBeDefined();
       expect(diag?.applied).toBe(false);
       expect(diag?.type).toBe('network:failure');
+    });
+
+    it('suppresses graphql-body-unparseable diagnostics while the matching group is disabled', async () => {
+      const emitter = new ChaosEventEmitter();
+      const groups = new RuleGroupRegistry();
+      groups.ensure('payments', { enabled: false, explicit: true });
+      const config: NetworkConfig = {
+        failures: [{
+          urlPattern: '/graphql',
+          statusCode: 500,
+          probability: 1,
+          graphqlOperation: 'GetUser',
+          group: 'payments',
+        }],
+      };
+      const patchedFetch = patchFetch(originalFetch, config, deterministicRandom, emitter, new Map(), groups);
+
+      const form = new FormData();
+      form.append('operations', JSON.stringify({ operationName: 'GetUser', query: 'query GetUser { user { id } }' }));
+
+      await patchedFetch('/graphql', { method: 'POST', body: form });
+
+      expect(originalFetch).toHaveBeenCalledTimes(1);
+      expect(emitter.getLog().some(e => e.detail.reason === 'graphql-body-unparseable')).toBe(false);
+      expect(emitter.getLog()).toEqual([
+        expect.objectContaining({
+          type: 'rule-group:gated',
+          applied: false,
+          detail: expect.objectContaining({ groupName: 'payments' }),
+        }),
+      ]);
+    });
+
+    it('emits graphql-body-unparseable diagnostics only after group and probability pass', async () => {
+      const emitter = new ChaosEventEmitter();
+      const groups = new RuleGroupRegistry();
+      groups.ensure('payments', { enabled: true, explicit: true });
+      const config: NetworkConfig = {
+        failures: [{
+          urlPattern: '/graphql',
+          statusCode: 500,
+          probability: 1,
+          graphqlOperation: 'GetUser',
+          group: 'payments',
+        }],
+      };
+      const patchedFetch = patchFetch(originalFetch, config, deterministicRandom, emitter, new Map(), groups);
+
+      const form = new FormData();
+      form.append('operations', JSON.stringify({ operationName: 'GetUser', query: 'query GetUser { user { id } }' }));
+
+      await patchedFetch('/graphql', { method: 'POST', body: form });
+
+      expect(originalFetch).toHaveBeenCalledTimes(1);
+      const diag = emitter.getLog().find(e => e.detail.reason === 'graphql-body-unparseable');
+      expect(diag).toBeDefined();
+      expect(diag?.type).toBe('network:failure');
+      expect(diag?.applied).toBe(false);
+    });
+
+    it('suppresses graphql-body-unparseable diagnostics when probability misses', async () => {
+      const emitter = new ChaosEventEmitter();
+      const config: NetworkConfig = {
+        failures: [{
+          urlPattern: '/graphql',
+          statusCode: 500,
+          probability: 0,
+          graphqlOperation: 'GetUser',
+        }],
+      };
+      const patchedFetch = patchFetch(originalFetch, config, deterministicRandom, emitter);
+
+      const form = new FormData();
+      form.append('operations', JSON.stringify({ operationName: 'GetUser', query: 'query GetUser { user { id } }' }));
+
+      await patchedFetch('/graphql', { method: 'POST', body: form });
+
+      expect(originalFetch).toHaveBeenCalledTimes(1);
+      expect(emitter.getLog().some(e => e.detail.reason === 'graphql-body-unparseable')).toBe(false);
     });
 
     it('skips body extraction entirely when no rule has graphqlOperation (fast path)', async () => {

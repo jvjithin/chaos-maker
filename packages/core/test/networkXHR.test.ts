@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { patchXHR, patchXHROpen } from '../src/interceptors/networkXHR';
 import { NetworkConfig } from '../src/config';
 import { ChaosEventEmitter } from '../src/events';
+import { RuleGroupRegistry } from '../src/groups';
 // Import the mocks from setup.ts
 import { mockXhrAbort, mockXhrOpen, mockXhrSend } from './setup';
 
@@ -23,6 +24,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   // Ensure originals are restored after each test
   global.XMLHttpRequest.prototype.open = originalXhrOpen;
   global.XMLHttpRequest.prototype.send = originalXhrSend;
@@ -124,7 +126,40 @@ describe('patchXHR (send)', () => {
     // Now it should have been called
     expect(mockXhrSend).toHaveBeenCalled();
 
-    vi.useRealTimers(); // Restore real timers
+  });
+
+  it('should not add latency when the matching rule group is disabled', () => {
+    vi.useFakeTimers();
+
+    const latencyConfig: NetworkConfig = {
+      latencies: [{ urlPattern: '/api/slow', delayMs: 100, probability: 1.0, group: 'payments' }]
+    };
+    const groups = new RuleGroupRegistry();
+    groups.ensure('payments', { enabled: false, explicit: true });
+    const emitter = new ChaosEventEmitter();
+    const patchedSend = patchXHR(originalXhrSend, latencyConfig, deterministicRandom, emitter, new Map(), groups);
+    global.XMLHttpRequest.prototype.send = patchedSend;
+
+    const xhr = new global.XMLHttpRequest();
+    (xhr as any)._chaos_url = '/api/slow';
+    (xhr as any)._chaos_method = 'GET';
+
+    xhr.send();
+
+    expect(mockXhrSend).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(100);
+    expect(mockXhrSend).toHaveBeenCalledTimes(1);
+    expect(emitter.getLog()).toEqual([
+      expect.objectContaining({
+        type: 'rule-group:gated',
+        applied: false,
+        detail: expect.objectContaining({
+          url: '/api/slow',
+          method: 'GET',
+          groupName: 'payments',
+        }),
+      }),
+    ]);
   });
 
   it('should force a CORS error for a matching URL', () => {
@@ -190,7 +225,6 @@ describe('patchXHR (send)', () => {
     expect(mockXhrAbort).toHaveBeenCalledTimes(1);
     expect(xhr.status).toBe(0);
     expect(abortSpy).toHaveBeenCalledWith(new Event('abort'));
-    vi.useRealTimers();
   });
 
   it('should corrupt response text according to truncate strategy', () => {
@@ -332,6 +366,5 @@ describe('patchXHR (send)', () => {
         }),
       }),
     ]);
-    vi.useRealTimers();
   });
 });

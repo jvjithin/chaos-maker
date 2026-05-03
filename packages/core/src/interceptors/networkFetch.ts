@@ -1,5 +1,6 @@
 import { NetworkAbortConfig, NetworkConfig, NetworkCorruptionConfig, NetworkRuleMatchers } from '../config';
-import { shouldApplyChaos, corruptText, matchUrl, incrementCounter, checkCountingCondition } from '../utils';
+import { shouldApplyChaos, corruptText, matchUrl, incrementCounter, checkCountingCondition, gateGroup } from '../utils';
+import type { RuleGroupRegistry } from '../groups';
 import {
   evaluateGraphQLRule,
   extractGraphQLOperation,
@@ -146,27 +147,24 @@ function emitGraphQLDiagnostic(
 }
 
 /**
- * Run the shared per-rule gate: urlPattern + methods + GraphQL operation +
- * counting. Returns `proceed: true` only when the rule should evaluate
- * probability for this request.
+ * Run the shared per-rule gate: urlPattern + methods + GraphQL operation.
+ * Counting remains in the branch so group gating stays after the counter
+ * update and before probability.
  */
 function gateRule(
-  rule: NetworkRuleMatchers & { onNth?: number; everyNth?: number; afterN?: number },
+  rule: NetworkRuleMatchers,
   url: string,
   method: string,
   gqlExtract: GraphQLExtractResult,
-  counters: Map<object, number>,
 ): { proceed: boolean; outcome: GraphQLRuleOutcome | null } {
   if (!matchUrl(url, rule.urlPattern)) return { proceed: false, outcome: null };
   if (rule.methods && !rule.methods.includes(method)) return { proceed: false, outcome: null };
 
   const outcome = evaluateGraphQLRule(rule.graphqlOperation, gqlExtract);
-  if (outcome.kind === 'no-match' || outcome.kind === 'unparseable') {
+  if (outcome.kind === 'no-match') {
     return { proceed: false, outcome };
   }
 
-  const count = incrementCounter(rule, counters);
-  if (!checkCountingCondition(rule, count)) return { proceed: false, outcome };
   return { proceed: true, outcome };
 }
 
@@ -214,7 +212,7 @@ function ruleHasGraphQLConstraint(rule: NetworkRuleMatchers): boolean {
   return rule.graphqlOperation !== undefined;
 }
 
-export function patchFetch(originalFetch: typeof globalThis.fetch, config: NetworkConfig, random: () => number, emitter?: ChaosEventEmitter, counters: Map<object, number> = new Map()) {
+export function patchFetch(originalFetch: typeof globalThis.fetch, config: NetworkConfig, random: () => number, emitter?: ChaosEventEmitter, counters: Map<object, number> = new Map(), groups?: RuleGroupRegistry) {
   return async (
     input: RequestInfo | URL,
     init?: RequestInit
@@ -242,22 +240,23 @@ export function patchFetch(originalFetch: typeof globalThis.fetch, config: Netwo
     // 1. Check for CORS
     if (config.cors) {
       for (const cors of config.cors) {
-        if (!matchUrl(url, cors.urlPattern)) continue;
-        if (cors.methods && !cors.methods.includes(method)) continue;
-        const outcome = evaluateGraphQLRule(cors.graphqlOperation, gqlExtract);
-        if (outcome.kind === 'no-match') continue;
-        if (outcome.kind === 'unparseable') {
-          emitGraphQLDiagnostic(emitter, 'network:cors', url, method, {});
-          continue;
-        }
+        const gate = gateRule(cors, url, method, gqlExtract);
+        if (!gate.proceed) continue;
         const count = incrementCounter(cors, counters);
         if (!checkCountingCondition(cors, count)) continue;
+        if (!gateGroup(cors, groups, emitter, { url, method })) continue;
         const applied = shouldApplyChaos(cors.probability, random);
+        if (gate.outcome?.kind === 'unparseable') {
+          if (applied) {
+            emitGraphQLDiagnostic(emitter, 'network:cors', url, method, {});
+          }
+          continue;
+        }
         emitter?.emit({
           type: 'network:cors',
           timestamp: Date.now(),
           applied,
-          detail: { url, method, ...operationDetail(outcome) },
+          detail: { url, method, ...operationDetail(gate.outcome) },
         });
         if (applied) {
           console.debug(`[chaos-maker] CORS block: ${method} ${url}`);
@@ -290,14 +289,18 @@ export function patchFetch(originalFetch: typeof globalThis.fetch, config: Netwo
 
     if (config.aborts) {
       for (const abort of config.aborts) {
-        const gate = gateRule(abort, url, method, gqlExtract, counters);
-        if (!gate.proceed) {
-          if (gate.outcome?.kind === 'unparseable') {
+        const gate = gateRule(abort, url, method, gqlExtract);
+        if (!gate.proceed) continue;
+        const count = incrementCounter(abort, counters);
+        if (!checkCountingCondition(abort, count)) continue;
+        if (!gateGroup(abort, groups, emitter, { url, method, timeoutMs: abort.timeout })) continue;
+        const applied = shouldApplyChaos(abort.probability, random);
+        if (gate.outcome?.kind === 'unparseable') {
+          if (applied) {
             emitGraphQLDiagnostic(emitter, 'network:abort', url, method, { timeoutMs: abort.timeout });
           }
           continue;
         }
-        const applied = shouldApplyChaos(abort.probability, random);
         if (!applied) {
           emitAbortEvent(emitter, abort, url, method, false, gate.outcome);
           continue;
@@ -341,14 +344,18 @@ export function patchFetch(originalFetch: typeof globalThis.fetch, config: Netwo
     // 3. Check for Failures
     if (config.failures) {
       for (const failure of config.failures) {
-        const gate = gateRule(failure, url, method, gqlExtract, counters);
-        if (!gate.proceed) {
-          if (gate.outcome?.kind === 'unparseable') {
+        const gate = gateRule(failure, url, method, gqlExtract);
+        if (!gate.proceed) continue;
+        const count = incrementCounter(failure, counters);
+        if (!checkCountingCondition(failure, count)) continue;
+        if (!gateGroup(failure, groups, emitter, { url, method, statusCode: failure.statusCode })) continue;
+        const applied = shouldApplyChaos(failure.probability, random);
+        if (gate.outcome?.kind === 'unparseable') {
+          if (applied) {
             emitGraphQLDiagnostic(emitter, 'network:failure', url, method, { statusCode: failure.statusCode });
           }
           continue;
         }
-        const applied = shouldApplyChaos(failure.probability, random);
         emitter?.emit({
           type: 'network:failure',
           timestamp: Date.now(),
@@ -371,14 +378,18 @@ export function patchFetch(originalFetch: typeof globalThis.fetch, config: Netwo
     // 4. Check for Latency
     if (config.latencies) {
       for (const latency of config.latencies) {
-        const gate = gateRule(latency, url, method, gqlExtract, counters);
-        if (!gate.proceed) {
-          if (gate.outcome?.kind === 'unparseable') {
+        const gate = gateRule(latency, url, method, gqlExtract);
+        if (!gate.proceed) continue;
+        const count = incrementCounter(latency, counters);
+        if (!checkCountingCondition(latency, count)) continue;
+        if (!gateGroup(latency, groups, emitter, { url, method, delayMs: latency.delayMs })) continue;
+        const applied = shouldApplyChaos(latency.probability, random);
+        if (gate.outcome?.kind === 'unparseable') {
+          if (applied) {
             emitGraphQLDiagnostic(emitter, 'network:latency', url, method, { delayMs: latency.delayMs });
           }
           continue;
         }
-        const applied = shouldApplyChaos(latency.probability, random);
         emitter?.emit({
           type: 'network:latency',
           timestamp: Date.now(),
@@ -397,14 +408,18 @@ export function patchFetch(originalFetch: typeof globalThis.fetch, config: Netwo
     let selectedCorruptionOutcome: GraphQLRuleOutcome | null = null;
     if (config.corruptions) {
       for (const corruption of config.corruptions) {
-        const gate = gateRule(corruption, url, method, gqlExtract, counters);
-        if (!gate.proceed) {
-          if (gate.outcome?.kind === 'unparseable') {
+        const gate = gateRule(corruption, url, method, gqlExtract);
+        if (!gate.proceed) continue;
+        const count = incrementCounter(corruption, counters);
+        if (!checkCountingCondition(corruption, count)) continue;
+        if (!gateGroup(corruption, groups, emitter, { url, method, strategy: corruption.strategy })) continue;
+        const applied = shouldApplyChaos(corruption.probability, random);
+        if (gate.outcome?.kind === 'unparseable') {
+          if (applied) {
             emitGraphQLDiagnostic(emitter, 'network:corruption', url, method, { strategy: corruption.strategy });
           }
           continue;
         }
-        const applied = shouldApplyChaos(corruption.probability, random);
         if (!applied) {
           emitCorruptionEvent(emitter, corruption, url, method, false, gate.outcome);
           continue;

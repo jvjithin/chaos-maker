@@ -1,5 +1,6 @@
 import { NetworkAbortConfig, NetworkConfig, NetworkCorruptionConfig, NetworkRuleMatchers } from '../config';
-import { shouldApplyChaos, corruptText, matchUrl, incrementCounter, checkCountingCondition } from '../utils';
+import { shouldApplyChaos, corruptText, matchUrl, incrementCounter, checkCountingCondition, gateGroup } from '../utils';
+import type { RuleGroupRegistry } from '../groups';
 import {
   evaluateGraphQLRule,
   extractGraphQLOperation,
@@ -110,7 +111,7 @@ function emitCorruptionEvent(
   });
 }
 
-export function patchXHR(originalXhrSend: (body?: Document | XMLHttpRequestBodyInit) => void, config: NetworkConfig, random: () => number, emitter?: ChaosEventEmitter, counters: Map<object, number> = new Map()) {
+export function patchXHR(originalXhrSend: (body?: Document | XMLHttpRequestBodyInit) => void, config: NetworkConfig, random: () => number, emitter?: ChaosEventEmitter, counters: Map<object, number> = new Map(), groups?: RuleGroupRegistry) {
   const needsGqlExtract = configHasGraphQLRule(config);
 
   return function (this: XMLHttpRequest, body?: Document | XMLHttpRequestBodyInit) {
@@ -136,6 +137,7 @@ export function patchXHR(originalXhrSend: (body?: Document | XMLHttpRequestBodyI
         }
         const count = incrementCounter(cors, counters);
         if (!checkCountingCondition(cors, count)) continue;
+        if (!gateGroup(cors, groups, emitter, { url, method })) continue;
         const applied = shouldApplyChaos(cors.probability, random);
         emitter?.emit({
           type: 'network:cors',
@@ -164,6 +166,7 @@ export function patchXHR(originalXhrSend: (body?: Document | XMLHttpRequestBodyI
           }
           continue;
         }
+        if (!gateGroup(abort, groups, emitter, { url, method, timeoutMs: abort.timeout })) continue;
         const applied = shouldApplyChaos(abort.probability, random);
         if (!applied) {
           emitAbortEvent(emitter, abort, url, method, false, gate.outcome);
@@ -240,6 +243,7 @@ export function patchXHR(originalXhrSend: (body?: Document | XMLHttpRequestBodyI
           }
           continue;
         }
+        if (!gateGroup(failure, groups, emitter, { url, method, statusCode: failure.statusCode })) continue;
         const applied = shouldApplyChaos(failure.probability, random);
         emitter?.emit({
           type: 'network:failure',
@@ -292,6 +296,7 @@ export function patchXHR(originalXhrSend: (body?: Document | XMLHttpRequestBodyI
           }
           continue;
         }
+        if (!gateGroup(corruption, groups, emitter, { url, method, strategy: corruption.strategy })) continue;
         const applied = shouldApplyChaos(corruption.probability, random);
         if (!applied) {
           emitCorruptionEvent(emitter, corruption, url, method, false, gate.outcome);
@@ -383,6 +388,7 @@ export function patchXHR(originalXhrSend: (body?: Document | XMLHttpRequestBodyI
           }
           continue;
         }
+        if (!gateGroup(latency, groups, emitter, { url, method, delayMs: latency.delayMs })) continue;
         const applied = shouldApplyChaos(latency.probability, random);
         emitter?.emit({
           type: 'network:latency',
