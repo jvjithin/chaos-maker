@@ -135,28 +135,54 @@ export async function getChaosLog(browser: ChaosBrowser): Promise<ChaosEvent[]> 
  * before the next action that depends on the group being live.
  */
 export async function enableGroup(browser: ChaosBrowser, name: string): Promise<void> {
+  const nameNorm = String(name).trim();
+  if (!nameNorm) {
+    throw new Error('[chaos-maker] group name cannot be empty');
+  }
   await browser.execute((n: string) => {
     const w = window as unknown as {
-      chaosUtils?: { instance: unknown; enableGroup?: (n: string) => unknown };
+      chaosUtils?: {
+        instance: unknown;
+        enableGroup?: (n: string) => { success: boolean; message: string };
+      };
     };
     if (!w.chaosUtils || !w.chaosUtils.instance) {
       throw new Error('[chaos-maker] no chaos instance on page — call injectChaos first');
     }
-    w.chaosUtils.enableGroup?.(n);
-  }, name);
+    if (typeof w.chaosUtils.enableGroup !== 'function') {
+      throw new Error('[chaos-maker] enableGroup API unavailable');
+    }
+    const result = w.chaosUtils.enableGroup(n);
+    if (result && result.success === false) {
+      throw new Error(`[chaos-maker] enableGroup('${n}') failed: ${result.message}`);
+    }
+  }, nameNorm);
 }
 
 /** Disable a rule group at runtime in the page-side chaos engine. */
 export async function disableGroup(browser: ChaosBrowser, name: string): Promise<void> {
+  const nameNorm = String(name).trim();
+  if (!nameNorm) {
+    throw new Error('[chaos-maker] group name cannot be empty');
+  }
   await browser.execute((n: string) => {
     const w = window as unknown as {
-      chaosUtils?: { instance: unknown; disableGroup?: (n: string) => unknown };
+      chaosUtils?: {
+        instance: unknown;
+        disableGroup?: (n: string) => { success: boolean; message: string };
+      };
     };
     if (!w.chaosUtils || !w.chaosUtils.instance) {
       throw new Error('[chaos-maker] no chaos instance on page — call injectChaos first');
     }
-    w.chaosUtils.disableGroup?.(n);
-  }, name);
+    if (typeof w.chaosUtils.disableGroup !== 'function') {
+      throw new Error('[chaos-maker] disableGroup API unavailable');
+    }
+    const result = w.chaosUtils.disableGroup(n);
+    if (result && result.success === false) {
+      throw new Error(`[chaos-maker] disableGroup('${n}') failed: ${result.message}`);
+    }
+  }, nameNorm);
 }
 
 /**

@@ -110,7 +110,11 @@ if (typeof window !== 'undefined') {
 
     getGroupState: (name: string) => {
       if (!chaosUtilsApi.instance) return null;
-      return chaosUtilsApi.instance.getGroupState(name);
+      try {
+        return chaosUtilsApi.instance.getGroupState(name);
+      } catch {
+        return null;
+      }
     },
   };
   

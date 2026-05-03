@@ -124,27 +124,41 @@ export function registerChaosCommands(): void {
   });
 
   Cypress.Commands.add('enableGroup', (name: string) => {
+    const nameNorm = String(name).trim();
+    if (!nameNorm) {
+      throw new Error('[chaos-maker] group name cannot be empty');
+    }
     cy.window({ log: false }).then((win) => {
       const utils = (win as unknown as { chaosUtils?: ChaosUtilsApi }).chaosUtils;
       if (!utils || !utils.instance) {
         throw new Error('[chaos-maker] no chaos instance — call cy.injectChaos() first');
       }
-      const result = utils.enableGroup?.(name);
+      if (typeof utils.enableGroup !== 'function') {
+        throw new Error('[chaos-maker] enableGroup API unavailable');
+      }
+      const result = utils.enableGroup(nameNorm);
       if (result && result.success === false) {
-        throw new Error(`[chaos-maker] enableGroup('${name}') failed: ${result.message}`);
+        throw new Error(`[chaos-maker] enableGroup('${nameNorm}') failed: ${result.message}`);
       }
     });
   });
 
   Cypress.Commands.add('disableGroup', (name: string) => {
+    const nameNorm = String(name).trim();
+    if (!nameNorm) {
+      throw new Error('[chaos-maker] group name cannot be empty');
+    }
     cy.window({ log: false }).then((win) => {
       const utils = (win as unknown as { chaosUtils?: ChaosUtilsApi }).chaosUtils;
       if (!utils || !utils.instance) {
         throw new Error('[chaos-maker] no chaos instance — call cy.injectChaos() first');
       }
-      const result = utils.disableGroup?.(name);
+      if (typeof utils.disableGroup !== 'function') {
+        throw new Error('[chaos-maker] disableGroup API unavailable');
+      }
+      const result = utils.disableGroup(nameNorm);
       if (result && result.success === false) {
-        throw new Error(`[chaos-maker] disableGroup('${name}') failed: ${result.message}`);
+        throw new Error(`[chaos-maker] disableGroup('${nameNorm}') failed: ${result.message}`);
       }
     });
   });

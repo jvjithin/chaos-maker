@@ -173,24 +173,54 @@ export async function getChaosLog(page: Page): Promise<ChaosEvent[]> {
  * the assertion that depends on the group being live.
  */
 export async function enableGroup(page: Page, name: string): Promise<void> {
+  const nameNorm = String(name).trim();
+  if (!nameNorm) {
+    throw new Error('[chaos-maker] group name cannot be empty');
+  }
   await page.evaluate(({ n }: { n: string }) => {
-    const utils = (globalThis as unknown as { chaosUtils?: { instance: unknown; enableGroup?: (n: string) => unknown } }).chaosUtils;
+    const utils = (globalThis as unknown as {
+      chaosUtils?: {
+        instance: unknown;
+        enableGroup?: (n: string) => { success: boolean; message: string };
+      };
+    }).chaosUtils;
     if (!utils || !utils.instance) {
       throw new Error('[chaos-maker] no chaos instance on page — call injectChaos first');
     }
-    utils.enableGroup?.(n);
-  }, { n: name });
+    if (typeof utils.enableGroup !== 'function') {
+      throw new Error('[chaos-maker] enableGroup API unavailable');
+    }
+    const result = utils.enableGroup(n);
+    if (result && result.success === false) {
+      throw new Error(`[chaos-maker] enableGroup('${n}') failed: ${result.message}`);
+    }
+  }, { n: nameNorm });
 }
 
 /** Disable a rule group at runtime in the page-side chaos engine. */
 export async function disableGroup(page: Page, name: string): Promise<void> {
+  const nameNorm = String(name).trim();
+  if (!nameNorm) {
+    throw new Error('[chaos-maker] group name cannot be empty');
+  }
   await page.evaluate(({ n }: { n: string }) => {
-    const utils = (globalThis as unknown as { chaosUtils?: { instance: unknown; disableGroup?: (n: string) => unknown } }).chaosUtils;
+    const utils = (globalThis as unknown as {
+      chaosUtils?: {
+        instance: unknown;
+        disableGroup?: (n: string) => { success: boolean; message: string };
+      };
+    }).chaosUtils;
     if (!utils || !utils.instance) {
       throw new Error('[chaos-maker] no chaos instance on page — call injectChaos first');
     }
-    utils.disableGroup?.(n);
-  }, { n: name });
+    if (typeof utils.disableGroup !== 'function') {
+      throw new Error('[chaos-maker] disableGroup API unavailable');
+    }
+    const result = utils.disableGroup(n);
+    if (result && result.success === false) {
+      throw new Error(`[chaos-maker] disableGroup('${n}') failed: ${result.message}`);
+    }
+  }, { n: nameNorm });
 }
 
 /**

@@ -16,6 +16,8 @@ export interface InjectSWChaosResult {
 
 const BRIDGE_INIT_KEY = Symbol.for('chaos-maker.puppeteer.sw.bridgeInit');
 
+const DEFAULT_SW_TOGGLE_TIMEOUT = 2_000;
+
 // Puppeteer messages raised when no document is committed / context is torn
 // down. These are the only conditions under which we want `page.evaluate`
 // to be a no-op here; anything else (CSP, syntax error, destroyed target
@@ -111,7 +113,11 @@ export async function enableSWGroup(
   name: string,
   opts: SWChaosOptions = {},
 ): Promise<void> {
-  await toggleSWGroup(page, name, true, opts);
+  const nameNorm = String(name).trim();
+  if (!nameNorm) {
+    throw new Error('[chaos-maker] group name cannot be empty');
+  }
+  await toggleSWGroup(page, nameNorm, true, opts);
 }
 
 /** Disable a rule group inside the active SW chaos engine. */
@@ -120,7 +126,11 @@ export async function disableSWGroup(
   name: string,
   opts: SWChaosOptions = {},
 ): Promise<void> {
-  await toggleSWGroup(page, name, false, opts);
+  const nameNorm = String(name).trim();
+  if (!nameNorm) {
+    throw new Error('[chaos-maker] group name cannot be empty');
+  }
+  await toggleSWGroup(page, nameNorm, false, opts);
 }
 
 async function toggleSWGroup(
@@ -129,7 +139,7 @@ async function toggleSWGroup(
   enabled: boolean,
   opts: SWChaosOptions,
 ): Promise<void> {
-  const timeoutMs = opts.timeoutMs ?? 2_000;
+  const timeoutMs = opts.timeoutMs ?? DEFAULT_SW_TOGGLE_TIMEOUT;
   await ensurePageBridge(page);
   await page.evaluate(
     async (n: unknown, e: unknown, t: unknown) => {

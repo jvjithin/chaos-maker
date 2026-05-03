@@ -14,6 +14,8 @@ export interface InjectSWChaosResult {
   seed: number | null;
 }
 
+const DEFAULT_SW_TOGGLE_TIMEOUT = 2_000;
+
 /**
  * Inject chaos into the active page's Service Worker.
  *
@@ -96,7 +98,11 @@ export async function enableSWGroup(
   name: string,
   opts: SWChaosOptions = {},
 ): Promise<void> {
-  await toggleSWGroup(browser, name, true, opts);
+  const nameNorm = String(name).trim();
+  if (!nameNorm) {
+    throw new Error('[chaos-maker] group name cannot be empty');
+  }
+  await toggleSWGroup(browser, nameNorm, true, opts);
 }
 
 /** Disable a rule group inside the active SW chaos engine. */
@@ -105,7 +111,11 @@ export async function disableSWGroup(
   name: string,
   opts: SWChaosOptions = {},
 ): Promise<void> {
-  await toggleSWGroup(browser, name, false, opts);
+  const nameNorm = String(name).trim();
+  if (!nameNorm) {
+    throw new Error('[chaos-maker] group name cannot be empty');
+  }
+  await toggleSWGroup(browser, nameNorm, false, opts);
 }
 
 async function toggleSWGroup(
@@ -114,7 +124,7 @@ async function toggleSWGroup(
   enabled: boolean,
   opts: SWChaosOptions,
 ): Promise<void> {
-  const timeoutMs = opts.timeoutMs ?? 2_000;
+  const timeoutMs = opts.timeoutMs ?? DEFAULT_SW_TOGGLE_TIMEOUT;
   await browser.execute((src: string) => {
     const w = window as unknown as { __chaosMakerSWBridgeInstalled?: boolean };
     if (w.__chaosMakerSWBridgeInstalled) return;

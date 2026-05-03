@@ -22,6 +22,8 @@ export interface InjectSWChaosResult {
 
 const BRIDGE_INIT_KEY = Symbol.for('chaos-maker.playwright.sw.bridgeInit');
 
+const DEFAULT_SW_TOGGLE_TIMEOUT = 2_000;
+
 async function ensurePageBridge(page: Page): Promise<void> {
   // `addInitScript` is additive — call it at most once per Page to prevent
   // listener stacking across re-inject calls. The flag inside the script also
@@ -111,16 +113,24 @@ export async function removeSWChaos(page: Page, opts: SWChaosOptions = {}): Prom
  * acks. Engine state and request counters are preserved (no restart).
  */
 export async function enableSWGroup(page: Page, name: string, opts: SWChaosOptions = {}): Promise<void> {
-  await toggleSWGroup(page, name, true, opts);
+  const nameNorm = String(name).trim();
+  if (!nameNorm) {
+    throw new Error('[chaos-maker] group name cannot be empty');
+  }
+  await toggleSWGroup(page, nameNorm, true, opts);
 }
 
 /** Disable a rule group inside the active SW chaos engine. */
 export async function disableSWGroup(page: Page, name: string, opts: SWChaosOptions = {}): Promise<void> {
-  await toggleSWGroup(page, name, false, opts);
+  const nameNorm = String(name).trim();
+  if (!nameNorm) {
+    throw new Error('[chaos-maker] group name cannot be empty');
+  }
+  await toggleSWGroup(page, nameNorm, false, opts);
 }
 
 async function toggleSWGroup(page: Page, name: string, enabled: boolean, opts: SWChaosOptions): Promise<void> {
-  const timeoutMs = opts.timeoutMs ?? 2_000;
+  const timeoutMs = opts.timeoutMs ?? DEFAULT_SW_TOGGLE_TIMEOUT;
   await ensurePageBridge(page);
   await page.evaluate(
     async ({ n, e, t }: { n: string; e: boolean; t: number }) => {
