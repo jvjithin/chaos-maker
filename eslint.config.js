@@ -48,7 +48,7 @@ export default [
   },
   {
     // Configuration for test files
-    files: ["**/*.test.ts"],
+    files: ["**/*.test.ts", "packages/*/test/**/*.spec.ts"],
     plugins: {
       vitest,
     },

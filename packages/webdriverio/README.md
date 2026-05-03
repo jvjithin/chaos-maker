@@ -63,6 +63,37 @@ await injectChaos(browser, { /* config */ });
 const log = await getChaosLog(browser);
 ```
 
+## Rule Groups
+
+Group rules by scenario and toggle them at runtime.
+
+```ts
+import { ChaosConfigBuilder } from '@chaos-maker/core';
+
+const config = new ChaosConfigBuilder()
+  .defineGroup('payments', { enabled: false })
+  .inGroup('payments')
+  .failRequests('/api/pay', 503, 1)
+  .inGroup('auth')
+  .failRequests('/api/session', 401, 1)
+  .build();
+
+await browser.url('/checkout');
+await browser.injectChaos(config);
+
+await browser.enableGroup('payments');
+await browser.disableGroup('payments');
+```
+
+For Service Worker rules, use the SW commands after `browser.injectSWChaos`:
+
+```ts
+await browser.enableSWGroup('payments');
+await browser.disableSWGroup('payments');
+```
+
+Browser-side `browser.enableGroup` and `browser.disableGroup` affect page rules from `browser.injectChaos`. `browser.enableSWGroup` and `browser.disableSWGroup` affect Service Worker rules from `browser.injectSWChaos`.
+
 ## Important: inject after navigation
 
 WebDriver has no cross-browser pre-navigation hook, so `@chaos-maker/webdriverio` injects chaos **after** `browser.url(...)` completes. Requests issued during the initial page load are not intercepted.
@@ -141,6 +172,14 @@ Read every chaos decision emitted since `injectChaos` was called — applied or 
 
 Read the PRNG seed used by the active chaos instance. Log this on test failure to replay the exact sequence of chaos decisions with a fixed seed.
 
+### `browser.enableGroup(name)` / `browser.disableGroup(name)`
+
+Toggle a browser-side Rule Group. Requires `registerChaosCommands(browser)`.
+
+### `browser.enableSWGroup(name, opts?)` / `browser.disableSWGroup(name, opts?)`
+
+Toggle a Service Worker Rule Group. Requires `registerSWChaosCommands(browser)`. Pass `opts.timeoutMs` to override the Service Worker acknowledgement timeout.
+
 ## Service Worker chaos
 
 Register the SW commands in `wdio.conf.ts`:
@@ -162,11 +201,16 @@ await browser.waitUntil(() =>
   browser.execute(() => !!navigator.serviceWorker.controller),
 );
 await browser.injectSWChaos({
-  network: { failures: [{ urlPattern: '/api/data', statusCode: 503, probability: 1 }] },
+  groups: [{ name: 'payments', enabled: false }],
+  network: {
+    failures: [{ urlPattern: '/api/data', statusCode: 503, probability: 1, group: 'payments' }],
+  },
   seed: 1,
 });
+await browser.enableSWGroup('payments');
 // ...interact...
 const log = await browser.getSWChaosLog();
+await browser.disableSWGroup('payments');
 await browser.removeSWChaos();
 ```
 

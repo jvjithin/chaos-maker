@@ -90,6 +90,49 @@ test('checkout handles combined chaos', async ({ page }) => {
 });
 ```
 
+### Rule Groups
+
+Use Rule Groups to toggle a set of rules during a test without reinjecting chaos.
+
+```ts
+import { test, expect } from '@playwright/test';
+import { ChaosConfigBuilder } from '@chaos-maker/core';
+import {
+  injectChaos,
+  enableGroup,
+  disableGroup,
+  enableSWGroup,
+  disableSWGroup,
+} from '@chaos-maker/playwright';
+
+test('toggles checkout chaos', async ({ page }) => {
+  const config = new ChaosConfigBuilder()
+    .defineGroup('payments', { enabled: false })
+    .inGroup('payments')
+    .failRequests('/api/pay', 503, 1)
+    .build();
+
+  await injectChaos(page, config);
+  await page.goto('/checkout');
+
+  await enableGroup(page, 'payments');
+  await expect(page.getByText('Try again')).toBeVisible();
+
+  await disableGroup(page, 'payments');
+});
+```
+
+With the fixture, the same helpers are available as `chaos.enableGroup(name)` and `chaos.disableGroup(name)`.
+
+For Service Worker rules, use the SW helpers after `injectSWChaos`:
+
+```ts
+await enableSWGroup(page, 'payments');
+await disableSWGroup(page, 'payments');
+```
+
+Browser-side `enableGroup` and `disableGroup` affect page rules from `injectChaos`. `enableSWGroup` and `disableSWGroup` affect Service Worker rules from `injectSWChaos`.
+
 ### SSE and GraphQL
 
 ```ts
@@ -133,6 +176,14 @@ Stop chaos and restore original `fetch`/`XHR`/DOM behavior.
 
 Retrieve the chaos event log from the page. Returns `ChaosEvent[]` — every chaos check emitted since injection, with `applied: true/false`.
 
+### `enableGroup(page, name)` / `disableGroup(page, name)`
+
+Toggle a browser-side Rule Group at runtime.
+
+### `enableSWGroup(page, name, opts?)` / `disableSWGroup(page, name, opts?)`
+
+Toggle a Service Worker Rule Group at runtime. Pass `opts.timeoutMs` to override the Service Worker acknowledgement timeout.
+
 ### Fixture: `chaos`
 
 Available when importing `test` from `@chaos-maker/playwright/fixture`:
@@ -140,6 +191,10 @@ Available when importing `test` from `@chaos-maker/playwright/fixture`:
 - `chaos.inject(config)` — same as `injectChaos(page, config)`
 - `chaos.remove()` — same as `removeChaos(page)` (also called automatically after each test)
 - `chaos.getLog()` — same as `getChaosLog(page)`
+- `chaos.enableGroup(name)` — same as `enableGroup(page, name)`
+- `chaos.disableGroup(name)` — same as `disableGroup(page, name)`
+- `chaos.enableSWGroup(name, opts?)` — same as `enableSWGroup(page, name, opts)`
+- `chaos.disableSWGroup(name, opts?)` — same as `disableSWGroup(page, name, opts)`
 
 ## Debugging with trace
 
@@ -199,18 +254,29 @@ importScripts('/chaos-maker-sw.js');
 ```
 
 ```ts
-import { injectSWChaos, removeSWChaos, getSWChaosLog } from '@chaos-maker/playwright';
+import {
+  injectSWChaos,
+  removeSWChaos,
+  getSWChaosLog,
+  enableSWGroup,
+  disableSWGroup,
+} from '@chaos-maker/playwright';
 
 test('SW-fetched /api returns 503', async ({ page }) => {
   await page.goto('/app-with-sw/');
   // wait for controller after your app's SW registration
   await injectSWChaos(page, {
-    network: { failures: [{ urlPattern: '/api/data', statusCode: 503, probability: 1 }] },
+    groups: [{ name: 'payments', enabled: false }],
+    network: {
+      failures: [{ urlPattern: '/api/data', statusCode: 503, probability: 1, group: 'payments' }],
+    },
     seed: 1,
   });
+  await enableSWGroup(page, 'payments');
   await page.click('#trigger');
   const log = await getSWChaosLog(page);
   expect(log.some(e => e.type === 'network:failure' && e.applied)).toBe(true);
+  await disableSWGroup(page, 'payments');
   await removeSWChaos(page);
 });
 ```

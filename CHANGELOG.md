@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - Unreleased
+
+### Added
+
+- Rule Groups adapter coverage: Playwright, Puppeteer, WebdriverIO, and Cypress now have matching package-level tests for browser-side toggles, default-group behavior, multiple groups, Service Worker group toggles, invalid names, and adapter parity.
+- Rule Groups documentation: the root README and adapter READMEs now cover creating groups, runtime toggles, Service Worker toggles, multiple-group examples, and troubleshooting.
+
 ## [0.4.0] - 2026-04-26
 
 ### Added

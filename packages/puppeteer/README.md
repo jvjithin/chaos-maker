@@ -52,6 +52,27 @@ Returns the full event log (applied + skipped decisions) since `injectChaos` was
 
 Returns the PRNG seed used by the active chaos instance. Log this on test failure to replay the exact sequence.
 
+### `enableGroup(page, name)` / `disableGroup(page, name)`
+
+Enable or disable a browser-side Rule Group at runtime. The promise resolves after the page evaluates the toggle.
+
+```ts
+import { ChaosConfigBuilder } from '@chaos-maker/core';
+import { injectChaos, enableGroup, disableGroup } from '@chaos-maker/puppeteer';
+
+const config = new ChaosConfigBuilder()
+  .defineGroup('payments', { enabled: false })
+  .inGroup('payments')
+  .failRequests('/api/pay', 503, 1)
+  .build();
+
+await injectChaos(page, config);
+await page.goto('http://localhost:3000/checkout');
+
+await enableGroup(page, 'payments');
+await disableGroup(page, 'payments');
+```
+
 ### `useChaos(page, config)`
 
 Convenience helper for `afterEach`-style cleanup — injects chaos and returns an async teardown:
@@ -67,20 +88,33 @@ afterEach(() => teardown());
 ## Service Worker chaos
 
 ```ts
-import { injectSWChaos, removeSWChaos, getSWChaosLog } from '@chaos-maker/puppeteer';
+import {
+  injectSWChaos,
+  removeSWChaos,
+  getSWChaosLog,
+  enableSWGroup,
+  disableSWGroup,
+} from '@chaos-maker/puppeteer';
 
 await page.goto('http://localhost:3000/app-with-sw/');
 await page.waitForFunction(() => !!navigator.serviceWorker.controller);
 await injectSWChaos(page, {
-  network: { failures: [{ urlPattern: '/api/data', statusCode: 503, probability: 1 }] },
+  groups: [{ name: 'payments', enabled: false }],
+  network: {
+    failures: [{ urlPattern: '/api/data', statusCode: 503, probability: 1, group: 'payments' }],
+  },
   seed: 1,
 });
+await enableSWGroup(page, 'payments');
 // ...interact...
 const log = await getSWChaosLog(page);
+await disableSWGroup(page, 'payments');
 await removeSWChaos(page);
 ```
 
 User's SW must `importScripts('/chaos-maker-sw.js')` (classic) or `import { installChaosSW } from '@chaos-maker/core/sw'` (module).
+
+Browser-side `enableGroup` and `disableGroup` affect page rules from `injectChaos`. `enableSWGroup` and `disableSWGroup` affect Service Worker rules from `injectSWChaos`.
 
 ## SSE and GraphQL
 

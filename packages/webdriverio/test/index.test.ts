@@ -101,10 +101,17 @@ describe('@chaos-maker/webdriverio', () => {
   });
 
   describe('registerChaosCommands', () => {
-    it('registers all four commands on the browser', () => {
+    it('registers all browser-side commands on the browser', () => {
       registerChaosCommands(fake.browser);
       const names = fake.addCommandCalls.map((c) => c.name);
-      expect(names).toEqual(['injectChaos', 'removeChaos', 'getChaosLog', 'getChaosSeed']);
+      expect(names).toEqual([
+        'injectChaos',
+        'removeChaos',
+        'getChaosLog',
+        'getChaosSeed',
+        'enableGroup',
+        'disableGroup',
+      ]);
     });
 
     it('throws when addCommand is missing', () => {
