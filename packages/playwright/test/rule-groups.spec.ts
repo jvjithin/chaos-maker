@@ -120,6 +120,7 @@ function startSWRuntime(config: ChaosConfig): Runtime {
     __chaosMakerSWBridge?: { toggleGroup: (name: string, enabled: boolean, timeoutMs: number) => Promise<void> };
   }).__chaosMakerSWBridge = {
     async toggleGroup(name, enabled) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
       if (enabled) {
         utils.instance.enableGroup(name);
       } else {
@@ -197,6 +198,7 @@ describe('@chaos-maker/playwright rule groups', () => {
 
     expect(response.status).toBe(200);
     expect(hasAppliedFailure(runtime.log(), 503)).toBe(false);
+    expect(runtime.log().some((event) => event.type === 'rule-group:gated')).toBe(true);
   });
 
   it('enable then disable group changes real fetch behavior', async () => {
@@ -245,6 +247,18 @@ describe('@chaos-maker/playwright rule groups', () => {
     expect(await readPageGroupState(page, 'non-existent-group')).toEqual({
       hasGroup: true,
       enabled: true,
+    });
+  });
+
+  it('disableGroup auto-registers a non-existent group as disabled', async () => {
+    const page = makePage();
+    track(startRuntime(configWithoutGroup()));
+
+    await disableGroup(page, 'ghost-group');
+
+    expect(await readPageGroupState(page, 'ghost-group')).toEqual({
+      hasGroup: true,
+      enabled: false,
     });
   });
 
