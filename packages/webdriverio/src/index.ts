@@ -130,6 +130,68 @@ export async function getChaosLog(browser: ChaosBrowser): Promise<ChaosEvent[]> 
 }
 
 /**
+ * Enable a rule group at runtime in the page-side chaos engine.
+ * Resolves once `browser.execute` round-trips so the call is safe to await
+ * before the next action that depends on the group being live.
+ */
+export async function enableGroup(browser: ChaosBrowser, name: string): Promise<void> {
+  if (typeof name !== 'string') {
+    throw new Error('[chaos-maker] group name must be a string');
+  }
+  const nameNorm = name.trim();
+  if (!nameNorm) {
+    throw new Error('[chaos-maker] group name cannot be empty');
+  }
+  await browser.execute((n: string) => {
+    const w = window as unknown as {
+      chaosUtils?: {
+        instance: unknown;
+        enableGroup?: (n: string) => { success: boolean; message: string };
+      };
+    };
+    if (!w.chaosUtils || !w.chaosUtils.instance) {
+      throw new Error('[chaos-maker] no chaos instance on page — call injectChaos first');
+    }
+    if (typeof w.chaosUtils.enableGroup !== 'function') {
+      throw new Error('[chaos-maker] enableGroup API unavailable');
+    }
+    const result = w.chaosUtils.enableGroup(n);
+    if (result && result.success === false) {
+      throw new Error(`[chaos-maker] enableGroup('${n}') failed: ${result.message}`);
+    }
+  }, nameNorm);
+}
+
+/** Disable a rule group at runtime in the page-side chaos engine. */
+export async function disableGroup(browser: ChaosBrowser, name: string): Promise<void> {
+  if (typeof name !== 'string') {
+    throw new Error('[chaos-maker] group name must be a string');
+  }
+  const nameNorm = name.trim();
+  if (!nameNorm) {
+    throw new Error('[chaos-maker] group name cannot be empty');
+  }
+  await browser.execute((n: string) => {
+    const w = window as unknown as {
+      chaosUtils?: {
+        instance: unknown;
+        disableGroup?: (n: string) => { success: boolean; message: string };
+      };
+    };
+    if (!w.chaosUtils || !w.chaosUtils.instance) {
+      throw new Error('[chaos-maker] no chaos instance on page — call injectChaos first');
+    }
+    if (typeof w.chaosUtils.disableGroup !== 'function') {
+      throw new Error('[chaos-maker] disableGroup API unavailable');
+    }
+    const result = w.chaosUtils.disableGroup(n);
+    if (result && result.success === false) {
+      throw new Error(`[chaos-maker] disableGroup('${n}') failed: ${result.message}`);
+    }
+  }, nameNorm);
+}
+
+/**
  * Read the PRNG seed used by the active chaos instance. Log this on test
  * failure to replay the exact sequence of chaos decisions with a fixed seed.
  */
@@ -149,7 +211,8 @@ export async function getChaosSeed(browser: ChaosBrowser): Promise<number | null
  * Register chaos-maker's custom WDIO commands on a browser object. After
  * calling this once (typically in `before` hook of `wdio.conf.ts`), tests can
  * call `browser.injectChaos(config)`, `browser.removeChaos()`,
- * `browser.getChaosLog()`, and `browser.getChaosSeed()` directly.
+ * `browser.getChaosLog()`, `browser.getChaosSeed()`,
+ * `browser.enableGroup(name)`, and `browser.disableGroup(name)` directly.
  */
 export function registerChaosCommands(browser: ChaosBrowser): void {
   if (!browser.addCommand) {
@@ -168,6 +231,12 @@ export function registerChaosCommands(browser: ChaosBrowser): void {
   });
   browser.addCommand('getChaosSeed', async function (this: ChaosBrowser) {
     return getChaosSeed(this);
+  });
+  browser.addCommand('enableGroup', async function (this: ChaosBrowser, ...args: unknown[]) {
+    await enableGroup(this, args[0] as string);
+  });
+  browser.addCommand('disableGroup', async function (this: ChaosBrowser, ...args: unknown[]) {
+    await disableGroup(this, args[0] as string);
   });
 }
 
@@ -208,5 +277,7 @@ export {
   getSWChaosLog,
   getSWChaosLogFromSW,
   registerSWChaosCommands,
+  enableSWGroup,
+  disableSWGroup,
 } from './sw';
 export type { SWChaosOptions, InjectSWChaosResult } from './sw';

@@ -13,6 +13,8 @@ interface ChaosUtilsApi {
   stop: () => { success: boolean; message: string };
   getLog: () => ChaosEvent[];
   getSeed: () => number | null;
+  enableGroup?: (name: string) => { success: boolean; message: string };
+  disableGroup?: (name: string) => { success: boolean; message: string };
 }
 
 // Module-level state. Cypress loads the support file once per spec; these
@@ -118,6 +120,52 @@ export function registerChaosCommands(): void {
         return utils.getLog();
       }
       return [];
+    });
+  });
+
+  Cypress.Commands.add('enableGroup', (name: string) => {
+    if (typeof name !== 'string') {
+      throw new Error('[chaos-maker] group name must be a string');
+    }
+    const nameNorm = name.trim();
+    if (!nameNorm) {
+      throw new Error('[chaos-maker] group name cannot be empty');
+    }
+    cy.window({ log: false }).then((win) => {
+      const utils = (win as unknown as { chaosUtils?: ChaosUtilsApi }).chaosUtils;
+      if (!utils || !utils.instance) {
+        throw new Error('[chaos-maker] no chaos instance — call cy.injectChaos() first');
+      }
+      if (typeof utils.enableGroup !== 'function') {
+        throw new Error('[chaos-maker] enableGroup API unavailable');
+      }
+      const result = utils.enableGroup(nameNorm);
+      if (result && result.success === false) {
+        throw new Error(`[chaos-maker] enableGroup('${nameNorm}') failed: ${result.message}`);
+      }
+    });
+  });
+
+  Cypress.Commands.add('disableGroup', (name: string) => {
+    if (typeof name !== 'string') {
+      throw new Error('[chaos-maker] group name must be a string');
+    }
+    const nameNorm = name.trim();
+    if (!nameNorm) {
+      throw new Error('[chaos-maker] group name cannot be empty');
+    }
+    cy.window({ log: false }).then((win) => {
+      const utils = (win as unknown as { chaosUtils?: ChaosUtilsApi }).chaosUtils;
+      if (!utils || !utils.instance) {
+        throw new Error('[chaos-maker] no chaos instance — call cy.injectChaos() first');
+      }
+      if (typeof utils.disableGroup !== 'function') {
+        throw new Error('[chaos-maker] disableGroup API unavailable');
+      }
+      const result = utils.disableGroup(nameNorm);
+      if (result && result.success === false) {
+        throw new Error(`[chaos-maker] disableGroup('${nameNorm}') failed: ${result.message}`);
+      }
     });
   });
 

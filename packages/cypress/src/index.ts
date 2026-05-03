@@ -100,6 +100,24 @@ declare global {
        * debugging a race where the page-side listener may have missed events.
        */
       getSWChaosLogFromSW(options?: SWChaosOptions): Chainable<ChaosEvent[]>;
+
+      /**
+       * Enable a rule group at runtime in the page-side chaos engine.
+       * Auto-creates the group if unknown and emits `rule-group:enabled`.
+       */
+      enableGroup(name: string): Chainable<void>;
+
+      /** Disable a rule group at runtime in the page-side chaos engine. */
+      disableGroup(name: string): Chainable<void>;
+
+      /**
+       * Enable a rule group inside the active SW chaos engine. Resolves only
+       * after the SW acks via MessageChannel.
+       */
+      enableSWGroup(name: string, options?: SWChaosOptions): Chainable<void>;
+
+      /** Disable a rule group inside the active SW chaos engine. */
+      disableSWGroup(name: string, options?: SWChaosOptions): Chainable<void>;
     }
   }
 }

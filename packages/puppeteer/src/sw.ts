@@ -16,6 +16,8 @@ export interface InjectSWChaosResult {
 
 const BRIDGE_INIT_KEY = Symbol.for('chaos-maker.puppeteer.sw.bridgeInit');
 
+const DEFAULT_SW_TOGGLE_TIMEOUT = 2_000;
+
 // Puppeteer messages raised when no document is committed / context is torn
 // down. These are the only conditions under which we want `page.evaluate`
 // to be a no-op here; anything else (CSP, syntax error, destroyed target
@@ -99,6 +101,66 @@ export async function removeSWChaos(page: ChaosPage, opts: SWChaosOptions = {}):
   } catch {
     // Page may be closed during teardown.
   }
+}
+
+/**
+ * Enable a rule group inside the active SW chaos engine. Posts
+ * `__chaosMakerToggleGroup` over MessageChannel and resolves only after the SW
+ * acks. Engine state and request counters are preserved (no restart).
+ */
+export async function enableSWGroup(
+  page: ChaosPage,
+  name: string,
+  opts: SWChaosOptions = {},
+): Promise<void> {
+  if (typeof name !== 'string') {
+    throw new Error('[chaos-maker] group name must be a string');
+  }
+  const nameNorm = name.trim();
+  if (!nameNorm) {
+    throw new Error('[chaos-maker] group name cannot be empty');
+  }
+  await toggleSWGroup(page, nameNorm, true, opts);
+}
+
+/** Disable a rule group inside the active SW chaos engine. */
+export async function disableSWGroup(
+  page: ChaosPage,
+  name: string,
+  opts: SWChaosOptions = {},
+): Promise<void> {
+  if (typeof name !== 'string') {
+    throw new Error('[chaos-maker] group name must be a string');
+  }
+  const nameNorm = name.trim();
+  if (!nameNorm) {
+    throw new Error('[chaos-maker] group name cannot be empty');
+  }
+  await toggleSWGroup(page, nameNorm, false, opts);
+}
+
+async function toggleSWGroup(
+  page: ChaosPage,
+  name: string,
+  enabled: boolean,
+  opts: SWChaosOptions,
+): Promise<void> {
+  const timeoutMs = opts.timeoutMs ?? DEFAULT_SW_TOGGLE_TIMEOUT;
+  await ensurePageBridge(page);
+  await page.evaluate(
+    async (n: unknown, e: unknown, t: unknown) => {
+      const bridge = (globalThis as unknown as {
+        __chaosMakerSWBridge?: {
+          toggleGroup: (n: string, e: boolean, t: number) => Promise<unknown>;
+        };
+      }).__chaosMakerSWBridge;
+      if (!bridge) throw new Error('[chaos-maker] SW bridge missing — ensurePageBridge failed');
+      await bridge.toggleGroup(n as string, e as boolean, t as number);
+    },
+    name as unknown,
+    enabled as unknown,
+    timeoutMs as unknown,
+  );
 }
 
 /** Read SW chaos events buffered on the page side. */

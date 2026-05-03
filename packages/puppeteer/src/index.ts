@@ -154,6 +154,68 @@ export async function getChaosLog(page: ChaosPage): Promise<ChaosEvent[]> {
 }
 
 /**
+ * Enable a rule group at runtime in the page-side chaos engine.
+ * Resolves once `page.evaluate` round-trips so the call is safe to await
+ * before triggering an action that depends on the group being live.
+ */
+export async function enableGroup(page: ChaosPage, name: string): Promise<void> {
+  if (typeof name !== 'string') {
+    throw new Error('[chaos-maker] group name must be a string');
+  }
+  const nameNorm = name.trim();
+  if (!nameNorm) {
+    throw new Error('[chaos-maker] group name cannot be empty');
+  }
+  await page.evaluate((n: unknown) => {
+    const utils = (globalThis as unknown as {
+      chaosUtils?: {
+        instance: unknown;
+        enableGroup?: (n: string) => { success: boolean; message: string };
+      };
+    }).chaosUtils;
+    if (!utils || !utils.instance) {
+      throw new Error('[chaos-maker] no chaos instance on page — call injectChaos first');
+    }
+    if (typeof utils.enableGroup !== 'function') {
+      throw new Error('[chaos-maker] enableGroup API unavailable');
+    }
+    const result = utils.enableGroup(n as string);
+    if (result && result.success === false) {
+      throw new Error(`[chaos-maker] enableGroup('${n as string}') failed: ${result.message}`);
+    }
+  }, nameNorm as unknown);
+}
+
+/** Disable a rule group at runtime in the page-side chaos engine. */
+export async function disableGroup(page: ChaosPage, name: string): Promise<void> {
+  if (typeof name !== 'string') {
+    throw new Error('[chaos-maker] group name must be a string');
+  }
+  const nameNorm = name.trim();
+  if (!nameNorm) {
+    throw new Error('[chaos-maker] group name cannot be empty');
+  }
+  await page.evaluate((n: unknown) => {
+    const utils = (globalThis as unknown as {
+      chaosUtils?: {
+        instance: unknown;
+        disableGroup?: (n: string) => { success: boolean; message: string };
+      };
+    }).chaosUtils;
+    if (!utils || !utils.instance) {
+      throw new Error('[chaos-maker] no chaos instance on page — call injectChaos first');
+    }
+    if (typeof utils.disableGroup !== 'function') {
+      throw new Error('[chaos-maker] disableGroup API unavailable');
+    }
+    const result = utils.disableGroup(n as string);
+    if (result && result.success === false) {
+      throw new Error(`[chaos-maker] disableGroup('${n as string}') failed: ${result.message}`);
+    }
+  }, nameNorm as unknown);
+}
+
+/**
  * Read the PRNG seed used by the active chaos instance. Log this on test
  * failure to replay the exact sequence of chaos decisions with the same seed.
  */
@@ -226,5 +288,7 @@ export {
   getSWChaosLog,
   getSWChaosLogFromSW,
   useSWChaos,
+  enableSWGroup,
+  disableSWGroup,
 } from './sw';
 export type { SWChaosOptions, InjectSWChaosResult } from './sw';

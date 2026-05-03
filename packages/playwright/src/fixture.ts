@@ -6,14 +6,23 @@ import {
   removeChaos,
   getChaosLog,
   getChaosSeed,
+  enableGroup,
+  disableGroup,
+  enableSWGroup,
+  disableSWGroup,
   InjectChaosOptions,
 } from './index';
+import type { SWChaosOptions } from './sw';
 
 export interface ChaosFixture {
   inject: (config: ChaosConfig, opts?: InjectChaosOptions) => Promise<void>;
   remove: () => Promise<void>;
   getLog: () => Promise<ChaosEvent[]>;
   getSeed: () => Promise<number | null>;
+  enableGroup: (name: string) => Promise<void>;
+  disableGroup: (name: string) => Promise<void>;
+  enableSWGroup: (name: string, opts?: SWChaosOptions) => Promise<void>;
+  disableSWGroup: (name: string, opts?: SWChaosOptions) => Promise<void>;
 }
 
 /**
@@ -82,6 +91,10 @@ export const test = base.extend<{ chaos: ChaosFixture }>({
       remove: () => removeChaos(page),
       getLog: () => getChaosLog(page),
       getSeed: () => getChaosSeed(page),
+      enableGroup: (name: string) => enableGroup(page, name),
+      disableGroup: (name: string) => disableGroup(page, name),
+      enableSWGroup: (name: string, opts?: SWChaosOptions) => enableSWGroup(page, name, opts),
+      disableSWGroup: (name: string, opts?: SWChaosOptions) => disableSWGroup(page, name, opts),
     };
     await use(fixture);
     await removeChaos(page);

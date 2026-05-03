@@ -9,6 +9,8 @@
  * Exposes `window.__chaosMakerSWBridge`:
  *  - `apply(cfg, timeoutMs)` — post config over MessageChannel, wait for ack.
  *  - `stop(timeoutMs)` — stop chaos in the SW.
+ *  - `toggleGroup(name, enabled, timeoutMs)` — flip a rule group inside the SW
+ *    via `__chaosMakerToggleGroup`; resolves on ack with no engine restart.
  *  - `getLocalLog()` / `clearLocalLog()` — page-side buffered event log.
  *  - `getRemoteLog(timeoutMs)` — fetch SW's in-memory log.
  *
@@ -105,6 +107,17 @@ export const SW_BRIDGE_SOURCE = /* js */ `
         return Promise.resolve({ running: false });
       }
       return postViaPort(navigator.serviceWorker.controller, { __chaosMakerStop: true }, timeoutMs);
+    },
+    toggleGroup: function (name, enabled, timeoutMs) {
+      if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) {
+        return Promise.reject(new Error('[chaos-maker] no SW controller — call injectSWChaos before toggleGroup'));
+      }
+      var t = (typeof timeoutMs === 'number' && timeoutMs > 0) ? timeoutMs : 2000;
+      return postViaPort(
+        navigator.serviceWorker.controller,
+        { __chaosMakerToggleGroup: { name: String(name), enabled: !!enabled } },
+        t,
+      );
     },
     getLocalLog: function () { return log.slice(); },
     clearLocalLog: function () { log.length = 0; },

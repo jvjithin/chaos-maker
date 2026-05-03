@@ -16,10 +16,13 @@ export interface SWChaosOptions {
 interface SWBridge {
   apply: (cfg: ChaosConfig, timeoutMs: number) => Promise<{ seed: number | null }>;
   stop: (timeoutMs: number) => Promise<unknown>;
+  toggleGroup: (name: string, enabled: boolean, timeoutMs: number) => Promise<unknown>;
   getLocalLog: () => ChaosEvent[];
   clearLocalLog: () => void;
   getRemoteLog: (timeoutMs: number) => Promise<ChaosEvent[]>;
 }
+
+const DEFAULT_SW_TOGGLE_TIMEOUT = 2_000;
 
 function getBridge(win: Cypress.AUTWindow): SWBridge | undefined {
   return (win as unknown as { __chaosMakerSWBridge?: SWBridge }).__chaosMakerSWBridge;
@@ -72,6 +75,40 @@ export function registerSWChaosCommands(): void {
       const bridge = getBridge(win);
       return bridge ? bridge.getLocalLog() : [];
     });
+  });
+
+  Cypress.Commands.add('enableSWGroup', (name: string, options?: SWChaosOptions) => {
+    if (typeof name !== 'string') {
+      throw new Error('[chaos-maker] group name must be a string');
+    }
+    const nameNorm = name.trim();
+    if (!nameNorm) {
+      throw new Error('[chaos-maker] group name cannot be empty');
+    }
+    const timeoutMs = options?.timeoutMs ?? DEFAULT_SW_TOGGLE_TIMEOUT;
+    return cy.window({ log: false }).then((win) => {
+      const bridge = ensureBridge(win);
+      return Cypress.Promise.resolve(bridge.toggleGroup(nameNorm, true, timeoutMs)).then(
+        () => undefined,
+      ) as unknown as Cypress.Chainable<void>;
+    }) as unknown as Cypress.Chainable<void>;
+  });
+
+  Cypress.Commands.add('disableSWGroup', (name: string, options?: SWChaosOptions) => {
+    if (typeof name !== 'string') {
+      throw new Error('[chaos-maker] group name must be a string');
+    }
+    const nameNorm = name.trim();
+    if (!nameNorm) {
+      throw new Error('[chaos-maker] group name cannot be empty');
+    }
+    const timeoutMs = options?.timeoutMs ?? DEFAULT_SW_TOGGLE_TIMEOUT;
+    return cy.window({ log: false }).then((win) => {
+      const bridge = ensureBridge(win);
+      return Cypress.Promise.resolve(bridge.toggleGroup(nameNorm, false, timeoutMs)).then(
+        () => undefined,
+      ) as unknown as Cypress.Chainable<void>;
+    }) as unknown as Cypress.Chainable<void>;
   });
 
   Cypress.Commands.add('getSWChaosLogFromSW', (options?: SWChaosOptions) => {
