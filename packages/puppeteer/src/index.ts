@@ -159,7 +159,10 @@ export async function getChaosLog(page: ChaosPage): Promise<ChaosEvent[]> {
  * before triggering an action that depends on the group being live.
  */
 export async function enableGroup(page: ChaosPage, name: string): Promise<void> {
-  const nameNorm = String(name).trim();
+  if (typeof name !== 'string') {
+    throw new Error('[chaos-maker] group name must be a string');
+  }
+  const nameNorm = name.trim();
   if (!nameNorm) {
     throw new Error('[chaos-maker] group name cannot be empty');
   }
@@ -185,7 +188,10 @@ export async function enableGroup(page: ChaosPage, name: string): Promise<void> 
 
 /** Disable a rule group at runtime in the page-side chaos engine. */
 export async function disableGroup(page: ChaosPage, name: string): Promise<void> {
-  const nameNorm = String(name).trim();
+  if (typeof name !== 'string') {
+    throw new Error('[chaos-maker] group name must be a string');
+  }
+  const nameNorm = name.trim();
   if (!nameNorm) {
     throw new Error('[chaos-maker] group name cannot be empty');
   }

@@ -124,7 +124,10 @@ export function registerChaosCommands(): void {
   });
 
   Cypress.Commands.add('enableGroup', (name: string) => {
-    const nameNorm = String(name).trim();
+    if (typeof name !== 'string') {
+      throw new Error('[chaos-maker] group name must be a string');
+    }
+    const nameNorm = name.trim();
     if (!nameNorm) {
       throw new Error('[chaos-maker] group name cannot be empty');
     }
@@ -144,7 +147,10 @@ export function registerChaosCommands(): void {
   });
 
   Cypress.Commands.add('disableGroup', (name: string) => {
-    const nameNorm = String(name).trim();
+    if (typeof name !== 'string') {
+      throw new Error('[chaos-maker] group name must be a string');
+    }
+    const nameNorm = name.trim();
     if (!nameNorm) {
       throw new Error('[chaos-maker] group name cannot be empty');
     }

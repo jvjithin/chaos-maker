@@ -113,7 +113,10 @@ export async function removeSWChaos(page: Page, opts: SWChaosOptions = {}): Prom
  * acks. Engine state and request counters are preserved (no restart).
  */
 export async function enableSWGroup(page: Page, name: string, opts: SWChaosOptions = {}): Promise<void> {
-  const nameNorm = String(name).trim();
+  if (typeof name !== 'string') {
+    throw new Error('[chaos-maker] group name must be a string');
+  }
+  const nameNorm = name.trim();
   if (!nameNorm) {
     throw new Error('[chaos-maker] group name cannot be empty');
   }
@@ -122,7 +125,10 @@ export async function enableSWGroup(page: Page, name: string, opts: SWChaosOptio
 
 /** Disable a rule group inside the active SW chaos engine. */
 export async function disableSWGroup(page: Page, name: string, opts: SWChaosOptions = {}): Promise<void> {
-  const nameNorm = String(name).trim();
+  if (typeof name !== 'string') {
+    throw new Error('[chaos-maker] group name must be a string');
+  }
+  const nameNorm = name.trim();
   if (!nameNorm) {
     throw new Error('[chaos-maker] group name cannot be empty');
   }
