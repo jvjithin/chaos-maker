@@ -6,6 +6,7 @@ import {
   enableGroup,
   disableGroup,
   enableSWGroup,
+  disableSWGroup,
 } from '../src/index';
 
 type ChaosUtilsHarness = {
@@ -13,6 +14,7 @@ type ChaosUtilsHarness = {
   getLog: () => ChaosEvent[];
   enableGroup: (name: string) => { success: boolean; message: string };
   disableGroup: (name: string) => { success: boolean; message: string };
+  getGroupState: (name: string) => boolean | null;
 };
 
 type Runtime = {
@@ -83,6 +85,7 @@ function makeUtils(instance: ChaosMaker): ChaosUtilsHarness {
         return { success: false, message: error instanceof Error ? error.message : String(error) };
       }
     },
+    getGroupState: (name) => instance.getGroupState(name),
   };
 }
 
@@ -157,6 +160,22 @@ function hasAppliedFailure(log: ChaosEvent[], statusCode: number): boolean {
   );
 }
 
+function countAppliedFailures(log: ChaosEvent[], statusCode: number): number {
+  return log.filter(
+    (event) => event.type === 'network:failure' && event.applied && event.detail.statusCode === statusCode,
+  ).length;
+}
+
+async function readPageGroupState(page: Page, name: string): Promise<{ hasGroup: boolean; enabled: boolean | null }> {
+  return page.evaluate(({ n }: { n: string }) => {
+    const utils = (globalThis as unknown as { chaosUtils?: ChaosUtilsHarness }).chaosUtils;
+    return {
+      hasGroup: utils?.instance.hasGroup(n) ?? false,
+      enabled: utils?.getGroupState(n) ?? null,
+    };
+  }, { n: name });
+}
+
 describe('@chaos-maker/playwright rule groups', () => {
   it('enable group executes grouped rule', async () => {
     const page = makePage();
@@ -178,6 +197,20 @@ describe('@chaos-maker/playwright rule groups', () => {
 
     expect(response.status).toBe(200);
     expect(hasAppliedFailure(runtime.log(), 503)).toBe(false);
+  });
+
+  it('enable then disable group changes real fetch behavior', async () => {
+    const page = makePage();
+    const runtime = track(startRuntime(configWithPaymentGroupInitiallyDisabled()));
+
+    await enableGroup(page, 'payments');
+    const enabled = await runtime.request('/api/pay');
+    await disableGroup(page, 'payments');
+    const disabled = await runtime.request('/api/pay');
+
+    expect(enabled.status).toBe(503);
+    expect(disabled.status).toBe(200);
+    expect(countAppliedFailures(runtime.log(), 503)).toBe(1);
   });
 
   it('rules without inGroup still execute through the default group', async () => {
@@ -203,17 +236,43 @@ describe('@chaos-maker/playwright rule groups', () => {
     expect(hasAppliedFailure(runtime.log(), 401)).toBe(true);
   });
 
+  it('enableGroup auto-registers a non-existent group as enabled', async () => {
+    const page = makePage();
+    track(startRuntime(configWithoutGroup()));
+
+    await enableGroup(page, 'non-existent-group');
+
+    expect(await readPageGroupState(page, 'non-existent-group')).toEqual({
+      hasGroup: true,
+      enabled: true,
+    });
+  });
+
+  it('reflects group state through the page realm chaosUtils contract', async () => {
+    const page = makePage();
+    track(startRuntime(configWithPaymentGroupInitiallyDisabled()));
+
+    await enableGroup(page, 'payments');
+    expect((await readPageGroupState(page, 'payments')).enabled).toBe(true);
+
+    await disableGroup(page, 'payments');
+    expect((await readPageGroupState(page, 'payments')).enabled).toBe(false);
+  });
+
   it('enableSWGroup enables grouped Service Worker chaos', async () => {
     const page = makePage();
     const runtime = track(startSWRuntime(configWithPaymentGroupInitiallyDisabled()));
 
     const before = await runtime.request('/api/pay');
     await enableSWGroup(page, 'payments');
-    const after = await runtime.request('/api/pay');
+    const afterEnable = await runtime.request('/api/pay');
+    await disableSWGroup(page, 'payments');
+    const afterDisable = await runtime.request('/api/pay');
 
     expect(before.status).toBe(200);
-    expect(after.status).toBe(503);
-    expect(hasAppliedFailure(runtime.log(), 503)).toBe(true);
+    expect(afterEnable.status).toBe(503);
+    expect(afterDisable.status).toBe(200);
+    expect(countAppliedFailures(runtime.log(), 503)).toBe(1);
   });
 
   it('invalid group names throw errors before page evaluation', async () => {
