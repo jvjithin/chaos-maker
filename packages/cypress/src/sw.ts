@@ -16,6 +16,7 @@ export interface SWChaosOptions {
 interface SWBridge {
   apply: (cfg: ChaosConfig, timeoutMs: number) => Promise<{ seed: number | null }>;
   stop: (timeoutMs: number) => Promise<unknown>;
+  toggleGroup: (name: string, enabled: boolean, timeoutMs: number) => Promise<unknown>;
   getLocalLog: () => ChaosEvent[];
   clearLocalLog: () => void;
   getRemoteLog: (timeoutMs: number) => Promise<ChaosEvent[]>;
@@ -72,6 +73,26 @@ export function registerSWChaosCommands(): void {
       const bridge = getBridge(win);
       return bridge ? bridge.getLocalLog() : [];
     });
+  });
+
+  Cypress.Commands.add('enableSWGroup', (name: string, options?: SWChaosOptions) => {
+    const timeoutMs = options?.timeoutMs ?? 2_000;
+    return cy.window({ log: false }).then((win) => {
+      const bridge = ensureBridge(win);
+      return Cypress.Promise.resolve(bridge.toggleGroup(name, true, timeoutMs)).then(
+        () => undefined,
+      ) as unknown as Cypress.Chainable<void>;
+    }) as unknown as Cypress.Chainable<void>;
+  });
+
+  Cypress.Commands.add('disableSWGroup', (name: string, options?: SWChaosOptions) => {
+    const timeoutMs = options?.timeoutMs ?? 2_000;
+    return cy.window({ log: false }).then((win) => {
+      const bridge = ensureBridge(win);
+      return Cypress.Promise.resolve(bridge.toggleGroup(name, false, timeoutMs)).then(
+        () => undefined,
+      ) as unknown as Cypress.Chainable<void>;
+    }) as unknown as Cypress.Chainable<void>;
   });
 
   Cypress.Commands.add('getSWChaosLogFromSW', (options?: SWChaosOptions) => {

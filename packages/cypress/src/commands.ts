@@ -13,6 +13,8 @@ interface ChaosUtilsApi {
   stop: () => { success: boolean; message: string };
   getLog: () => ChaosEvent[];
   getSeed: () => number | null;
+  enableGroup?: (name: string) => { success: boolean; message: string };
+  disableGroup?: (name: string) => { success: boolean; message: string };
 }
 
 // Module-level state. Cypress loads the support file once per spec; these
@@ -118,6 +120,32 @@ export function registerChaosCommands(): void {
         return utils.getLog();
       }
       return [];
+    });
+  });
+
+  Cypress.Commands.add('enableGroup', (name: string) => {
+    cy.window({ log: false }).then((win) => {
+      const utils = (win as unknown as { chaosUtils?: ChaosUtilsApi }).chaosUtils;
+      if (!utils || !utils.instance) {
+        throw new Error('[chaos-maker] no chaos instance — call cy.injectChaos() first');
+      }
+      const result = utils.enableGroup?.(name);
+      if (result && result.success === false) {
+        throw new Error(`[chaos-maker] enableGroup('${name}') failed: ${result.message}`);
+      }
+    });
+  });
+
+  Cypress.Commands.add('disableGroup', (name: string) => {
+    cy.window({ log: false }).then((win) => {
+      const utils = (win as unknown as { chaosUtils?: ChaosUtilsApi }).chaosUtils;
+      if (!utils || !utils.instance) {
+        throw new Error('[chaos-maker] no chaos instance — call cy.injectChaos() first');
+      }
+      const result = utils.disableGroup?.(name);
+      if (result && result.success === false) {
+        throw new Error(`[chaos-maker] disableGroup('${name}') failed: ${result.message}`);
+      }
     });
   });
 
