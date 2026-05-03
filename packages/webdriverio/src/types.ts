@@ -13,6 +13,10 @@ declare global {
       removeSWChaos(options?: SWChaosOptions): Promise<void>;
       getSWChaosLog(): Promise<ChaosEvent[]>;
       getSWChaosLogFromSW(options?: SWChaosOptions): Promise<ChaosEvent[]>;
+      enableGroup(name: string): Promise<void>;
+      disableGroup(name: string): Promise<void>;
+      enableSWGroup(name: string, options?: SWChaosOptions): Promise<void>;
+      disableSWGroup(name: string, options?: SWChaosOptions): Promise<void>;
     }
   }
 }

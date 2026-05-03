@@ -130,6 +130,36 @@ export async function getChaosLog(browser: ChaosBrowser): Promise<ChaosEvent[]> 
 }
 
 /**
+ * Enable a rule group at runtime in the page-side chaos engine.
+ * Resolves once `browser.execute` round-trips so the call is safe to await
+ * before the next action that depends on the group being live.
+ */
+export async function enableGroup(browser: ChaosBrowser, name: string): Promise<void> {
+  await browser.execute((n: string) => {
+    const w = window as unknown as {
+      chaosUtils?: { instance: unknown; enableGroup?: (n: string) => unknown };
+    };
+    if (!w.chaosUtils || !w.chaosUtils.instance) {
+      throw new Error('[chaos-maker] no chaos instance on page — call injectChaos first');
+    }
+    w.chaosUtils.enableGroup?.(n);
+  }, name);
+}
+
+/** Disable a rule group at runtime in the page-side chaos engine. */
+export async function disableGroup(browser: ChaosBrowser, name: string): Promise<void> {
+  await browser.execute((n: string) => {
+    const w = window as unknown as {
+      chaosUtils?: { instance: unknown; disableGroup?: (n: string) => unknown };
+    };
+    if (!w.chaosUtils || !w.chaosUtils.instance) {
+      throw new Error('[chaos-maker] no chaos instance on page — call injectChaos first');
+    }
+    w.chaosUtils.disableGroup?.(n);
+  }, name);
+}
+
+/**
  * Read the PRNG seed used by the active chaos instance. Log this on test
  * failure to replay the exact sequence of chaos decisions with a fixed seed.
  */
@@ -168,6 +198,12 @@ export function registerChaosCommands(browser: ChaosBrowser): void {
   });
   browser.addCommand('getChaosSeed', async function (this: ChaosBrowser) {
     return getChaosSeed(this);
+  });
+  browser.addCommand('enableGroup', async function (this: ChaosBrowser, ...args: unknown[]) {
+    await enableGroup(this, args[0] as string);
+  });
+  browser.addCommand('disableGroup', async function (this: ChaosBrowser, ...args: unknown[]) {
+    await disableGroup(this, args[0] as string);
   });
 }
 
@@ -208,5 +244,7 @@ export {
   getSWChaosLog,
   getSWChaosLogFromSW,
   registerSWChaosCommands,
+  enableSWGroup,
+  disableSWGroup,
 } from './sw';
 export type { SWChaosOptions, InjectSWChaosResult } from './sw';

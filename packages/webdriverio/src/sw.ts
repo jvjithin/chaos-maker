@@ -86,6 +86,60 @@ export async function removeSWChaos(browser: ChaosBrowser, opts: SWChaosOptions 
   }
 }
 
+/**
+ * Enable a rule group inside the active SW chaos engine. Posts
+ * `__chaosMakerToggleGroup` over MessageChannel and resolves only after the SW
+ * acks. Engine state and request counters are preserved (no restart).
+ */
+export async function enableSWGroup(
+  browser: ChaosBrowser,
+  name: string,
+  opts: SWChaosOptions = {},
+): Promise<void> {
+  await toggleSWGroup(browser, name, true, opts);
+}
+
+/** Disable a rule group inside the active SW chaos engine. */
+export async function disableSWGroup(
+  browser: ChaosBrowser,
+  name: string,
+  opts: SWChaosOptions = {},
+): Promise<void> {
+  await toggleSWGroup(browser, name, false, opts);
+}
+
+async function toggleSWGroup(
+  browser: ChaosBrowser,
+  name: string,
+  enabled: boolean,
+  opts: SWChaosOptions,
+): Promise<void> {
+  const timeoutMs = opts.timeoutMs ?? 2_000;
+  await browser.execute((src: string) => {
+    const w = window as unknown as { __chaosMakerSWBridgeInstalled?: boolean };
+    if (w.__chaosMakerSWBridgeInstalled) return;
+    const script = document.createElement('script');
+    script.textContent = src;
+    (document.head || document.documentElement).appendChild(script);
+    script.remove();
+  }, SW_BRIDGE_SOURCE);
+
+  await browser.execute(
+    async (n: string, e: boolean, t: number) => {
+      const bridge = (window as unknown as {
+        __chaosMakerSWBridge?: {
+          toggleGroup: (n: string, e: boolean, t: number) => Promise<unknown>;
+        };
+      }).__chaosMakerSWBridge;
+      if (!bridge) throw new Error('[chaos-maker] SW bridge missing — install failed');
+      await bridge.toggleGroup(n, e, t);
+    },
+    name,
+    enabled,
+    timeoutMs,
+  );
+}
+
 /** Read SW chaos events buffered on the page side. */
 export async function getSWChaosLog(browser: ChaosBrowser): Promise<ChaosEvent[]> {
   return browser.execute(() => {
@@ -134,5 +188,11 @@ export function registerSWChaosCommands(browser: ChaosBrowser): void {
   });
   browser.addCommand('getSWChaosLogFromSW', async function (this: ChaosBrowser, ...args: unknown[]) {
     return getSWChaosLogFromSW(this, args[0] as SWChaosOptions | undefined);
+  });
+  browser.addCommand('enableSWGroup', async function (this: ChaosBrowser, ...args: unknown[]) {
+    await enableSWGroup(this, args[0] as string, args[1] as SWChaosOptions | undefined);
+  });
+  browser.addCommand('disableSWGroup', async function (this: ChaosBrowser, ...args: unknown[]) {
+    await disableSWGroup(this, args[0] as string, args[1] as SWChaosOptions | undefined);
   });
 }
