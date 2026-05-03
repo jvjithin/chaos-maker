@@ -154,6 +154,36 @@ export async function getChaosLog(page: ChaosPage): Promise<ChaosEvent[]> {
 }
 
 /**
+ * Enable a rule group at runtime in the page-side chaos engine.
+ * Resolves once `page.evaluate` round-trips so the call is safe to await
+ * before triggering an action that depends on the group being live.
+ */
+export async function enableGroup(page: ChaosPage, name: string): Promise<void> {
+  await page.evaluate((n: unknown) => {
+    const utils = (globalThis as unknown as {
+      chaosUtils?: { instance: unknown; enableGroup?: (n: string) => unknown };
+    }).chaosUtils;
+    if (!utils || !utils.instance) {
+      throw new Error('[chaos-maker] no chaos instance on page — call injectChaos first');
+    }
+    utils.enableGroup?.(n as string);
+  }, name as unknown);
+}
+
+/** Disable a rule group at runtime in the page-side chaos engine. */
+export async function disableGroup(page: ChaosPage, name: string): Promise<void> {
+  await page.evaluate((n: unknown) => {
+    const utils = (globalThis as unknown as {
+      chaosUtils?: { instance: unknown; disableGroup?: (n: string) => unknown };
+    }).chaosUtils;
+    if (!utils || !utils.instance) {
+      throw new Error('[chaos-maker] no chaos instance on page — call injectChaos first');
+    }
+    utils.disableGroup?.(n as string);
+  }, name as unknown);
+}
+
+/**
  * Read the PRNG seed used by the active chaos instance. Log this on test
  * failure to replay the exact sequence of chaos decisions with the same seed.
  */
@@ -226,5 +256,7 @@ export {
   getSWChaosLog,
   getSWChaosLogFromSW,
   useSWChaos,
+  enableSWGroup,
+  disableSWGroup,
 } from './sw';
 export type { SWChaosOptions, InjectSWChaosResult } from './sw';

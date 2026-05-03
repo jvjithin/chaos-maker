@@ -101,6 +101,52 @@ export async function removeSWChaos(page: ChaosPage, opts: SWChaosOptions = {}):
   }
 }
 
+/**
+ * Enable a rule group inside the active SW chaos engine. Posts
+ * `__chaosMakerToggleGroup` over MessageChannel and resolves only after the SW
+ * acks. Engine state and request counters are preserved (no restart).
+ */
+export async function enableSWGroup(
+  page: ChaosPage,
+  name: string,
+  opts: SWChaosOptions = {},
+): Promise<void> {
+  await toggleSWGroup(page, name, true, opts);
+}
+
+/** Disable a rule group inside the active SW chaos engine. */
+export async function disableSWGroup(
+  page: ChaosPage,
+  name: string,
+  opts: SWChaosOptions = {},
+): Promise<void> {
+  await toggleSWGroup(page, name, false, opts);
+}
+
+async function toggleSWGroup(
+  page: ChaosPage,
+  name: string,
+  enabled: boolean,
+  opts: SWChaosOptions,
+): Promise<void> {
+  const timeoutMs = opts.timeoutMs ?? 2_000;
+  await ensurePageBridge(page);
+  await page.evaluate(
+    async (n: unknown, e: unknown, t: unknown) => {
+      const bridge = (globalThis as unknown as {
+        __chaosMakerSWBridge?: {
+          toggleGroup: (n: string, e: boolean, t: number) => Promise<unknown>;
+        };
+      }).__chaosMakerSWBridge;
+      if (!bridge) throw new Error('[chaos-maker] SW bridge missing — ensurePageBridge failed');
+      await bridge.toggleGroup(n as string, e as boolean, t as number);
+    },
+    name as unknown,
+    enabled as unknown,
+    timeoutMs as unknown,
+  );
+}
+
 /** Read SW chaos events buffered on the page side. */
 export async function getSWChaosLog(page: ChaosPage): Promise<ChaosEvent[]> {
   return page.evaluate(() => {
