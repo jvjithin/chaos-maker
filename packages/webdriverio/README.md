@@ -26,7 +26,12 @@ export const config: WebdriverIO.Config = {
 };
 ```
 
-That's it. Every spec now has `browser.injectChaos`, `browser.removeChaos`, `browser.getChaosLog`, `browser.getChaosSeed`, `browser.enableGroup`, `browser.disableGroup`, and the Service Worker helpers.
+That's it. Every spec now has `browser.injectChaos`, `browser.removeChaos`, `browser.getChaosLog`, `browser.getChaosSeed`, `browser.enableGroup`, `browser.disableGroup`, and the Service Worker group helpers:
+
+- `browser.enableSWGroup(name)`
+- `browser.disableSWGroup(name)`
+
+These mirror browser-side `browser.enableGroup(name)` and `browser.disableGroup(name)` but operate in the Service Worker context.
 
 ## Usage
 
@@ -96,7 +101,27 @@ await $('#refresh').click();
 
 ### `registerChaosCommands(browser)`
 
-Attach the `injectChaos`, `removeChaos`, `getChaosLog`, `getChaosSeed`, `enableGroup`, and `disableGroup` methods as custom commands on the given `browser` object. Call once in `wdio.conf.ts`' `before` hook.
+Attach browser-side custom commands on the given `browser` object. Call once in `wdio.conf.ts`' `before` hook.
+
+Registers:
+
+- `browser.injectChaos(config)`
+- `browser.removeChaos()`
+- `browser.getChaosLog()`
+- `browser.getChaosSeed()`
+- `browser.enableGroup(name)`
+- `browser.disableGroup(name)`
+
+Service Worker commands are registered separately with `registerSWChaosCommands(browser)`.
+
+### `registerSWChaosCommands(browser)`
+
+Attach Service Worker-specific commands on the given `browser` object. This includes the Service Worker group helpers:
+
+- `browser.enableSWGroup(name)`
+- `browser.disableSWGroup(name)`
+
+These mirror browser-side `browser.enableGroup(name)` and `browser.disableGroup(name)` but operate in the Service Worker context.
 
 ### `injectChaos(browser, config)`
 
