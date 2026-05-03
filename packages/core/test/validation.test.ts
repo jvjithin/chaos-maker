@@ -605,5 +605,15 @@ describe('validateConfig', () => {
       const parsed = validateConfig({ groups: [{ name: 'payments ' }] });
       expect(parsed.groups![0].name).toBe('payments');
     });
+
+    it('rejects duplicate group names after normalization', () => {
+      const config = {
+        groups: [
+          { name: 'payments' },
+          { name: ' payments ' },
+        ],
+      };
+      expect(() => validateConfig(config)).toThrow(ChaosConfigError);
+    });
   });
 });

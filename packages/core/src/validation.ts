@@ -223,12 +223,28 @@ const groupConfigSchema = z.object({
   enabled: z.boolean().optional(),
 }).strict();
 
+const groupConfigListSchema = z.array(groupConfigSchema).superRefine((groups, ctx) => {
+  const seen = new Set<string>();
+  for (const [index, group] of groups.entries()) {
+    const norm = group.name.trim();
+    if (seen.has(norm)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'duplicate group name after normalization',
+        path: [index, 'name'],
+      });
+      continue;
+    }
+    seen.add(norm);
+  }
+});
+
 const chaosConfigSchema = z.object({
   network: networkConfigSchema.optional(),
   ui: uiConfigSchema.optional(),
   websocket: webSocketConfigSchema.optional(),
   sse: sseConfigSchema.optional(),
-  groups: z.array(groupConfigSchema).optional(),
+  groups: groupConfigListSchema.optional(),
   seed: z.number().int('Seed must be an integer').optional(),
 }).strict();
 

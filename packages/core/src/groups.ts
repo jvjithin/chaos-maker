@@ -106,11 +106,17 @@ export class RuleGroupRegistry {
         `[chaos-maker] Cannot remove group '${name}': still referenced by one or more rules. Pass { force: true } to override.`,
       );
     }
-    return this.groups.delete(name);
+    const removed = this.groups.delete(name);
+    if (removed) {
+      this.gatedEmitted.delete(name);
+    }
+    return removed;
   }
 
   list(): RuleGroup[] {
-    return [...this.groups.values()];
+    return [...this.groups.values()].map(
+      g => ({ ...g })
+    );
   }
 
   getSnapshot(): Record<string, boolean> {

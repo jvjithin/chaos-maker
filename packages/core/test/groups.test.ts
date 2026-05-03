@@ -114,6 +114,15 @@ describe('RuleGroupRegistry', () => {
       expect(r.has('payments')).toBe(false);
       expect(r.isActive('payments')).toBe(true); // auto-create default-on
     });
+
+    it('clears gated dedup state after a successful removal', () => {
+      const r = new RuleGroupRegistry();
+      r.ensure('payments', { enabled: false, explicit: true });
+      expect(r.shouldEmitGated('payments')).toBe(true);
+      expect(r.remove('payments', new Set())).toBe(true);
+      r.ensure('payments', { enabled: false, explicit: true });
+      expect(r.shouldEmitGated('payments')).toBe(true);
+    });
   });
 
   describe('getSnapshot / list', () => {
@@ -130,6 +139,14 @@ describe('RuleGroupRegistry', () => {
       r.isActive('b'); // implicit
       const byName = Object.fromEntries(r.list().map((g) => [g.name, g.explicit]));
       expect(byName).toEqual({ a: true, b: false });
+    });
+
+    it('list returns defensive copies', () => {
+      const r = new RuleGroupRegistry();
+      r.ensure('a', { enabled: true, explicit: true });
+      const [listed] = r.list();
+      listed.enabled = false;
+      expect(r.isActive('a')).toBe(true);
     });
   });
 });

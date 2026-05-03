@@ -152,12 +152,14 @@ export class ChaosMaker {
   }
 
   public hasGroup(name: string): boolean {
-    return this.groups.has(name);
+    const nameNorm = normalizeGroupName(name);
+    return this.groups.has(nameNorm);
   }
 
   /** True iff the named group is currently enabled (auto-creates unknown names). */
   public getGroupState(name: string): boolean {
-    return this.groups.isActive(name);
+    const nameNorm = normalizeGroupName(name);
+    return this.groups.isActive(nameNorm);
   }
 
   /** Snapshot of every known group as `{ name: enabled }`. */

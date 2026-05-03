@@ -330,7 +330,15 @@ export function installChaosSW(opts: InstallChaosSWOptions = {}): SWChaosHandle 
     }
 
     if (asCfg.__chaosMakerToggleGroup) {
-      const { name, enabled } = asCfg.__chaosMakerToggleGroup;
+      const { name: rawName, enabled } = asCfg.__chaosMakerToggleGroup;
+      const name = rawName.trim();
+      if (!name) {
+        replyViaPortOrBroadcast(target, evt, {
+          __chaosMakerAck: true,
+          running: state.running,
+        } satisfies ChaosSWAck);
+        return;
+      }
       state.groups.setEnabled(name, enabled);
       state.emitter.emit({
         type: enabled ? 'rule-group:enabled' : 'rule-group:disabled',

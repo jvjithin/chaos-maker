@@ -1,6 +1,6 @@
 import { NetworkAbortConfig, NetworkConfig, NetworkCorruptionConfig, NetworkRuleMatchers } from '../config';
 import { shouldApplyChaos, corruptText, matchUrl, incrementCounter, checkCountingCondition, gateGroup } from '../utils';
-import { DEFAULT_GROUP_NAME, type RuleGroupRegistry } from '../groups';
+import type { RuleGroupRegistry } from '../groups';
 import {
   evaluateGraphQLRule,
   extractGraphQLOperation,
@@ -388,18 +388,7 @@ export function patchXHR(originalXhrSend: (body?: Document | XMLHttpRequestBodyI
           }
           continue;
         }
-        if (groups && !groups.isActive(latency.group)) {
-          const groupName = latency.group ?? DEFAULT_GROUP_NAME;
-          if (groups.shouldEmitGated(groupName)) {
-            emitter?.emit({
-              type: 'rule-group:gated',
-              timestamp: Date.now(),
-              applied: false,
-              detail: { url, method, groupName },
-            });
-          }
-          continue;
-        }
+        if (!gateGroup(latency, groups, emitter, { url, method, delayMs: latency.delayMs })) continue;
         const applied = shouldApplyChaos(latency.probability, random);
         emitter?.emit({
           type: 'network:latency',

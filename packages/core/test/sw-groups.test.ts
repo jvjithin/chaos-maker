@@ -209,6 +209,42 @@ describe('SW chaos - rule groups', () => {
     handle.uninstall();
   });
 
+  it('__chaosMakerToggleGroup trims names and rejects empty normalized names', async () => {
+    const target = makeSWTarget([]);
+    const { installChaosSW } = await importSwWithTarget(target);
+    const handle = installChaosSW();
+
+    const cfg: ChaosConfig = {
+      network: {
+        failures: [
+          { urlPattern: '/api/pay', statusCode: 500, probability: 1, group: 'payments' },
+        ],
+      },
+      seed: 13,
+    };
+    target.dispatchMessage({ __chaosMakerConfig: cfg });
+    await flushMicrotasks();
+
+    const emptyPort = makePort();
+    target.dispatchMessage({ __chaosMakerToggleGroup: { name: '   ', enabled: false } }, [emptyPort]);
+    expect(emptyPort.messages).toEqual([
+      { __chaosMakerAck: true, running: true },
+    ]);
+    expect(handle.getLog().some((e) => e.type === 'rule-group:disabled')).toBe(false);
+
+    const disablePort = makePort();
+    target.dispatchMessage({ __chaosMakerToggleGroup: { name: ' payments ', enabled: false } }, [disablePort]);
+    expect(disablePort.messages).toEqual([
+      { __chaosMakerAck: true, running: true },
+    ]);
+
+    const gated = await target.fetch('/api/pay');
+    expect(gated.status).toBe(200);
+    expect(handle.getLog().some((e) => e.type === 'rule-group:gated' && e.detail.groupName === 'payments')).toBe(true);
+
+    handle.uninstall();
+  });
+
   it('broadcasts rule-group:gated events to controlled clients', async () => {
     const client = makeFakeClient('a');
     const target = makeSWTarget([client]);

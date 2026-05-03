@@ -24,6 +24,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   // Ensure originals are restored after each test
   global.XMLHttpRequest.prototype.open = originalXhrOpen;
   global.XMLHttpRequest.prototype.send = originalXhrSend;
@@ -125,7 +126,6 @@ describe('patchXHR (send)', () => {
     // Now it should have been called
     expect(mockXhrSend).toHaveBeenCalled();
 
-    vi.useRealTimers(); // Restore real timers
   });
 
   it('should not add latency when the matching rule group is disabled', () => {
@@ -160,7 +160,6 @@ describe('patchXHR (send)', () => {
         }),
       }),
     ]);
-    vi.useRealTimers();
   });
 
   it('should force a CORS error for a matching URL', () => {
@@ -226,7 +225,6 @@ describe('patchXHR (send)', () => {
     expect(mockXhrAbort).toHaveBeenCalledTimes(1);
     expect(xhr.status).toBe(0);
     expect(abortSpy).toHaveBeenCalledWith(new Event('abort'));
-    vi.useRealTimers();
   });
 
   it('should corrupt response text according to truncate strategy', () => {
@@ -368,6 +366,5 @@ describe('patchXHR (send)', () => {
         }),
       }),
     ]);
-    vi.useRealTimers();
   });
 });
