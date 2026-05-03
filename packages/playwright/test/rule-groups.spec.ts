@@ -26,8 +26,23 @@ type Runtime = {
 const cleanups: Array<() => void> = [];
 
 afterEach(() => {
+  const errors: unknown[] = [];
+
   while (cleanups.length > 0) {
-    cleanups.pop()?.();
+    const cleanup = cleanups.pop();
+    try {
+      cleanup?.();
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+
+  if (errors.length === 1) {
+    throw errors[0];
+  }
+
+  if (errors.length > 1) {
+    throw new AggregateError(errors, 'Cleanup failures');
   }
 });
 
