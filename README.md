@@ -52,6 +52,7 @@ test('shows error state when payment API fails', async ({ page }) => {
 | Service Worker fetch | Yes | Yes | Yes | Yes |
 | Server-Sent Events | Yes | Yes | Yes | Yes |
 | GraphQL operation matcher | Yes | Yes | Yes | Yes |
+| Rule Groups | Yes | Yes | Yes | Yes |
 
 ## Service Worker chaos
 
@@ -63,6 +64,72 @@ importScripts('/chaos-maker-sw.js');
 ```
 
 Page-side: `injectSWChaos` / `removeSWChaos` / `getSWChaosLog` in each adapter. See adapter READMEs.
+
+## Rule Groups
+
+Group related rules so a test can turn a whole failure scenario on or off at runtime without restarting chaos.
+
+### Creating Groups
+
+```ts
+import { ChaosConfigBuilder } from '@chaos-maker/core';
+
+const chaos = new ChaosConfigBuilder()
+  .inGroup("payments")
+  .failRequests("/api/pay", 503, 1)
+  .build();
+```
+
+Rules without `.inGroup()` stay in the default group and continue to work as before.
+
+### Runtime Toggle
+
+The examples below use `page` as a generic adapter handle. See each adapter README for exact syntax.
+
+```ts
+await page.enableGroup("payments");
+await page.disableGroup("payments");
+```
+
+Browser-side toggles affect rules injected into the page with `injectChaos`.
+
+### Service Worker Toggle
+
+```ts
+await page.enableSWGroup("payments");
+await page.disableSWGroup("payments");
+```
+
+Service Worker toggles affect rules injected into the active Service Worker with `injectSWChaos`. Browser-side and SW-side toggles are separate because they run in different JavaScript contexts. If a group has rules in both places, toggle both explicitly.
+
+### Multiple Groups Example
+
+```ts
+import { ChaosConfigBuilder } from '@chaos-maker/core';
+
+const chaos = new ChaosConfigBuilder()
+  .inGroup("payments")
+  .failRequests("/api/pay", 503, 1)
+  .inGroup("auth")
+  .failRequests("/api/session", 401, 1)
+  .inGroup("analytics")
+  .addLatency("/api/events", 750, 1)
+  .build();
+
+await injectChaos(page, chaos);
+
+await page.disableGroup("payments");
+await page.enableGroup("auth");
+await page.enableGroup("analytics");
+```
+
+In this state, payment failures are skipped, auth failures run, and analytics latency runs.
+
+### Troubleshooting
+
+- Group not working: confirm the rule was created with `.inGroup("name")` or `group: "name"`, and confirm you awaited the toggle before triggering the request.
+- Group name errors: group names must be strings after trimming. Empty strings, whitespace-only strings, and `null` throw.
+- SW toggling issues: call `injectSWChaos` after the page has an active Service Worker controller, and use `enableSWGroup` or `disableSWGroup` for SW rules. Page-side `enableGroup` does not toggle SW rules.
 
 ## SSE and GraphQL
 

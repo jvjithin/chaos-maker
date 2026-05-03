@@ -34,7 +34,7 @@ Register the custom commands in `cypress/support/e2e.ts`:
 import '@chaos-maker/cypress/support';
 ```
 
-That's it. Every spec now has `cy.injectChaos`, `cy.removeChaos`, `cy.getChaosLog`, `cy.getChaosSeed`, and the Service Worker helpers.
+That's it. Every spec now has `cy.injectChaos`, `cy.removeChaos`, `cy.getChaosLog`, `cy.getChaosSeed`, `cy.enableGroup`, `cy.disableGroup`, and the Service Worker helpers including `cy.enableSWGroup` and `cy.disableSWGroup`.
 
 ## Usage
 
@@ -84,6 +84,37 @@ it('checkout handles combined chaos', () => {
   cy.visit('/checkout');
 });
 ```
+
+### Rule Groups
+
+Use Rule Groups to switch related chaos rules on or off during a test.
+
+```ts
+import { ChaosConfigBuilder } from '@chaos-maker/core';
+
+it('toggles payment chaos', () => {
+  const config = new ChaosConfigBuilder()
+    .defineGroup('payments', { enabled: false })
+    .inGroup('payments')
+    .failRequests('/api/pay', 503, 1)
+    .build();
+
+  cy.injectChaos(config);
+  cy.visit('/checkout');
+
+  cy.enableGroup('payments');
+  cy.disableGroup('payments');
+});
+```
+
+For Service Worker rules, use the SW commands after `cy.injectSWChaos`:
+
+```ts
+cy.enableSWGroup('payments');
+cy.disableSWGroup('payments');
+```
+
+Browser-side `cy.enableGroup` and `cy.disableGroup` affect page rules from `cy.injectChaos`. `cy.enableSWGroup` and `cy.disableSWGroup` affect Service Worker rules from `cy.injectSWChaos`.
 
 ### Reproducing failures with a seed
 
@@ -145,6 +176,14 @@ Resolve to the chaos event log — every chaos check since injection, with `appl
 
 Resolve to the PRNG seed used by the current chaos instance, or `null` when chaos is not active. Log this on failure to replay the exact sequence of chaos decisions deterministically.
 
+### `cy.enableGroup(name)` / `cy.disableGroup(name)`
+
+Toggle a browser-side Rule Group at runtime.
+
+### `cy.enableSWGroup(name, options?)` / `cy.disableSWGroup(name, options?)`
+
+Toggle a Service Worker Rule Group at runtime. Pass `options.timeoutMs` to override the Service Worker acknowledgement timeout.
+
 ## How it works
 
 - The plugin-side `chaos:getUmdSource` task (registered by `registerChaosTasks`) reads the `@chaos-maker/core` UMD bundle from disk via `require.resolve`. It runs once per spec; the result is cached in the Node process.
@@ -182,13 +221,18 @@ it('SW fetch fails', () => {
     expect(win.navigator.serviceWorker.controller).to.not.be.null;
   });
   cy.injectSWChaos({
-    network: { failures: [{ urlPattern: '/api/data', statusCode: 503, probability: 1 }] },
+    groups: [{ name: 'payments', enabled: false }],
+    network: {
+      failures: [{ urlPattern: '/api/data', statusCode: 503, probability: 1, group: 'payments' }],
+    },
     seed: 1,
   });
+  cy.enableSWGroup('payments');
   cy.get('#trigger').click();
   cy.getSWChaosLog().should((log) => {
     expect(log.some((e) => e.type === 'network:failure' && e.applied)).to.be.true;
   });
+  cy.disableSWGroup('payments');
   cy.removeSWChaos();
 });
 ```
