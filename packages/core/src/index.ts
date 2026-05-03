@@ -24,6 +24,10 @@ interface ChaosUtilsApi {
   stop: () => { success: boolean; message: string };
   getLog: () => ChaosEvent[];
   getSeed: () => number | null;
+  enableGroup: (name: string) => { success: boolean; message: string };
+  disableGroup: (name: string) => { success: boolean; message: string };
+  createGroup: (name: string, opts?: { enabled?: boolean }) => { success: boolean; message: string };
+  getGroupState: (name: string) => boolean | null;
 }
 
 // --- Global API & Auto-Start Logic ---
@@ -72,7 +76,42 @@ if (typeof window !== 'undefined') {
         return chaosUtilsApi.instance.getSeed();
       }
       return null;
-    }
+    },
+
+    enableGroup: (name: string) => {
+      if (!chaosUtilsApi.instance) return { success: false, message: 'No chaos instance' };
+      try {
+        chaosUtilsApi.instance.enableGroup(name);
+        return { success: true, message: `Group '${name}' enabled` };
+      } catch (e: any) {
+        return { success: false, message: e?.message ?? String(e) };
+      }
+    },
+
+    disableGroup: (name: string) => {
+      if (!chaosUtilsApi.instance) return { success: false, message: 'No chaos instance' };
+      try {
+        chaosUtilsApi.instance.disableGroup(name);
+        return { success: true, message: `Group '${name}' disabled` };
+      } catch (e: any) {
+        return { success: false, message: e?.message ?? String(e) };
+      }
+    },
+
+    createGroup: (name: string, opts?: { enabled?: boolean }) => {
+      if (!chaosUtilsApi.instance) return { success: false, message: 'No chaos instance' };
+      try {
+        chaosUtilsApi.instance.createGroup(name, opts);
+        return { success: true, message: `Group '${name}' created` };
+      } catch (e: any) {
+        return { success: false, message: e?.message ?? String(e) };
+      }
+    },
+
+    getGroupState: (name: string) => {
+      if (!chaosUtilsApi.instance) return null;
+      return chaosUtilsApi.instance.getGroupState(name);
+    },
   };
   
   (window as any).chaosUtils = chaosUtilsApi;
