@@ -211,7 +211,8 @@ export async function getChaosSeed(browser: ChaosBrowser): Promise<number | null
  * Register chaos-maker's custom WDIO commands on a browser object. After
  * calling this once (typically in `before` hook of `wdio.conf.ts`), tests can
  * call `browser.injectChaos(config)`, `browser.removeChaos()`,
- * `browser.getChaosLog()`, and `browser.getChaosSeed()` directly.
+ * `browser.getChaosLog()`, `browser.getChaosSeed()`,
+ * `browser.enableGroup(name)`, and `browser.disableGroup(name)` directly.
  */
 export function registerChaosCommands(browser: ChaosBrowser): void {
   if (!browser.addCommand) {

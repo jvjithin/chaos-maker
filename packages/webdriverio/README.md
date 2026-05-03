@@ -26,7 +26,7 @@ export const config: WebdriverIO.Config = {
 };
 ```
 
-That's it. Every spec now has `browser.injectChaos`, `browser.removeChaos`, `browser.getChaosLog`, `browser.getChaosSeed`, and the Service Worker helpers.
+That's it. Every spec now has `browser.injectChaos`, `browser.removeChaos`, `browser.getChaosLog`, `browser.getChaosSeed`, `browser.enableGroup`, `browser.disableGroup`, and the Service Worker helpers.
 
 ## Usage
 
@@ -96,7 +96,7 @@ await $('#refresh').click();
 
 ### `registerChaosCommands(browser)`
 
-Attach the `injectChaos`, `removeChaos`, `getChaosLog`, and `getChaosSeed` methods as custom commands on the given `browser` object. Call once in `wdio.conf.ts`' `before` hook.
+Attach the `injectChaos`, `removeChaos`, `getChaosLog`, `getChaosSeed`, `enableGroup`, and `disableGroup` methods as custom commands on the given `browser` object. Call once in `wdio.conf.ts`' `before` hook.
 
 ### `injectChaos(browser, config)`
 
