@@ -280,6 +280,9 @@ export type {
   SSECloseConfig,
   SSECorruptionStrategy,
   SSEEventTypeMatcher,
+  ChaosDebugStage,
+  ChaosLifecyclePhase,
+  DebugOptions,
 } from '@chaos-maker/core';
 
 export {

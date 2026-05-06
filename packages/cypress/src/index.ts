@@ -37,6 +37,9 @@ export type {
   SSECloseConfig,
   SSECorruptionStrategy,
   SSEEventTypeMatcher,
+  ChaosDebugStage,
+  ChaosLifecyclePhase,
+  DebugOptions,
 } from '@chaos-maker/core';
 
 // Augment Cypress's Chainable interface so `cy.injectChaos(...)` etc. get

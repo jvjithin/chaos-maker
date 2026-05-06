@@ -83,9 +83,15 @@ function truncate(s: string, max: number): string {
  * to avoid drowning the action timeline in no-ops. They always land in the
  * attached JSON log regardless.
  *
+ * RFC-002: `type: 'debug'` events never render as `test.step` regardless of
+ * `verbose` — debug logging is high-volume by design, so the timeline stays
+ * focused on real chaos decisions. Debug events still land in the JSON
+ * attachment.
+ *
  * Exported for unit testing.
  */
 export function shouldEmitStep(event: ChaosEvent, verbose: boolean): boolean {
+  if (event.type === 'debug') return false;
   if (event.applied) return true;
   return verbose;
 }
