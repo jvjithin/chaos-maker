@@ -122,4 +122,44 @@ test.describe('Playwright trace integration', () => {
       expect(typeof payload.seed === 'number' || payload.seed === null).toBe(true);
     }
   });
+
+  test('debug events land in attachment but never as inline test.step entries', async ({ page, chaos }, testInfo) => {
+    await chaos.inject({
+      debug: true,
+      network: {
+        failures: [{ urlPattern: API_PATTERN, statusCode: 503, probability: 1 }],
+      },
+    });
+    await page.goto(BASE_URL);
+    await page.click('#fetch-data');
+    await expect(page.locator('#result')).toContainText('503', { timeout: 5000 });
+
+    const log = await chaos.getLog();
+    expect(log.some((e) => e.type === 'debug' && e.detail.stage === 'rule-applied')).toBe(true);
+
+    await chaos.remove();
+
+    const attachment = testInfo.attachments.find((a) => a.name === 'chaos-log.json');
+    expect(attachment).toBeTruthy();
+    if (attachment!.body) {
+      const payload = JSON.parse(attachment!.body.toString('utf-8'));
+      // Debug events ride in the attachment.
+      expect(payload.events.some((e: { type: string }) => e.type === 'debug')).toBe(true);
+    }
+
+    const traceZip = join(testInfo.outputDir, 'trace.zip');
+    const deadline = Date.now() + 5000;
+    while (!existsSync(traceZip) && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    if (existsSync(traceZip)) {
+      const events = readTraceEvents(traceZip);
+      const titles = events
+        .map((e) => (e as { title?: unknown; metadata?: { title?: unknown } })?.title
+          ?? (e as { metadata?: { title?: unknown } })?.metadata?.title)
+        .filter((t): t is string => typeof t === 'string');
+      // RFC-002: debug events MUST NOT render as inline test.step entries.
+      expect(titles.some((t) => /^chaos:debug/.test(t))).toBe(false);
+    }
+  });
 });
