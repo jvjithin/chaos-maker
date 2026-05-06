@@ -316,4 +316,65 @@ describe('installChaosSW', () => {
     expect(rAfter.status).toBe(418);
     handle.uninstall();
   });
+
+  describe('debug mode (RFC-002)', () => {
+    it('broadcasts a sw:config-applied lifecycle debug event when debug:true', async () => {
+      const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+      const client = makeFakeClient('c1');
+      const target = makeSWTarget([client]);
+      const { installChaosSW } = await importSwWithTarget(target);
+      installChaosSW({ source: 'message' });
+
+      target.dispatchMessage({
+        __chaosMakerConfig: { debug: true } satisfies ChaosConfig,
+      });
+      // Yield once for client.postMessage scheduling.
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const swEvents = client.messages.filter(
+        (m) => (m as { __chaosMakerSWEvent?: boolean }).__chaosMakerSWEvent,
+      ) as { event: ChaosEvent }[];
+      const debugEvents = swEvents.filter((m) => m.event.type === 'debug');
+      expect(debugEvents.length).toBeGreaterThanOrEqual(1);
+      expect(debugEvents.some(
+        (m) => m.event.detail.stage === 'lifecycle' && m.event.detail.phase === 'sw:config-applied',
+      )).toBe(true);
+      // Console mirror used the SW prefix.
+      expect(debugSpy.mock.calls.some(
+        (args) => typeof args[0] === 'string' && (args[0] as string).startsWith('[Chaos SW] '),
+      )).toBe(true);
+      debugSpy.mockRestore();
+    });
+
+    it('broadcasts sw:group-toggled when toggling a group while debug is on', async () => {
+      vi.spyOn(console, 'debug').mockImplementation(() => {});
+      const client = makeFakeClient('c1');
+      const target = makeSWTarget([client]);
+      const { installChaosSW } = await importSwWithTarget(target);
+      installChaosSW({ source: 'message' });
+
+      target.dispatchMessage({
+        __chaosMakerConfig: { debug: true, groups: [{ name: 'payments', enabled: true }] } satisfies ChaosConfig,
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+      client.messages.length = 0;
+
+      target.dispatchMessage({
+        __chaosMakerToggleGroup: { name: 'payments', enabled: false },
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const swEvents = client.messages.filter(
+        (m) => (m as { __chaosMakerSWEvent?: boolean }).__chaosMakerSWEvent,
+      ) as { event: ChaosEvent }[];
+      const toggleDbg = swEvents.find(
+        (m) => m.event.type === 'debug' && m.event.detail.phase === 'sw:group-toggled',
+      );
+      expect(toggleDbg?.event.detail.groupName).toBe('payments');
+      vi.restoreAllMocks();
+    });
+  });
 });

@@ -115,4 +115,14 @@ describe('shouldEmitStep', () => {
     const e = mkEvent({ applied: false });
     expect(shouldEmitStep(e, true)).toBe(true);
   });
+
+  it('never emits debug events (RFC-002), even when verbose', () => {
+    const e = mkEvent({
+      type: 'debug',
+      applied: false,
+      detail: { stage: 'rule-applied', url: '/api', method: 'GET' },
+    });
+    expect(shouldEmitStep(e, false)).toBe(false);
+    expect(shouldEmitStep(e, true)).toBe(false);
+  });
 });

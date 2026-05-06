@@ -152,4 +152,18 @@ describe('ChaosEventEmitter', () => {
 
     expect(listener).not.toHaveBeenCalled();
   });
+
+  it('accepts a "debug" event without throwing and stores it in the log', () => {
+    const emitter = new ChaosEventEmitter();
+    emitter.emit({
+      type: 'debug',
+      timestamp: Date.now(),
+      applied: false,
+      detail: { stage: 'rule-applied', url: '/api', method: 'GET' },
+    });
+    const log = emitter.getLog();
+    expect(log).toHaveLength(1);
+    expect(log[0].type).toBe('debug');
+    expect(log[0].detail.stage).toBe('rule-applied');
+  });
 });

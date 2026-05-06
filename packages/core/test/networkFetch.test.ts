@@ -522,4 +522,92 @@ describe('patchFetch', () => {
     ]);
     vi.useRealTimers();
   });
+
+  describe('debug logging (RFC-002)', () => {
+    let debugSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+    });
+
+    it('emits rule-evaluating, rule-matched, rule-applied for an applied failure', async () => {
+      const { Logger } = await import('../src/debug');
+      const { buildRuleIdMap } = await import('../src/debug');
+      const failure = { urlPattern: '/api/fail', statusCode: 503, probability: 1.0 };
+      const config: NetworkConfig = { failures: [failure] };
+      const emitter = new ChaosEventEmitter();
+      emitter.setLogger(new Logger({ enabled: true }));
+      emitter.setRuleIds(buildRuleIdMap({ network: config }));
+
+      const patched = patchFetch(originalFetch, config, deterministicRandom, emitter);
+      await patched('/api/fail');
+
+      const debugEvents = emitter.getLog().filter((e) => e.type === 'debug');
+      const stages = debugEvents.map((e) => e.detail.stage);
+      expect(stages).toEqual(['rule-evaluating', 'rule-matched', 'rule-applied']);
+      for (const e of debugEvents) {
+        expect(e.detail.ruleType).toBe('failure');
+        expect(e.detail.ruleId).toBe('failure#0');
+      }
+      // Console mirror: at least one [Chaos] line per event.
+      const chaosLines = debugSpy.mock.calls.filter(
+        (args) => typeof args[0] === 'string' && (args[0] as string).startsWith('[Chaos] '),
+      );
+      expect(chaosLines.length).toBe(debugEvents.length);
+    });
+
+    it('emits rule-skip-match when matcher rejects', async () => {
+      const { Logger, buildRuleIdMap } = await import('../src/debug');
+      const failure = { urlPattern: '/api/fail', statusCode: 503, probability: 1.0 };
+      const config: NetworkConfig = { failures: [failure] };
+      const emitter = new ChaosEventEmitter();
+      emitter.setLogger(new Logger({ enabled: true }));
+      emitter.setRuleIds(buildRuleIdMap({ network: config }));
+
+      const patched = patchFetch(originalFetch, config, deterministicRandom, emitter);
+      await patched('/api/other');
+
+      const debugEvents = emitter.getLog().filter((e) => e.type === 'debug');
+      const stages = debugEvents.map((e) => e.detail.stage);
+      expect(stages).toEqual(['rule-evaluating', 'rule-skip-match']);
+    });
+
+    it('emits rule-skip-counting when counting condition rejects', async () => {
+      const { Logger, buildRuleIdMap } = await import('../src/debug');
+      const failure = { urlPattern: '/api/fail', statusCode: 503, probability: 1.0, onNth: 5 };
+      const config: NetworkConfig = { failures: [failure] };
+      const emitter = new ChaosEventEmitter();
+      emitter.setLogger(new Logger({ enabled: true }));
+      emitter.setRuleIds(buildRuleIdMap({ network: config }));
+
+      const patched = patchFetch(originalFetch, config, deterministicRandom, emitter);
+      await patched('/api/fail');
+
+      const debugEvents = emitter.getLog().filter((e) => e.type === 'debug');
+      expect(debugEvents.map((e) => e.detail.stage)).toEqual([
+        'rule-evaluating',
+        'rule-matched',
+        'rule-skip-counting',
+      ]);
+    });
+
+    it('emits rule-skip-probability when probability roll misses', async () => {
+      const { Logger, buildRuleIdMap } = await import('../src/debug');
+      const failure = { urlPattern: '/api/fail', statusCode: 503, probability: 0 };
+      const config: NetworkConfig = { failures: [failure] };
+      const emitter = new ChaosEventEmitter();
+      emitter.setLogger(new Logger({ enabled: true }));
+      emitter.setRuleIds(buildRuleIdMap({ network: config }));
+
+      const patched = patchFetch(originalFetch, config, deterministicRandom, emitter);
+      await patched('/api/fail');
+
+      const debugEvents = emitter.getLog().filter((e) => e.type === 'debug');
+      expect(debugEvents.map((e) => e.detail.stage)).toEqual([
+        'rule-evaluating',
+        'rule-matched',
+        'rule-skip-probability',
+      ]);
+    });
+  });
 });
