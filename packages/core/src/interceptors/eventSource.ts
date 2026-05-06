@@ -86,12 +86,27 @@ function findFiringRule<T extends RequestCountingOptions & { urlPattern: string;
 ): T | null {
   if (!rules) return null;
   for (const rule of rules) {
-    if (!matchUrl(url, rule.urlPattern)) continue;
-    if (!eventTypeMatches(rule.eventType, eventType)) continue;
+    emitter?.debug('rule-evaluating', { url, eventType }, rule as object);
+    if (!matchUrl(url, rule.urlPattern)) {
+      emitter?.debug('rule-skip-match', { url, eventType }, rule as object);
+      continue;
+    }
+    if (!eventTypeMatches(rule.eventType, eventType)) {
+      emitter?.debug('rule-skip-match', { url, eventType }, rule as object);
+      continue;
+    }
+    emitter?.debug('rule-matched', { url, eventType }, rule as object);
     const count = incrementCounter(rule, counters);
-    if (!checkCountingCondition(rule, count)) continue;
+    if (!checkCountingCondition(rule, count)) {
+      emitter?.debug('rule-skip-counting', { url, eventType }, rule as object);
+      continue;
+    }
     if (!gateGroup(rule, groups, emitter, { url, eventType })) continue;
-    if (!shouldApplyChaos(rule.probability, random)) continue;
+    if (!shouldApplyChaos(rule.probability, random)) {
+      emitter?.debug('rule-skip-probability', { url, eventType }, rule as object);
+      continue;
+    }
+    emitter?.debug('rule-applied', { url, eventType }, rule as object);
     return rule;
   }
   return null;
@@ -236,11 +251,23 @@ export function patchEventSource(
   const findCloseRule = (url: string): SSECloseConfig | null => {
     if (!config.closes) return null;
     for (const rule of config.closes) {
-      if (!matchUrl(url, rule.urlPattern)) continue;
+      emitter.debug('rule-evaluating', { url }, rule);
+      if (!matchUrl(url, rule.urlPattern)) {
+        emitter.debug('rule-skip-match', { url }, rule);
+        continue;
+      }
+      emitter.debug('rule-matched', { url }, rule);
       const count = incrementCounter(rule, counters);
-      if (!checkCountingCondition(rule, count)) continue;
+      if (!checkCountingCondition(rule, count)) {
+        emitter.debug('rule-skip-counting', { url }, rule);
+        continue;
+      }
       if (!gateGroup(rule, groups, emitter, { url })) continue;
-      if (!shouldApplyChaos(rule.probability, random)) continue;
+      if (!shouldApplyChaos(rule.probability, random)) {
+        emitter.debug('rule-skip-probability', { url }, rule);
+        continue;
+      }
+      emitter.debug('rule-applied', { url }, rule);
       return rule;
     }
     return null;

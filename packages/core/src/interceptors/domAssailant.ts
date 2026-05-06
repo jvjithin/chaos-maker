@@ -4,6 +4,8 @@ import { ChaosEventEmitter } from '../events';
 import type { RuleGroupRegistry } from '../groups';
 
 function applyAssault(element: HTMLElement, assault: UiAssaultConfig, random: () => number, emitter?: ChaosEventEmitter, groups?: RuleGroupRegistry) {
+  emitter?.debug('rule-evaluating', { selector: assault.selector, action: assault.action }, assault);
+  emitter?.debug('rule-matched', { selector: assault.selector, action: assault.action }, assault);
   if (!gateGroup(assault, groups, emitter, { selector: assault.selector, action: assault.action })) return;
   const applied = shouldApplyChaos(assault.probability, random);
   emitter?.emit({
@@ -14,8 +16,10 @@ function applyAssault(element: HTMLElement, assault: UiAssaultConfig, random: ()
   });
 
   if (!applied) {
+    emitter?.debug('rule-skip-probability', { selector: assault.selector, action: assault.action }, assault);
     return;
   }
+  emitter?.debug('rule-applied', { selector: assault.selector, action: assault.action }, assault);
 
   console.warn(`CHAOS: Applying action '${assault.action}' to element:`, element);
 

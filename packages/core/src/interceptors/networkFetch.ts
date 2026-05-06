@@ -240,10 +240,18 @@ export function patchFetch(originalFetch: typeof globalThis.fetch, config: Netwo
     // 1. Check for CORS
     if (config.cors) {
       for (const cors of config.cors) {
+        emitter?.debug('rule-evaluating', { url, method }, cors);
         const gate = gateRule(cors, url, method, gqlExtract);
-        if (!gate.proceed) continue;
+        if (!gate.proceed) {
+          emitter?.debug('rule-skip-match', { url, method }, cors);
+          continue;
+        }
+        emitter?.debug('rule-matched', { url, method }, cors);
         const count = incrementCounter(cors, counters);
-        if (!checkCountingCondition(cors, count)) continue;
+        if (!checkCountingCondition(cors, count)) {
+          emitter?.debug('rule-skip-counting', { url, method }, cors);
+          continue;
+        }
         if (!gateGroup(cors, groups, emitter, { url, method })) continue;
         const applied = shouldApplyChaos(cors.probability, random);
         if (gate.outcome?.kind === 'unparseable') {
@@ -258,13 +266,16 @@ export function patchFetch(originalFetch: typeof globalThis.fetch, config: Netwo
           applied,
           detail: { url, method, ...operationDetail(gate.outcome) },
         });
-        if (applied) {
-          console.debug(`[chaos-maker] CORS block: ${method} ${url}`);
-          // Mimic a real browser network error with a clean stack trace.
-          const error = new TypeError('Failed to fetch');
-          error.stack = '';
-          throw error;
+        if (!applied) {
+          emitter?.debug('rule-skip-probability', { url, method }, cors);
+          continue;
         }
+        emitter?.debug('rule-applied', { url, method }, cors);
+        console.debug(`[chaos-maker] CORS block: ${method} ${url}`);
+        // Mimic a real browser network error with a clean stack trace.
+        const error = new TypeError('Failed to fetch');
+        error.stack = '';
+        throw error;
       }
     }
 
@@ -289,10 +300,18 @@ export function patchFetch(originalFetch: typeof globalThis.fetch, config: Netwo
 
     if (config.aborts) {
       for (const abort of config.aborts) {
+        emitter?.debug('rule-evaluating', { url, method, timeoutMs: abort.timeout }, abort);
         const gate = gateRule(abort, url, method, gqlExtract);
-        if (!gate.proceed) continue;
+        if (!gate.proceed) {
+          emitter?.debug('rule-skip-match', { url, method, timeoutMs: abort.timeout }, abort);
+          continue;
+        }
+        emitter?.debug('rule-matched', { url, method, timeoutMs: abort.timeout }, abort);
         const count = incrementCounter(abort, counters);
-        if (!checkCountingCondition(abort, count)) continue;
+        if (!checkCountingCondition(abort, count)) {
+          emitter?.debug('rule-skip-counting', { url, method, timeoutMs: abort.timeout }, abort);
+          continue;
+        }
         if (!gateGroup(abort, groups, emitter, { url, method, timeoutMs: abort.timeout })) continue;
         const applied = shouldApplyChaos(abort.probability, random);
         if (gate.outcome?.kind === 'unparseable') {
@@ -302,10 +321,12 @@ export function patchFetch(originalFetch: typeof globalThis.fetch, config: Netwo
           continue;
         }
         if (!applied) {
+          emitter?.debug('rule-skip-probability', { url, method, timeoutMs: abort.timeout }, abort);
           emitAbortEvent(emitter, abort, url, method, false, gate.outcome);
           continue;
         }
 
+        emitter?.debug('rule-applied', { url, method, timeoutMs: abort.timeout }, abort);
         console.warn(`CHAOS: Aborting ${method} ${url} after ${abort.timeout || 0}ms`);
         selectedAbort = abort;
         selectedAbortOutcome = gate.outcome;
@@ -344,10 +365,18 @@ export function patchFetch(originalFetch: typeof globalThis.fetch, config: Netwo
     // 3. Check for Failures
     if (config.failures) {
       for (const failure of config.failures) {
+        emitter?.debug('rule-evaluating', { url, method, statusCode: failure.statusCode }, failure);
         const gate = gateRule(failure, url, method, gqlExtract);
-        if (!gate.proceed) continue;
+        if (!gate.proceed) {
+          emitter?.debug('rule-skip-match', { url, method, statusCode: failure.statusCode }, failure);
+          continue;
+        }
+        emitter?.debug('rule-matched', { url, method, statusCode: failure.statusCode }, failure);
         const count = incrementCounter(failure, counters);
-        if (!checkCountingCondition(failure, count)) continue;
+        if (!checkCountingCondition(failure, count)) {
+          emitter?.debug('rule-skip-counting', { url, method, statusCode: failure.statusCode }, failure);
+          continue;
+        }
         if (!gateGroup(failure, groups, emitter, { url, method, statusCode: failure.statusCode })) continue;
         const applied = shouldApplyChaos(failure.probability, random);
         if (gate.outcome?.kind === 'unparseable') {
@@ -362,26 +391,37 @@ export function patchFetch(originalFetch: typeof globalThis.fetch, config: Netwo
           applied,
           detail: { url, method, statusCode: failure.statusCode, ...operationDetail(gate.outcome) },
         });
-        if (applied) {
-          console.warn(`CHAOS: Forcing ${failure.statusCode} for ${method} ${url}`);
-          const body = failure.body ?? JSON.stringify({ error: 'Chaos Maker Attack!' });
-          const headers = failure.headers ?? {};
-          return new Response(body, {
-            status: failure.statusCode,
-            statusText: failure.statusText ?? 'Service Unavailable (Chaos)',
-            headers,
-          });
+        if (!applied) {
+          emitter?.debug('rule-skip-probability', { url, method, statusCode: failure.statusCode }, failure);
+          continue;
         }
+        emitter?.debug('rule-applied', { url, method, statusCode: failure.statusCode }, failure);
+        console.warn(`CHAOS: Forcing ${failure.statusCode} for ${method} ${url}`);
+        const body = failure.body ?? JSON.stringify({ error: 'Chaos Maker Attack!' });
+        const headers = failure.headers ?? {};
+        return new Response(body, {
+          status: failure.statusCode,
+          statusText: failure.statusText ?? 'Service Unavailable (Chaos)',
+          headers,
+        });
       }
     }
 
     // 4. Check for Latency
     if (config.latencies) {
       for (const latency of config.latencies) {
+        emitter?.debug('rule-evaluating', { url, method, delayMs: latency.delayMs }, latency);
         const gate = gateRule(latency, url, method, gqlExtract);
-        if (!gate.proceed) continue;
+        if (!gate.proceed) {
+          emitter?.debug('rule-skip-match', { url, method, delayMs: latency.delayMs }, latency);
+          continue;
+        }
+        emitter?.debug('rule-matched', { url, method, delayMs: latency.delayMs }, latency);
         const count = incrementCounter(latency, counters);
-        if (!checkCountingCondition(latency, count)) continue;
+        if (!checkCountingCondition(latency, count)) {
+          emitter?.debug('rule-skip-counting', { url, method, delayMs: latency.delayMs }, latency);
+          continue;
+        }
         if (!gateGroup(latency, groups, emitter, { url, method, delayMs: latency.delayMs })) continue;
         const applied = shouldApplyChaos(latency.probability, random);
         if (gate.outcome?.kind === 'unparseable') {
@@ -396,10 +436,13 @@ export function patchFetch(originalFetch: typeof globalThis.fetch, config: Netwo
           applied,
           detail: { url, method, delayMs: latency.delayMs, ...operationDetail(gate.outcome) },
         });
-        if (applied) {
-          console.warn(`CHAOS: Adding ${latency.delayMs}ms latency to ${method} ${url}`);
-          await new Promise(res => setTimeout(res, latency.delayMs));
+        if (!applied) {
+          emitter?.debug('rule-skip-probability', { url, method, delayMs: latency.delayMs }, latency);
+          continue;
         }
+        emitter?.debug('rule-applied', { url, method, delayMs: latency.delayMs }, latency);
+        console.warn(`CHAOS: Adding ${latency.delayMs}ms latency to ${method} ${url}`);
+        await new Promise(res => setTimeout(res, latency.delayMs));
       }
     }
 
@@ -408,10 +451,18 @@ export function patchFetch(originalFetch: typeof globalThis.fetch, config: Netwo
     let selectedCorruptionOutcome: GraphQLRuleOutcome | null = null;
     if (config.corruptions) {
       for (const corruption of config.corruptions) {
+        emitter?.debug('rule-evaluating', { url, method, strategy: corruption.strategy }, corruption);
         const gate = gateRule(corruption, url, method, gqlExtract);
-        if (!gate.proceed) continue;
+        if (!gate.proceed) {
+          emitter?.debug('rule-skip-match', { url, method, strategy: corruption.strategy }, corruption);
+          continue;
+        }
+        emitter?.debug('rule-matched', { url, method, strategy: corruption.strategy }, corruption);
         const count = incrementCounter(corruption, counters);
-        if (!checkCountingCondition(corruption, count)) continue;
+        if (!checkCountingCondition(corruption, count)) {
+          emitter?.debug('rule-skip-counting', { url, method, strategy: corruption.strategy }, corruption);
+          continue;
+        }
         if (!gateGroup(corruption, groups, emitter, { url, method, strategy: corruption.strategy })) continue;
         const applied = shouldApplyChaos(corruption.probability, random);
         if (gate.outcome?.kind === 'unparseable') {
@@ -421,9 +472,11 @@ export function patchFetch(originalFetch: typeof globalThis.fetch, config: Netwo
           continue;
         }
         if (!applied) {
+          emitter?.debug('rule-skip-probability', { url, method, strategy: corruption.strategy }, corruption);
           emitCorruptionEvent(emitter, corruption, url, method, false, gate.outcome);
           continue;
         }
+        emitter?.debug('rule-applied', { url, method, strategy: corruption.strategy }, corruption);
         selectedCorruption = corruption;
         selectedCorruptionOutcome = gate.outcome;
         break; // Apply only one corruption

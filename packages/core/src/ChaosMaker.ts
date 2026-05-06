@@ -9,6 +9,7 @@ import { patchWebSocket, WebSocketPatchHandle } from './interceptors/websocket';
 import { patchEventSource, EventSourceLikeStatic, EventSourcePatchHandle } from './interceptors/eventSource';
 import { DEFAULT_GROUP_NAME, RuleGroup, RuleGroupRegistry } from './groups';
 import { forEachRule } from './utils';
+import { Logger, buildRuleIdMap, normalizeDebugOption, RuleIdEntry } from './debug';
 
 /**
  * Global context ChaosMaker patches against. Must expose at minimum `fetch`
@@ -54,6 +55,10 @@ export class ChaosMaker {
   private requestCounters: Map<object, number> = new Map();
   /** Rule-group registry (RFC-001). Default-on; default group always exists. */
   private groups: RuleGroupRegistry;
+  /** RFC-002. Positional rule-id map shared across interceptors via emitter. */
+  private ruleIds: WeakMap<object, RuleIdEntry>;
+  /** RFC-002. Logger fed into the emitter; absent ⇒ debug fast-path no-op. */
+  private logger?: Logger;
 
   constructor(config: ChaosConfig, options: ChaosMakerOptions = {}) {
     this.config = validateConfig(config);
@@ -73,6 +78,17 @@ export class ChaosMaker {
     this.seedGroupsFromRules();
     // Default group is always present; ensures `getGroupsSnapshot()` includes it.
     this.groups.ensure(DEFAULT_GROUP_NAME, { enabled: true });
+    // RFC-002. Build the rule-id map once per construction so interceptors
+    // can resolve ruleType/ruleId off the rule object reference. Always wired
+    // — the cost is one WeakMap allocation; lookups are O(1) and only
+    // triggered when a logger is attached.
+    this.ruleIds = buildRuleIdMap(this.config);
+    this.emitter.setRuleIds(this.ruleIds);
+    const debugOpts = normalizeDebugOption(this.config.debug);
+    if (debugOpts.enabled) {
+      this.logger = new Logger(debugOpts, 'page');
+      this.emitter.setLogger(this.logger);
+    }
     console.log(`Chaos Maker initialized (seed: ${this.seed})`);
   }
 
@@ -123,6 +139,7 @@ export class ChaosMaker {
       applied: true,
       detail: { groupName: nameNorm },
     });
+    this.emitter.debug('lifecycle', { phase: 'engine:group-toggled', groupName: nameNorm });
   }
 
   /** Disable a rule group at runtime (RFC-001). Subsequent matches are skipped
@@ -136,6 +153,7 @@ export class ChaosMaker {
       applied: true,
       detail: { groupName: nameNorm },
     });
+    this.emitter.debug('lifecycle', { phase: 'engine:group-toggled', groupName: nameNorm });
   }
 
   /** Pre-register a group (typically used to ship one as initially disabled). */
@@ -181,6 +199,7 @@ export class ChaosMaker {
     this.requestCounters.clear();
     this.running = true;
     console.log('🛠️ Chaos Maker ENGAGED 🛠️');
+    this.emitter.debug('lifecycle', { phase: 'engine:start' });
 
     const target = this.target;
 
@@ -242,6 +261,7 @@ export class ChaosMaker {
   public stop(): void {
     this.running = false;
     console.log('🛑 Chaos Maker DISENGAGED 🛑');
+    this.emitter.debug('lifecycle', { phase: 'engine:stop' });
 
     const target = this.target;
 

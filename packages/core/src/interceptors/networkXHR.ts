@@ -127,16 +127,30 @@ export function patchXHR(originalXhrSend: (body?: Document | XMLHttpRequestBodyI
     // 1. Check for CORS
     if (config.cors) {
       for (const cors of config.cors) {
-        if (!matchUrl(url, cors.urlPattern)) continue;
-        if (cors.methods && !cors.methods.includes(method)) continue;
+        emitter?.debug('rule-evaluating', { url, method }, cors);
+        if (!matchUrl(url, cors.urlPattern)) {
+          emitter?.debug('rule-skip-match', { url, method }, cors);
+          continue;
+        }
+        if (cors.methods && !cors.methods.includes(method)) {
+          emitter?.debug('rule-skip-match', { url, method }, cors);
+          continue;
+        }
         const outcome = evaluateGraphQLRule(cors.graphqlOperation, gqlExtract);
-        if (outcome.kind === 'no-match') continue;
+        if (outcome.kind === 'no-match') {
+          emitter?.debug('rule-skip-match', { url, method }, cors);
+          continue;
+        }
         if (outcome.kind === 'unparseable') {
           emitGraphQLDiagnostic(emitter, 'network:cors', url, method, {});
           continue;
         }
+        emitter?.debug('rule-matched', { url, method }, cors);
         const count = incrementCounter(cors, counters);
-        if (!checkCountingCondition(cors, count)) continue;
+        if (!checkCountingCondition(cors, count)) {
+          emitter?.debug('rule-skip-counting', { url, method }, cors);
+          continue;
+        }
         if (!gateGroup(cors, groups, emitter, { url, method })) continue;
         const applied = shouldApplyChaos(cors.probability, random);
         emitter?.emit({
@@ -145,34 +159,43 @@ export function patchXHR(originalXhrSend: (body?: Document | XMLHttpRequestBodyI
           applied,
           detail: { url, method, ...operationDetail(outcome) },
         });
-        if (applied) {
-          console.debug(`[chaos-maker] CORS block: ${method} ${url}`);
-          Object.defineProperty(this, 'status', { value: 0 });
-          Object.defineProperty(this, 'statusText', { value: '' });
-          this.dispatchEvent(new Event('error'));
-          this.dispatchEvent(new Event('loadend'));
-          return;
+        if (!applied) {
+          emitter?.debug('rule-skip-probability', { url, method }, cors);
+          continue;
         }
+        emitter?.debug('rule-applied', { url, method }, cors);
+        console.debug(`[chaos-maker] CORS block: ${method} ${url}`);
+        Object.defineProperty(this, 'status', { value: 0 });
+        Object.defineProperty(this, 'statusText', { value: '' });
+        this.dispatchEvent(new Event('error'));
+        this.dispatchEvent(new Event('loadend'));
+        return;
       }
     }
 
     // 2. Check for Abort
     if (config.aborts) {
       for (const abort of config.aborts) {
+        emitter?.debug('rule-evaluating', { url, method, timeoutMs: abort.timeout }, abort);
         const gate = gateRule(abort, url, method, gqlExtract, counters);
         if (!gate.proceed) {
           if (gate.outcome?.kind === 'unparseable') {
             emitGraphQLDiagnostic(emitter, 'network:abort', url, method, { timeoutMs: abort.timeout });
+          } else {
+            emitter?.debug('rule-skip-match', { url, method, timeoutMs: abort.timeout }, abort);
           }
           continue;
         }
+        emitter?.debug('rule-matched', { url, method, timeoutMs: abort.timeout }, abort);
         if (!gateGroup(abort, groups, emitter, { url, method, timeoutMs: abort.timeout })) continue;
         const applied = shouldApplyChaos(abort.probability, random);
         if (!applied) {
+          emitter?.debug('rule-skip-probability', { url, method, timeoutMs: abort.timeout }, abort);
           emitAbortEvent(emitter, abort, url, method, false, gate.outcome);
           continue;
         }
 
+        emitter?.debug('rule-applied', { url, method, timeoutMs: abort.timeout }, abort);
         console.warn(`CHAOS: Aborting ${method} ${url} after ${abort.timeout || 0}ms`);
 
         let abortSettled = false;
@@ -236,13 +259,17 @@ export function patchXHR(originalXhrSend: (body?: Document | XMLHttpRequestBodyI
     // 3. Check for Failures
     if (config.failures) {
       for (const failure of config.failures) {
+        emitter?.debug('rule-evaluating', { url, method, statusCode: failure.statusCode }, failure);
         const gate = gateRule(failure, url, method, gqlExtract, counters);
         if (!gate.proceed) {
           if (gate.outcome?.kind === 'unparseable') {
             emitGraphQLDiagnostic(emitter, 'network:failure', url, method, { statusCode: failure.statusCode });
+          } else {
+            emitter?.debug('rule-skip-match', { url, method, statusCode: failure.statusCode }, failure);
           }
           continue;
         }
+        emitter?.debug('rule-matched', { url, method, statusCode: failure.statusCode }, failure);
         if (!gateGroup(failure, groups, emitter, { url, method, statusCode: failure.statusCode })) continue;
         const applied = shouldApplyChaos(failure.probability, random);
         emitter?.emit({
@@ -251,6 +278,11 @@ export function patchXHR(originalXhrSend: (body?: Document | XMLHttpRequestBodyI
           applied,
           detail: { url, method, statusCode: failure.statusCode, ...operationDetail(gate.outcome) },
         });
+        if (!applied) {
+          emitter?.debug('rule-skip-probability', { url, method, statusCode: failure.statusCode }, failure);
+          continue;
+        }
+        emitter?.debug('rule-applied', { url, method, statusCode: failure.statusCode }, failure);
         if (applied) {
           console.warn(`CHAOS: Forcing ${failure.statusCode} for ${method} ${url}`);
           Object.defineProperty(this, 'status', { value: failure.statusCode });
@@ -289,19 +321,25 @@ export function patchXHR(originalXhrSend: (body?: Document | XMLHttpRequestBodyI
     let selectedCorruptionOutcome: GraphQLRuleOutcome | null = null;
     if (config.corruptions) {
       for (const corruption of config.corruptions) {
+        emitter?.debug('rule-evaluating', { url, method, strategy: corruption.strategy }, corruption);
         const gate = gateRule(corruption, url, method, gqlExtract, counters);
         if (!gate.proceed) {
           if (gate.outcome?.kind === 'unparseable') {
             emitGraphQLDiagnostic(emitter, 'network:corruption', url, method, { strategy: corruption.strategy });
+          } else {
+            emitter?.debug('rule-skip-match', { url, method, strategy: corruption.strategy }, corruption);
           }
           continue;
         }
+        emitter?.debug('rule-matched', { url, method, strategy: corruption.strategy }, corruption);
         if (!gateGroup(corruption, groups, emitter, { url, method, strategy: corruption.strategy })) continue;
         const applied = shouldApplyChaos(corruption.probability, random);
         if (!applied) {
+          emitter?.debug('rule-skip-probability', { url, method, strategy: corruption.strategy }, corruption);
           emitCorruptionEvent(emitter, corruption, url, method, false, gate.outcome);
           continue;
         }
+        emitter?.debug('rule-applied', { url, method, strategy: corruption.strategy }, corruption);
         selectedCorruption = corruption;
         selectedCorruptionOutcome = gate.outcome;
         break;
@@ -381,13 +419,17 @@ export function patchXHR(originalXhrSend: (body?: Document | XMLHttpRequestBodyI
     // 5. Check for Latency
     if (config.latencies) {
       for (const latency of config.latencies) {
+        emitter?.debug('rule-evaluating', { url, method, delayMs: latency.delayMs }, latency);
         const gate = gateRule(latency, url, method, gqlExtract, counters);
         if (!gate.proceed) {
           if (gate.outcome?.kind === 'unparseable') {
             emitGraphQLDiagnostic(emitter, 'network:latency', url, method, { delayMs: latency.delayMs });
+          } else {
+            emitter?.debug('rule-skip-match', { url, method, delayMs: latency.delayMs }, latency);
           }
           continue;
         }
+        emitter?.debug('rule-matched', { url, method, delayMs: latency.delayMs }, latency);
         if (!gateGroup(latency, groups, emitter, { url, method, delayMs: latency.delayMs })) continue;
         const applied = shouldApplyChaos(latency.probability, random);
         emitter?.emit({
@@ -396,13 +438,16 @@ export function patchXHR(originalXhrSend: (body?: Document | XMLHttpRequestBodyI
           applied,
           detail: { url, method, delayMs: latency.delayMs, ...operationDetail(gate.outcome) },
         });
-        if (applied) {
-          console.warn(`CHAOS: Adding ${latency.delayMs}ms latency to ${method} ${url}`);
-          setTimeout(() => {
-            originalXhrSend.call(this, body);
-          }, latency.delayMs);
-          return;
+        if (!applied) {
+          emitter?.debug('rule-skip-probability', { url, method, delayMs: latency.delayMs }, latency);
+          continue;
         }
+        emitter?.debug('rule-applied', { url, method, delayMs: latency.delayMs }, latency);
+        console.warn(`CHAOS: Adding ${latency.delayMs}ms latency to ${method} ${url}`);
+        setTimeout(() => {
+          originalXhrSend.call(this, body);
+        }, latency.delayMs);
+        return;
       }
     }
 

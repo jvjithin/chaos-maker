@@ -239,6 +239,14 @@ const groupConfigListSchema = z.array(groupConfigSchema).superRefine((groups, ct
   }
 });
 
+/** RFC-002 Debug Mode. Public surface accepts `boolean`; the object form is
+ *  reserved internal so future fields (`level`, `prefix`, `console`, `sink`)
+ *  can land non-breaking. `.strict()` ensures unknown sub-fields reject. */
+const debugSchema = z.union([
+  z.boolean(),
+  z.object({ enabled: z.boolean() }).strict(),
+]);
+
 const chaosConfigSchema = z.object({
   network: networkConfigSchema.optional(),
   ui: uiConfigSchema.optional(),
@@ -246,6 +254,7 @@ const chaosConfigSchema = z.object({
   sse: sseConfigSchema.optional(),
   groups: groupConfigListSchema.optional(),
   seed: z.number().int('Seed must be an integer').optional(),
+  debug: debugSchema.optional(),
 }).strict();
 
 export function validateConfig(config: unknown): ChaosConfig {

@@ -219,6 +219,15 @@ export interface ChaosConfig {
    */
   groups?: RuleGroupConfig[];
   /**
+   * RFC-002. Enable Chaos Maker's structured Debug Mode. When `true`, every
+   * rule decision emits a `type: 'debug'` event (with `detail.stage`)
+   * through the emitter AND mirrors a `[Chaos] <stage> ...` line to
+   * `console.debug`. Framework-agnostic — does not touch
+   * Playwright/Cypress/Puppeteer/WDIO debug semantics. Defaults to `false`;
+   * fast-path no-op when off.
+   */
+  debug?: boolean;
+  /**
    * Seed for Chaos Maker's PRNG.
    *
    * The seed controls every probability-driven chaos decision across network,

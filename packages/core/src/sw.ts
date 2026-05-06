@@ -23,6 +23,7 @@ import { patchFetch } from './interceptors/networkFetch';
 import { patchWebSocket, WebSocketPatchHandle } from './interceptors/websocket';
 import { DEFAULT_GROUP_NAME, RuleGroupRegistry } from './groups';
 import { forEachRule } from './utils';
+import { Logger, buildRuleIdMap, normalizeDebugOption } from './debug';
 
 /**
  * Service-Worker global scope. Typed manually so this file compiles under the
@@ -185,6 +186,13 @@ function startEngine(state: SWEngineState, config: ChaosConfig): number {
   });
   state.groups.ensure(DEFAULT_GROUP_NAME, { enabled: true });
 
+  // RFC-002. Refresh the rule-id map and (re)attach the SW logger for every
+  // config swap so positional IDs always match the live config.
+  state.emitter.setRuleIds(buildRuleIdMap(config));
+  const debugOpts = normalizeDebugOption(config.debug);
+  state.emitter.setLogger(debugOpts.enabled ? new Logger(debugOpts, 'sw') : undefined);
+  state.emitter.debug('lifecycle', { phase: 'sw:config-applied' });
+
   if (config.network) {
     const target = state.target;
     if (typeof target.fetch === 'function') {
@@ -232,6 +240,7 @@ function stopEngine(state: SWEngineState): void {
     state.webSocketHandle.uninstall();
     state.webSocketHandle = undefined;
   }
+  state.emitter.debug('lifecycle', { phase: 'sw:config-stopped' });
   state.running = false;
 }
 
@@ -346,6 +355,7 @@ export function installChaosSW(opts: InstallChaosSWOptions = {}): SWChaosHandle 
         applied: true,
         detail: { groupName: name },
       });
+      state.emitter.debug('lifecycle', { phase: 'sw:group-toggled', groupName: name });
       replyViaPortOrBroadcast(target, evt, {
         __chaosMakerAck: true,
         running: state.running,

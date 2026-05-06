@@ -117,12 +117,27 @@ function findFiringRule<T extends RequestCountingOptions & { urlPattern: string;
 ): T | null {
   if (!rules) return null;
   for (const rule of rules) {
-    if (!matchUrl(url, rule.urlPattern)) continue;
-    if (!directionApplies(rule.direction, direction)) continue;
+    emitter?.debug('rule-evaluating', { url, direction }, rule as object);
+    if (!matchUrl(url, rule.urlPattern)) {
+      emitter?.debug('rule-skip-match', { url, direction }, rule as object);
+      continue;
+    }
+    if (!directionApplies(rule.direction, direction)) {
+      emitter?.debug('rule-skip-match', { url, direction }, rule as object);
+      continue;
+    }
+    emitter?.debug('rule-matched', { url, direction }, rule as object);
     const count = incrementCounter(rule, counters);
-    if (!checkCountingCondition(rule, count)) continue;
+    if (!checkCountingCondition(rule, count)) {
+      emitter?.debug('rule-skip-counting', { url, direction }, rule as object);
+      continue;
+    }
     if (!gateGroup(rule, groups, emitter, { url, direction })) continue;
-    if (!shouldApplyChaos(rule.probability, random)) continue;
+    if (!shouldApplyChaos(rule.probability, random)) {
+      emitter?.debug('rule-skip-probability', { url, direction }, rule as object);
+      continue;
+    }
+    emitter?.debug('rule-applied', { url, direction }, rule as object);
     return rule;
   }
   return null;
@@ -360,11 +375,23 @@ export function patchWebSocket(
   const scheduleCloseChaos = (socket: WebSocket, url: string): void => {
     if (!config.closes) return;
     for (const rule of config.closes) {
-      if (!matchUrl(url, rule.urlPattern)) continue;
+      emitter.debug('rule-evaluating', { url }, rule);
+      if (!matchUrl(url, rule.urlPattern)) {
+        emitter.debug('rule-skip-match', { url }, rule);
+        continue;
+      }
+      emitter.debug('rule-matched', { url }, rule);
       const count = incrementCounter(rule, counters);
-      if (!checkCountingCondition(rule, count)) continue;
+      if (!checkCountingCondition(rule, count)) {
+        emitter.debug('rule-skip-counting', { url }, rule);
+        continue;
+      }
       if (!gateGroup(rule, groups, emitter, { url })) continue;
-      if (!shouldApplyChaos(rule.probability, random)) continue;
+      if (!shouldApplyChaos(rule.probability, random)) {
+        emitter.debug('rule-skip-probability', { url }, rule);
+        continue;
+      }
+      emitter.debug('rule-applied', { url }, rule);
       // Default to 1000 (Normal Closure) — the only 1xxx code browsers accept
       // as input to `socket.close(code)`. Reserved codes like 1006 throw
       // InvalidAccessError. Apps wanting a chaos-specific code should pass

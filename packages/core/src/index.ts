@@ -13,8 +13,11 @@ export { SW_BRIDGE_SOURCE } from './sw-bridge-source';
 export { extractGraphQLOperation, parseOperationFromQueryString, operationNameMatches } from './graphql';
 export { serializeForTransport, deserializeForTransport } from './transport';
 export { DEFAULT_GROUP_NAME, RuleGroupRegistry } from './groups';
+export { Logger, normalizeDebugOption, formatDebugMessage, buildRuleIdMap } from './debug';
 export type { RuleGroup, RuleGroupConfig } from './groups';
 export type { GraphQLExtractResult, GraphQLRuleOutcome } from './graphql';
+export type { DebugOptions, ChaosDebugStage, RuleIdEntry } from './debug';
+export type { ChaosLifecyclePhase } from './events';
 export type { ChaosConfig, CorruptionStrategy, GraphQLOperationMatcher, NetworkFailureConfig, NetworkLatencyConfig, NetworkAbortConfig, NetworkCorruptionConfig, NetworkCorsConfig, NetworkConfig, NetworkRuleMatchers, RuleGroupAssignment, UiAssaultConfig, UiConfig, WebSocketConfig, WebSocketDropConfig, WebSocketDelayConfig, WebSocketCorruptConfig, WebSocketCloseConfig, WebSocketDirection, WebSocketCorruptionStrategy, SSEConfig, SSEDropConfig, SSEDelayConfig, SSECorruptConfig, SSECloseConfig, SSECorruptionStrategy, SSEEventTypeMatcher, ChaosEvent, ChaosEventType, ChaosEventListener };
 
 // --- NEW INTERFACE ---
