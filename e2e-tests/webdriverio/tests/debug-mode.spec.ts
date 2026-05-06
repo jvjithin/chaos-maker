@@ -9,27 +9,57 @@ async function visitAndInject(config: Parameters<WebdriverIO.Browser['injectChao
 }
 
 /** Read every `[Chaos] ` line emitted to console.debug since the page loaded.
- *  WDIO has no first-class console-message stream, so we install a tap inside
- *  the page that records calls and read them via `browser.execute`. */
+ *  WDIO has no first-class console-message stream, so we install a tap that
+ *  records `console.debug` calls and stash the lines on a DOM `<script>` holder.
+ *  We read the holder via `browser.execute` because Firefox/geckodriver runs
+ *  executeScript bodies inside a sandbox whose globals don't share state with
+ *  the real page-realm `window` — so the DOM is the only reliable cross-realm
+ *  channel. */
 async function readChaosDebugLines(): Promise<string[]> {
   return browser.execute(() => {
-    const win = globalThis as unknown as { __chaosDebugLines?: string[] };
-    return win.__chaosDebugLines ?? [];
+    const holder = document.getElementById('__chaos_debug_holder');
+    if (!holder || !holder.textContent) return [] as string[];
+    try {
+      return JSON.parse(holder.textContent) as string[];
+    } catch {
+      return [] as string[];
+    }
   });
 }
 
+/** Install the page-realm `console.debug` interceptor. Done via an inline
+ *  `<script>` tag so the override runs in the page realm; assigning to
+ *  `window.console.debug` from `browser.execute`'s sandbox does not reach the
+ *  real `console` on Firefox/geckodriver. */
 async function installDebugTap(): Promise<void> {
   await browser.execute(() => {
-    const win = globalThis as unknown as { __chaosDebugLines?: string[]; console: Console };
-    if (win.__chaosDebugLines) return;
-    win.__chaosDebugLines = [];
-    const original = win.console.debug.bind(win.console);
-    win.console.debug = (...args: unknown[]) => {
-      if (typeof args[0] === 'string' && (args[0] as string).startsWith('[Chaos] ')) {
-        win.__chaosDebugLines!.push(args[0] as string);
-      }
-      original(...args);
-    };
+    if (document.querySelector('script[data-chaos-debug-tap]')) return;
+    const tap = document.createElement('script');
+    tap.setAttribute('data-chaos-debug-tap', '1');
+    tap.textContent =
+      '(function(){' +
+      '  if (window.__chaosDebugLines) return;' +
+      '  window.__chaosDebugLines = [];' +
+      '  var original = console.debug.bind(console);' +
+      '  console.debug = function() {' +
+      '    try {' +
+      '      if (arguments.length && typeof arguments[0] === "string" && arguments[0].indexOf("[Chaos] ") === 0) {' +
+      '        window.__chaosDebugLines.push(arguments[0]);' +
+      '        var holder = document.getElementById("__chaos_debug_holder");' +
+      '        if (!holder) {' +
+      '          holder = document.createElement("script");' +
+      '          holder.type = "application/json";' +
+      '          holder.id = "__chaos_debug_holder";' +
+      '          (document.head || document.documentElement).appendChild(holder);' +
+      '        }' +
+      '        holder.textContent = JSON.stringify(window.__chaosDebugLines);' +
+      '      }' +
+      '    } catch (e) {}' +
+      '    return original.apply(console, arguments);' +
+      '  };' +
+      '})();';
+    (document.head || document.documentElement).appendChild(tap);
+    tap.remove();
   });
 }
 
