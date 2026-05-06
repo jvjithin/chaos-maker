@@ -47,6 +47,18 @@ function generateSeed(): number;
 
 `generateSeed()` is the only intentional `Math.random()` use in core. All chaos decisions use `createPrng(seed).random`.
 
+## Builder
+
+```typescript
+const config = new ChaosConfigBuilder()
+  .failRequests('/api/orders', 503, 1)
+  .withSeed(42)
+  .withDebug()           // RFC-002 — toggles Debug Mode on this config.
+  .build();
+```
+
+`withDebug(enabled = true)` flips `ChaosConfig.debug`. See [Debug Mode](/api/debug/) for the event taxonomy and console output format.
+
 ## Service Worker subpath
 
 ```typescript

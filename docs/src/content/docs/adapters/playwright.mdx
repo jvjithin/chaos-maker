@@ -47,3 +47,7 @@ Call `injectChaos()` before navigation. The adapter uses Playwright `addInitScri
 For Service Worker chaos, navigate to the app, wait for `navigator.serviceWorker.controller`, then call `injectSWChaos()` before the user action that triggers SW fetches.
 
 SSE chaos and GraphQL operation matching need no extra adapter API. Pass `sse` rules or `graphqlOperation` network matchers to `injectChaos()`.
+
+## Debug Mode
+
+Set `debug: true` on the config passed to `injectChaos()` to enable [Debug Mode](/api/debug/). It is independent of Playwright's own `--debug` mode and `PWDEBUG` env var — Chaos Maker never reads them. Console mirrors land on `page.on('console', …)` with `msg.type() === 'debug'` and a `[Chaos] ...` body. Debug events ride into the `chaos-log.json` attachment but never as inline `test.step` entries.
