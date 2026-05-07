@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { ChaosMaker } from '../src/ChaosMaker';
 import { ChaosConfig } from '../src/config';
+import { ChaosConfigError } from '../src/errors';
 
 // Store original implementations
 const originalFetch = global.fetch;
@@ -172,6 +173,65 @@ describe('ChaosMaker', () => {
         typeof args[0] === 'string' && args[0].startsWith('[Chaos] '),
       );
       expect(chaosLines).toHaveLength(0);
+    });
+  });
+
+  describe('presets (RFC-003)', () => {
+    it('constructs cleanly with presets:[\'slow-api\'] and the latency rule fires on a matched fetch', async () => {
+      vi.useFakeTimers();
+      try {
+        chaosMaker = new ChaosMaker({ presets: ['slow-api'] });
+        chaosMaker.start();
+        const fetchPromise = global.fetch('/anything');
+        // The latency event is emitted synchronously when the rule matches,
+        // before the delay timer starts.
+        await Promise.resolve();
+        const log = chaosMaker.getLog();
+        expect(log.some((e) => e.type === 'network:latency' && e.applied)).toBe(true);
+        await vi.advanceTimersByTimeAsync(2500);
+        await fetchPromise.catch(() => undefined);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('throws ChaosConfigError on unknown preset name with the offending name in the message', () => {
+      let caught: unknown;
+      try {
+        // eslint-disable-next-line no-new
+        new ChaosMaker({ presets: ['nope'] });
+      } catch (e) {
+        caught = e;
+      }
+      expect(caught).toBeInstanceOf(ChaosConfigError);
+      expect((caught as Error).message).toMatch(/'nope'/);
+    });
+
+    it('expands customPresets end-to-end — fetch hits the merged failure rule', async () => {
+      chaosMaker = new ChaosMaker({
+        customPresets: {
+          'team-flow': {
+            network: {
+              failures: [{ urlPattern: '/x', statusCode: 503, probability: 1 }],
+            },
+          },
+        },
+        presets: ['team-flow'],
+      });
+      chaosMaker.start();
+      const r = await global.fetch('/x');
+      expect(r.status).toBe(503);
+    });
+
+    it('throws ChaosConfigError when a customPreset attempts a chain (presets sub-field)', () => {
+      let caught: unknown;
+      try {
+        // eslint-disable-next-line no-new, @typescript-eslint/no-explicit-any
+        new ChaosMaker({ customPresets: { x: { presets: ['y'] } as any } });
+      } catch (e) {
+        caught = e;
+      }
+      expect(caught).toBeInstanceOf(ChaosConfigError);
     });
   });
 });

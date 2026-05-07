@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ChaosConfigBuilder } from '../src/builder';
-import { presets } from '../src/presets';
+import { presets, PresetRegistry } from '../src/presets';
 import { validateConfig } from '../src/validation';
 
 describe('ChaosConfigBuilder', () => {
@@ -248,5 +248,52 @@ describe('Presets', () => {
     for (const config of Object.values(presets)) {
       expect(() => validateConfig(config)).not.toThrow();
     }
+  });
+
+  it('legacy presets record exposes only camelCase keys', () => {
+    expect((presets as Record<string, unknown>)['slow-api']).toBeUndefined();
+    expect((presets as Record<string, unknown>)['flaky-api']).toBeUndefined();
+    expect((presets as Record<string, unknown>)['offline-mode']).toBeUndefined();
+    expect((presets as Record<string, unknown>)['high-latency']).toBeUndefined();
+  });
+
+  it('legacy presets entries share identity with their kebab alias on the registry', () => {
+    const registry = new PresetRegistry();
+    expect(presets.slowNetwork).toBe(registry.get('slow-api'));
+    expect(presets.flakyConnection).toBe(registry.get('flaky-api'));
+    expect(presets.offlineMode).toBe(registry.get('offline-mode'));
+    expect(presets.unstableApi).toBe(registry.get('high-latency'));
+  });
+});
+
+describe('ChaosConfigBuilder.usePreset', () => {
+  it('queues a single preset and emits it on build()', () => {
+    const config = new ChaosConfigBuilder().usePreset('slow-api').build();
+    expect(config.presets).toEqual(['slow-api']);
+  });
+
+  it('dedupes repeated names while preserving order', () => {
+    const config = new ChaosConfigBuilder()
+      .usePreset('slow-api')
+      .usePreset('flaky-api')
+      .usePreset('slow-api')
+      .build();
+    expect(config.presets).toEqual(['slow-api', 'flaky-api']);
+  });
+
+  it('omits the presets field when no preset was queued', () => {
+    const config = new ChaosConfigBuilder().failRequests('/api', 500, 1).build();
+    expect(config.presets).toBeUndefined();
+  });
+
+  it('rejects empty / whitespace-only preset names', () => {
+    const builder = new ChaosConfigBuilder();
+    expect(() => builder.usePreset('')).toThrow(/preset name cannot be empty/);
+    expect(() => builder.usePreset('   ')).toThrow(/preset name cannot be empty/);
+  });
+
+  it('trims surrounding whitespace before queueing', () => {
+    const config = new ChaosConfigBuilder().usePreset(' slow-api ').build();
+    expect(config.presets).toEqual(['slow-api']);
   });
 });

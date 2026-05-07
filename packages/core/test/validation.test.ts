@@ -648,4 +648,75 @@ describe('validateConfig', () => {
       ).toThrow(ChaosConfigError);
     });
   });
+
+  describe('presets / customPresets (RFC-003)', () => {
+    it('accepts a presets array of known names', () => {
+      const parsed = validateConfig({ presets: ['slow-api', 'unstableApi'] });
+      expect(parsed.presets).toEqual(['slow-api', 'unstableApi']);
+    });
+
+    it('rejects an empty preset name', () => {
+      expect(() => validateConfig({ presets: [''] })).toThrow(ChaosConfigError);
+    });
+
+    it('rejects a whitespace-only preset name', () => {
+      expect(() => validateConfig({ presets: ['   '] })).toThrow(ChaosConfigError);
+    });
+
+    it('silently dedupes preset names preserving first occurrence', () => {
+      const parsed = validateConfig({ presets: ['slow-api', 'slow-api', 'flaky-api', 'slow-api'] });
+      expect(parsed.presets).toEqual(['slow-api', 'flaky-api']);
+    });
+
+    it('accepts a valid customPresets record', () => {
+      const parsed = validateConfig({
+        customPresets: {
+          'team-flow': {
+            network: { failures: [{ urlPattern: '/x', statusCode: 503, probability: 1 }] },
+          },
+        },
+      });
+      expect(parsed.customPresets).toBeDefined();
+    });
+
+    it('rejects customPresets whose value carries a chained presets field', () => {
+      expect(() =>
+        validateConfig({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          customPresets: { x: { presets: ['y'] } as any },
+        }),
+      ).toThrow(ChaosConfigError);
+    });
+
+    it('rejects customPresets whose value carries seed (forbidden subfield)', () => {
+      expect(() =>
+        validateConfig({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          customPresets: { x: { seed: 1 } as any },
+        }),
+      ).toThrow(ChaosConfigError);
+    });
+
+    it('rejects customPresets whose value carries debug (forbidden subfield)', () => {
+      expect(() =>
+        validateConfig({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          customPresets: { x: { debug: true } as any },
+        }),
+      ).toThrow(ChaosConfigError);
+    });
+
+    it('rejects customPresets whose value carries customPresets (chain attempt)', () => {
+      expect(() =>
+        validateConfig({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          customPresets: { x: { customPresets: { y: {} } } as any },
+        }),
+      ).toThrow(ChaosConfigError);
+    });
+
+    it('rejects an empty customPresets key', () => {
+      expect(() => validateConfig({ customPresets: { '': {} } })).toThrow(ChaosConfigError);
+    });
+  });
 });

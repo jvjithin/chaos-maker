@@ -193,11 +193,14 @@ function appendSlice(target: ChaosConfig, slice: PresetConfigSlice): void {
 
 /** Expand `config.presets` against `registry`. Identity contract:
  *
- *   - ALWAYS returns a fresh `ChaosConfig` (deep clone of the input). Callers
- *     own the returned object and may mutate it without affecting the input.
+ *   - ALWAYS returns a fresh `ChaosConfig`. Callers own the returned object
+ *     and may mutate it without affecting the input. Built-in slices stay
+ *     deep-frozen because each preset is deep-cloned at append time.
  *   - The output ALWAYS has `presets` and `customPresets` stripped, even if
  *     `presets[]` was empty. Prevents stale `customPresets` from leaking into
  *     the post-expansion config.
+ *   - Append order: preset rules first (in the order they appear in
+ *     `presets[]`), user rules last. Same rule for `groups`.
  *   - Throws when a name in `presets[]` is not registered. Plain `Error` —
  *     `prepareChaosConfig` wraps to `ChaosConfigError`.
  *
@@ -213,10 +216,16 @@ export function expandPresets(config: ChaosConfig, registry: PresetRegistry): Ch
     seen.add(norm);
     ordered.push(norm);
   }
-  const out: ChaosConfig = cloneValue(config);
-  delete out.presets;
-  delete out.customPresets;
-  for (const name of ordered) appendSlice(out, registry.get(name));
+  const out: ChaosConfig = {};
+  for (const name of ordered) {
+    appendSlice(out, cloneValue(registry.get(name)));
+  }
+  const userClone = cloneValue(config);
+  delete userClone.presets;
+  delete userClone.customPresets;
+  if (userClone.seed !== undefined) out.seed = userClone.seed;
+  if (userClone.debug !== undefined) out.debug = userClone.debug;
+  appendSlice(out, userClone as PresetConfigSlice);
   return out;
 }
 
