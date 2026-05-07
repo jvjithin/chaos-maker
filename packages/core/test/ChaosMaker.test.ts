@@ -104,7 +104,7 @@ describe('ChaosMaker', () => {
     });
 
     it('emits lifecycle debug events on start/stop when debug:true', () => {
-      vi.spyOn(console, 'debug').mockImplementation(() => {});
+      const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
       chaosMaker = new ChaosMaker({ debug: true });
       chaosMaker.start();
       chaosMaker.stop();
@@ -117,10 +117,20 @@ describe('ChaosMaker', () => {
       for (const e of debugEvents) {
         expect(e.detail.stage).toBe('lifecycle');
       }
+
+      // Console mirror: every lifecycle debug event must produce a
+      // `[Chaos] lifecycle: <phase>` line on `console.debug`. Assert both
+      // phases land on the spy with the expected prefix.
+      const chaosLines = debugSpy.mock.calls
+        .map((args) => (typeof args[0] === 'string' ? args[0] : ''))
+        .filter((line) => line.startsWith('[Chaos] '));
+      expect(chaosLines.length).toBeGreaterThanOrEqual(2);
+      expect(chaosLines.some((l) => l.includes('lifecycle') && l.includes('engine:start'))).toBe(true);
+      expect(chaosLines.some((l) => l.includes('lifecycle') && l.includes('engine:stop'))).toBe(true);
     });
 
     it('emits lifecycle debug events on enableGroup/disableGroup', () => {
-      vi.spyOn(console, 'debug').mockImplementation(() => {});
+      const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
       chaosMaker = new ChaosMaker({ debug: true });
       chaosMaker.enableGroup('payments');
       chaosMaker.disableGroup('payments');
@@ -132,6 +142,19 @@ describe('ChaosMaker', () => {
         expect(e.detail.groupName).toBe('payments');
         expect(e.detail.stage).toBe('lifecycle');
       }
+      // RFC-002: distinct enabled state on each toggle for debug consumers.
+      expect(groupToggles[0].detail.enabled).toBe(true);
+      expect(groupToggles[1].detail.enabled).toBe(false);
+
+      // Console mirror: each toggle must produce a `[Chaos] lifecycle: ...`
+      // line that mentions the toggled group.
+      const chaosLines = debugSpy.mock.calls
+        .map((args) => (typeof args[0] === 'string' ? args[0] : ''))
+        .filter((line) => line.startsWith('[Chaos] '));
+      const toggleLines = chaosLines.filter(
+        (l) => l.includes('lifecycle') && l.includes('engine:group-toggled') && l.includes('payments'),
+      );
+      expect(toggleLines).toHaveLength(2);
     });
 
     it('emits no debug events when debug:false', () => {

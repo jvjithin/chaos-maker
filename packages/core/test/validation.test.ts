@@ -630,6 +630,10 @@ describe('validateConfig', () => {
       expect(() => validateConfig({ debug: { enabled: true } })).not.toThrow();
     });
 
+    it('accepts debug:{ enabled: false }', () => {
+      expect(() => validateConfig({ debug: { enabled: false } })).not.toThrow();
+    });
+
     it('rejects debug:"yes"', () => {
       expect(() => validateConfig({ debug: 'yes' })).toThrow(ChaosConfigError);
     });

@@ -145,10 +145,14 @@ test.describe('Playwright trace integration', () => {
 
     const attachment = testInfo.attachments.find((a) => a.name === 'chaos-log.json');
     expect(attachment).toBeTruthy();
-    // Hard-require the attachment body so a missing artifact fails the test
-    // instead of silently passing through a conditional.
-    expect(attachment!.body).toBeTruthy();
-    const payload = JSON.parse(attachment!.body!.toString('utf-8'));
+    // Playwright populates `body` synchronously most of the time, but file-
+    // backed attachments only expose `path`. Require one of them, and read
+    // from disk if the buffer is absent.
+    const rawAttachment = attachment!.body
+      ? attachment!.body.toString('utf-8')
+      : (attachment!.path ? readFileSync(attachment!.path, 'utf-8') : null);
+    expect(rawAttachment).toBeTruthy();
+    const payload = JSON.parse(rawAttachment!);
     expect(payload.events.some((e: { type: string }) => e.type === 'debug')).toBe(true);
 
     // Stash the expected trace path for the follow-up test. Playwright flushes
