@@ -310,7 +310,11 @@ export function patchXHR(originalXhrSend: (body?: Document | XMLHttpRequestBodyI
               .join('\r\n'),
           configurable: true
         });
-        this.dispatchEvent(new Event('error'));
+        // Per the XHR spec, an HTTP failure (server returned a 4xx/5xx) is
+        // still a *successful* transport: the user-agent fires `load` then
+        // `loadend`, never `error`. The `error` event is reserved for
+        // network-level failures (DNS, connection refused, CORS) — that path
+        // remains unchanged in the CORS-block branch above.
         this.dispatchEvent(new Event('load'));
         this.dispatchEvent(new Event('loadend'));
         return;
