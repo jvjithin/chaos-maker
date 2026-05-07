@@ -270,8 +270,18 @@ export class ChaosConfigBuilder {
 
   build(): ChaosConfig {
     const out = cloneConfig(this.config);
-    if (this.pendingPresets.length) {
-      out.presets = [...this.pendingPresets];
+    const merged: string[] = [];
+    const seen = new Set<string>();
+    for (const name of [...(out.presets ?? []), ...this.pendingPresets]) {
+      if (!seen.has(name)) {
+        seen.add(name);
+        merged.push(name);
+      }
+    }
+    if (merged.length) {
+      out.presets = merged;
+    } else {
+      delete out.presets;
     }
     return out;
   }

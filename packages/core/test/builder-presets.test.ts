@@ -296,4 +296,17 @@ describe('ChaosConfigBuilder.usePreset', () => {
     const config = new ChaosConfigBuilder().usePreset(' slow-api ').build();
     expect(config.presets).toEqual(['slow-api']);
   });
+
+  it('merges presets from the initial config with usePreset() additions, deduping', () => {
+    const config = new ChaosConfigBuilder({ presets: ['flaky-api', 'slow-api'] })
+      .usePreset('slow-api')
+      .usePreset('offline-mode')
+      .build();
+    expect(config.presets).toEqual(['flaky-api', 'slow-api', 'offline-mode']);
+  });
+
+  it('preserves initial-config presets when usePreset() is never called', () => {
+    const config = new ChaosConfigBuilder({ presets: ['flaky-api'] }).build();
+    expect(config.presets).toEqual(['flaky-api']);
+  });
 });
