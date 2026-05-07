@@ -155,6 +155,10 @@ export class ChaosEventEmitter {
     const id = rule ? this.ruleIds?.get(rule) : undefined;
     const finalDetail = id ? { ...detail, ruleType: id.ruleType, ruleId: id.ruleId } : detail;
     const evt = this.logger.log(stage, finalDetail);
+    // Logger.log() returns null when constructed with enabled:false. The
+    // fast-path above already skips the call when no logger is attached, but
+    // an external caller could have wired in a disabled Logger directly.
+    if (!evt) return;
     this.emit(evt);
   }
 

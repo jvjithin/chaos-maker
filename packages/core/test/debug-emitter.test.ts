@@ -73,6 +73,21 @@ describe('ChaosEventEmitter.debug — with logger attached', () => {
     expect(debugListener.mock.calls[0][0].detail.stage).toBe('rule-evaluating');
   });
 
+  it('does NOT emit when an externally constructed disabled Logger is wired in', () => {
+    const emitter = new ChaosEventEmitter();
+    // Public Logger is exported; an external consumer could wire one in with
+    // enabled:false. The emitter must respect the Logger.enabled contract and
+    // skip both console.debug and event emission.
+    emitter.setLogger(new Logger({ enabled: false }));
+    const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+
+    emitter.debug('rule-applied', { url: '/api', method: 'GET' });
+    emitter.debug('lifecycle', { phase: 'engine:start' });
+
+    expect(debugSpy).not.toHaveBeenCalled();
+    expect(emitter.getLog()).toHaveLength(0);
+  });
+
   it('resolves ruleType + ruleId via setRuleIds map', () => {
     const emitter = new ChaosEventEmitter();
     emitter.setLogger(new Logger({ enabled: true }));
