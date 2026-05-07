@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ChaosConfigError } from './errors';
 import type { ChaosConfig } from './config';
+import { PresetRegistry, expandPresets, type PresetConfigSlice } from './presets';
 
 const probability = z.number().min(0, 'Probability must be >= 0').max(1, 'Probability must be <= 1');
 
@@ -247,16 +248,72 @@ const debugSchema = z.union([
   z.object({ enabled: z.boolean() }).strict(),
 ]);
 
-const chaosConfigSchema = z.object({
+/** Hoisted base for the rule-bearing portion of `ChaosConfig`. Both the
+ *  public `chaosConfigSchema` (with presets/seed/debug) and the preset-slice
+ *  schema (without) compose from this single source. */
+const chaosConfigSliceSchema = z.object({
   network: networkConfigSchema.optional(),
   ui: uiConfigSchema.optional(),
   websocket: webSocketConfigSchema.optional(),
   sse: sseConfigSchema.optional(),
   groups: groupConfigListSchema.optional(),
+}).strict();
+
+/** Preset config slice — same shape as the rule-bearing base. Strict so
+ *  `presets`, `customPresets`, `seed`, `debug` reject inside a preset. */
+const presetConfigSliceSchema = chaosConfigSliceSchema;
+
+const presetNameSchema = z.string().trim().min(1, 'preset name must not be empty');
+
+/** Silent dedup preserving first occurrence. Mirrors the builder's
+ *  `.usePreset()` semantics so both surfaces normalize to the same shape. */
+const presetsArraySchema = z.array(presetNameSchema).transform((names) => {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const n of names) {
+    const norm = n.trim();
+    if (!seen.has(norm)) {
+      seen.add(norm);
+      out.push(norm);
+    }
+  }
+  return out;
+});
+
+const customPresetsSchema = z.record(presetNameSchema, presetConfigSliceSchema);
+
+// INVARIANT: `presets` and `customPresets` MUST stay `.optional()`.
+// `prepareChaosConfig` runs Zod pass 2 on a config with both fields STRIPPED
+// — making either required would break the canonical preparation path. If
+// stricter enforcement is needed elsewhere, do it in a dedicated schema
+// variant, not here.
+const chaosConfigSchema = chaosConfigSliceSchema.extend({
+  presets: presetsArraySchema.optional(),
+  customPresets: customPresetsSchema.optional(),
   seed: z.number().int('Seed must be an integer').optional(),
   debug: debugSchema.optional(),
 }).strict();
 
+// DRIFT GUARD — fails to compile if `PresetConfigSlice` gains a top-level
+// key the schema doesn't model. New rule category on ChaosConfig? Add an
+// entry to `chaosConfigSliceSchema` and this check passes again.
+//
+// SCOPE: top-level category coverage ONLY. This guard does NOT verify:
+//   - per-category nested-shape parity;
+//   - runtime validation behavior or strictness of nested schemas;
+//   - that `forEachRule` walks the new category (separate test enforces);
+//   - that `appendSlice` walks the new category (its `cat` tuple in
+//     `presets.ts` must be updated for non-network/ui/websocket/sse cats).
+type _SliceKeys = keyof Required<PresetConfigSlice>;
+type _SchemaKeys = keyof typeof chaosConfigSliceSchema.shape;
+type _Missing = Exclude<_SliceKeys, _SchemaKeys>;
+const _sliceSchemaCovers: _Missing extends never ? true : never = true;
+void _sliceSchemaCovers;
+
+/** Schema-only validation. DOES NOT expand presets and DOES NOT run the
+ *  post-merge re-validation pass. Calling this on its own in a runtime path
+ *  will silently bypass preset expansion. For runtime config preparation,
+ *  ALWAYS call `prepareChaosConfig`. */
 export function validateConfig(config: unknown): ChaosConfig {
   const result = chaosConfigSchema.safeParse(config);
   if (!result.success) {
@@ -266,4 +323,34 @@ export function validateConfig(config: unknown): ChaosConfig {
     throw new ChaosConfigError(issues);
   }
   return result.data as ChaosConfig;
+}
+
+/** Canonical runtime preparation entry point for a `ChaosConfig`.
+ *
+ *  Composes the four validation steps and normalizes plain-`Error` throws
+ *  into `ChaosConfigError`:
+ *    1. Zod pass 1 — input shape (presets array, customPresets record).
+ *    2. Build per-instance `PresetRegistry`, register customs.
+ *    3. `expandPresets` — append rule arrays + groups, strip preset fields.
+ *    4. Zod pass 2 — re-validate the merged config (catches group-name
+ *       collisions across preset+user that pass 1 cannot detect).
+ *
+ *  Idempotent: a config with no presets / customPresets returns a
+ *  structurally-equivalent fresh clone.
+ *
+ *  Used by `ChaosMaker` constructor and every adapter SW page-side helper.
+ *  Do NOT call `validateConfig` directly in a runtime path — it is the
+ *  schema-only primitive and skips preset expansion. */
+export function prepareChaosConfig(input: unknown): ChaosConfig {
+  const validated = validateConfig(input);
+  let expanded: ChaosConfig;
+  try {
+    const registry = new PresetRegistry();
+    registry.registerAll(validated.customPresets);
+    expanded = expandPresets(validated, registry);
+  } catch (e) {
+    if (e instanceof ChaosConfigError) throw e;
+    throw new ChaosConfigError([(e as Error).message]);
+  }
+  return validateConfig(expanded);
 }
