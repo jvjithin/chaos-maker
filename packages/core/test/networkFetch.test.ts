@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { patchFetch } from '../src/interceptors/networkFetch';
 import { NetworkConfig } from '../src/config';
 import { ChaosEventEmitter } from '../src/events';
@@ -528,6 +528,12 @@ describe('patchFetch', () => {
 
     beforeEach(() => {
       debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+    });
+
+    // Restore the spy between tests so a stacked `vi.spyOn` cannot accumulate
+    // across tests if any assertion in the it() block fails.
+    afterEach(() => {
+      vi.restoreAllMocks();
     });
 
     it('emits rule-evaluating, rule-matched, rule-applied for an applied failure', async () => {

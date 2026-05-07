@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { patchFetch } from '../src/interceptors/networkFetch';
 import { NetworkConfig } from '../src/config';
 import { ChaosEventEmitter, ChaosEvent } from '../src/events';
@@ -12,6 +12,12 @@ const deterministicRandom = () => 0;
 beforeEach(() => {
   mockFetch.mockClear();
   mockFetch.mockResolvedValue(new global.Response('{}', { status: 200 }));
+});
+
+// Restore any spies (e.g. console.debug taps) between tests so a failed
+// assertion can't leak a mock into the next test's globals.
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe('runtime group gating — network fetch', () => {
@@ -154,7 +160,6 @@ describe('runtime group gating — network fetch', () => {
     expect(skipGroup.length).toBe(1);
     expect(skipGroup[0].detail.groupName).toBe('payments');
     expect(skipGroup[0].detail.ruleId).toBe('failure#0');
-    vi.restoreAllMocks();
   });
 });
 

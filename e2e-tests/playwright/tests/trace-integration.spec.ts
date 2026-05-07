@@ -141,25 +141,26 @@ test.describe('Playwright trace integration', () => {
 
     const attachment = testInfo.attachments.find((a) => a.name === 'chaos-log.json');
     expect(attachment).toBeTruthy();
-    if (attachment!.body) {
-      const payload = JSON.parse(attachment!.body.toString('utf-8'));
-      // Debug events ride in the attachment.
-      expect(payload.events.some((e: { type: string }) => e.type === 'debug')).toBe(true);
-    }
+    // Hard-require the attachment body so a missing artifact fails the test
+    // instead of silently passing through a conditional.
+    expect(attachment!.body).toBeTruthy();
+    const payload = JSON.parse(attachment!.body!.toString('utf-8'));
+    // Debug events ride in the attachment.
+    expect(payload.events.some((e: { type: string }) => e.type === 'debug')).toBe(true);
 
     const traceZip = join(testInfo.outputDir, 'trace.zip');
     const deadline = Date.now() + 5000;
     while (!existsSync(traceZip) && Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, 50));
     }
-    if (existsSync(traceZip)) {
-      const events = readTraceEvents(traceZip);
-      const titles = events
-        .map((e) => (e as { title?: unknown; metadata?: { title?: unknown } })?.title
-          ?? (e as { metadata?: { title?: unknown } })?.metadata?.title)
-        .filter((t): t is string => typeof t === 'string');
-      // RFC-002: debug events MUST NOT render as inline test.step entries.
-      expect(titles.some((t) => /^chaos:debug/.test(t))).toBe(false);
-    }
+    // Hard-require the trace zip so a missing artifact fails the test.
+    expect(existsSync(traceZip)).toBe(true);
+    const events = readTraceEvents(traceZip);
+    const titles = events
+      .map((e) => (e as { title?: unknown; metadata?: { title?: unknown } })?.title
+        ?? (e as { metadata?: { title?: unknown } })?.metadata?.title)
+      .filter((t): t is string => typeof t === 'string');
+    // RFC-002: debug events MUST NOT render as inline test.step entries.
+    expect(titles.some((t) => /^chaos:debug/.test(t))).toBe(false);
   });
 });
