@@ -86,20 +86,27 @@ function deepFreeze<T>(value: T): T {
 /** All built-in presets including RFC-003 kebab aliases.
  *  Aliases are EXTRA registry entries pointing at the SAME config object
  *  identity as the camelCase entry — so
- *  `registry.get('slow-api') === presets.slowNetwork`. */
-export const BUILT_IN_PRESETS: ReadonlyArray<Preset> = Object.freeze([
-  { name: 'unstableApi',           config: UNSTABLE_API },
-  { name: 'slowNetwork',           config: SLOW_NETWORK },
-  { name: 'offlineMode',           config: OFFLINE_MODE },
-  { name: 'flakyConnection',       config: FLAKY_CONNECTION },
-  { name: 'degradedUi',            config: DEGRADED_UI },
-  { name: 'unreliableWebSocket',   config: UNRELIABLE_WEBSOCKET },
-  { name: 'unreliableEventStream', config: UNRELIABLE_EVENT_STREAM },
-  { name: 'slow-api',      config: SLOW_NETWORK },
-  { name: 'flaky-api',     config: FLAKY_CONNECTION },
-  { name: 'offline-mode',  config: OFFLINE_MODE },
-  { name: 'high-latency',  config: UNSTABLE_API },
-]);
+ *  `registry.get('slow-api') === presets.slowNetwork`.
+ *
+ *  Both the array AND each `{ name, config }` descriptor are frozen so that
+ *  `BUILT_IN_PRESETS[0].name = 'x'` or `BUILT_IN_PRESETS[0].config = {}` cannot
+ *  poison future `PresetRegistry` constructions. Configs are already deep-
+ *  frozen above, so the descriptor freeze is the missing layer. */
+export const BUILT_IN_PRESETS: ReadonlyArray<Preset> = Object.freeze(
+  ([
+    { name: 'unstableApi',           config: UNSTABLE_API },
+    { name: 'slowNetwork',           config: SLOW_NETWORK },
+    { name: 'offlineMode',           config: OFFLINE_MODE },
+    { name: 'flakyConnection',       config: FLAKY_CONNECTION },
+    { name: 'degradedUi',            config: DEGRADED_UI },
+    { name: 'unreliableWebSocket',   config: UNRELIABLE_WEBSOCKET },
+    { name: 'unreliableEventStream', config: UNRELIABLE_EVENT_STREAM },
+    { name: 'slow-api',      config: SLOW_NETWORK },
+    { name: 'flaky-api',     config: FLAKY_CONNECTION },
+    { name: 'offline-mode',  config: OFFLINE_MODE },
+    { name: 'high-latency',  config: UNSTABLE_API },
+  ] as Preset[]).map((p) => Object.freeze(p)),
+);
 
 function normalizePresetName(name: string): string {
   const trimmed = name.trim();
@@ -208,17 +215,26 @@ function appendSlice(target: ChaosConfig, slice: PresetConfigSlice): void {
  *  transform, because `expandPresets` is exported and a contributor could
  *  call it directly on an un-validated config. */
 export function expandPresets(config: ChaosConfig, registry: PresetRegistry): ChaosConfig {
-  const seen = new Set<string>();
-  const ordered: string[] = [];
+  const seenNames = new Set<string>();
+  const seenConfigs = new Set<PresetConfigSlice>();
+  const orderedConfigs: PresetConfigSlice[] = [];
   for (const raw of config.presets ?? []) {
     const norm = raw.trim();
-    if (!norm || seen.has(norm)) continue;
-    seen.add(norm);
-    ordered.push(norm);
+    if (!norm || seenNames.has(norm)) continue;
+    seenNames.add(norm);
+    // Dedup by resolved config identity too: kebab aliases share object
+    // identity with their camelCase entries, so `['slow-api', 'slowNetwork']`
+    // collapses to a single expansion preserving first-occurrence order.
+    // Custom presets get distinct config objects, so this never collapses
+    // distinct user intents.
+    const cfg = registry.get(norm);
+    if (seenConfigs.has(cfg)) continue;
+    seenConfigs.add(cfg);
+    orderedConfigs.push(cfg);
   }
   const out: ChaosConfig = {};
-  for (const name of ordered) {
-    appendSlice(out, cloneValue(registry.get(name)));
+  for (const cfg of orderedConfigs) {
+    appendSlice(out, cloneValue(cfg));
   }
   const userClone = cloneValue(config);
   delete userClone.presets;

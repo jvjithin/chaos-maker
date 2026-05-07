@@ -119,4 +119,21 @@ describe('PresetRegistry', () => {
       slow.network!.latencies![0].delayMs = 1;
     }).toThrow(TypeError);
   });
+
+  it('BUILT_IN_PRESETS descriptors are frozen — name swap throws', () => {
+    expect(Object.isFrozen(BUILT_IN_PRESETS[0])).toBe(true);
+    expect(() => {
+      (BUILT_IN_PRESETS[0] as { name: string }).name = 'poisoned';
+    }).toThrow(TypeError);
+    // Sanity: a fresh registry still resolves the original name.
+    expect(new PresetRegistry().has('unstableApi')).toBe(true);
+  });
+
+  it('BUILT_IN_PRESETS descriptors are frozen — config swap throws', () => {
+    expect(() => {
+      (BUILT_IN_PRESETS[0] as { config: unknown }).config = {};
+    }).toThrow(TypeError);
+    // Identity guarantee survives the attempted poisoning.
+    expect(new PresetRegistry().get('unstableApi')).toBe(presets.unstableApi);
+  });
 });

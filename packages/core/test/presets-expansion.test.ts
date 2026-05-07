@@ -65,6 +65,33 @@ describe('expandPresets', () => {
     expect(out.network!.latencies).toHaveLength(1);
   });
 
+  it('dedupes aliases pointing at the same built-in config (identity dedup)', () => {
+    const out = expandPresets({ presets: ['slow-api', 'slowNetwork'] }, new PresetRegistry());
+    expect(out.network!.latencies).toHaveLength(1);
+  });
+
+  it('alias dedup preserves first-occurrence order across distinct presets', () => {
+    const out = expandPresets(
+      { presets: ['slowNetwork', 'flaky-api', 'slow-api'] },
+      new PresetRegistry(),
+    );
+    // slow-api collapses into the prior slowNetwork; flaky-api stays.
+    // slowNetwork latency at index 0, flaky-api latency at index 1.
+    expect(out.network!.latencies).toHaveLength(2);
+    expect(out.network!.latencies![0].delayMs).toBe(2000);
+    expect(out.network!.latencies![1].delayMs).toBe(3000);
+  });
+
+  it('does not dedup distinct customs that happen to share rule shapes', () => {
+    const registry = new PresetRegistry();
+    registry.registerAll({
+      'team-a': { network: { failures: [{ urlPattern: '/x', statusCode: 500, probability: 1 }] } },
+      'team-b': { network: { failures: [{ urlPattern: '/x', statusCode: 500, probability: 1 }] } },
+    });
+    const out = expandPresets({ presets: ['team-a', 'team-b'] }, registry);
+    expect(out.network!.failures).toHaveLength(2);
+  });
+
   it('does not mutate BUILT_IN_PRESETS', () => {
     const before = BUILT_IN_PRESETS.length;
     expandPresets({ presets: ['slow-api'] }, new PresetRegistry());
