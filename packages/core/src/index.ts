@@ -1,14 +1,23 @@
 import { ChaosMaker } from './ChaosMaker';
 import { ChaosConfig, CorruptionStrategy, GraphQLOperationMatcher, NetworkFailureConfig, NetworkLatencyConfig, NetworkAbortConfig, NetworkCorruptionConfig, NetworkCorsConfig, NetworkConfig, NetworkRuleMatchers, RuleGroupAssignment, UiAssaultConfig, UiConfig, WebSocketConfig, WebSocketDropConfig, WebSocketDelayConfig, WebSocketCorruptConfig, WebSocketCloseConfig, WebSocketDirection, WebSocketCorruptionStrategy, SSEConfig, SSEDropConfig, SSEDelayConfig, SSECorruptConfig, SSECloseConfig, SSECorruptionStrategy, SSEEventTypeMatcher } from './config';
 import { ChaosConfigError } from './errors';
-import { validateConfig } from './validation';
+import { validateConfig, prepareChaosConfig } from './validation';
 import { ChaosEvent, ChaosEventType, ChaosEventListener, ChaosEventEmitter } from './events';
 import { ChaosConfigBuilder } from './builder';
-import { presets } from './presets';
+import { presets, PresetRegistry, BUILT_IN_PRESETS, expandPresets } from './presets';
 import { createPrng, generateSeed } from './prng';
 import { deserializeForTransport } from './transport';
 
-export { ChaosMaker, ChaosConfigError, validateConfig, ChaosEventEmitter, ChaosConfigBuilder, presets, createPrng, generateSeed };
+/** `prepareChaosConfig` is the canonical runtime preparation entry point for
+ *  a `ChaosConfig` — validates the input shape, expands `presets` /
+ *  `customPresets`, and re-validates the merged result. The `ChaosMaker`
+ *  constructor and every adapter SW page-side helper call through it.
+ *
+ *  `validateConfig` remains exported as the schema-only primitive but DOES
+ *  NOT expand presets. Use it for unit-test structural assertions only — for
+ *  any runtime preparation, call `prepareChaosConfig`. */
+export { ChaosMaker, ChaosConfigError, validateConfig, prepareChaosConfig, ChaosEventEmitter, ChaosConfigBuilder, presets, PresetRegistry, BUILT_IN_PRESETS, expandPresets, createPrng, generateSeed };
+export type { Preset, PresetConfigSlice } from './presets';
 export { SW_BRIDGE_SOURCE } from './sw-bridge-source';
 export { extractGraphQLOperation, parseOperationFromQueryString, operationNameMatches } from './graphql';
 export { serializeForTransport, deserializeForTransport } from './transport';
