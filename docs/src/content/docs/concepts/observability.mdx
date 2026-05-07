@@ -52,6 +52,13 @@ Sample console output:
 [Chaos] lifecycle: engine:start
 ```
 
+Service Worker chaos uses a distinct prefix so you can split the streams when both sinks log to the same console:
+
+```
+[Chaos SW] lifecycle: sw:config-applied
+[Chaos SW] rule-applied: rule=failure#0 GET /api/payments -> 503
+```
+
 The structured event keeps the stage on `detail.stage`. Subscribe with one listener and switch on the stage:
 
 ```typescript

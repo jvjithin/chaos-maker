@@ -99,7 +99,7 @@ interface ChaosEvent {
 }
 ```
 
-`applied` is always `false` on debug events — they describe decisions, not chaos. The structured event mirrors a `[Chaos] <stage>: ...` line to `console.debug` at emit time. The formatted string is **not** stored on the payload.
+`applied` is always `false` on debug events — they describe decisions, not chaos. The structured event mirrors a `[Chaos] <stage>: ...` line (or `[Chaos SW] <stage>: ...` from inside a Service Worker) to `console.debug` at emit time. The formatted string is **not** stored on the payload, and the prefix is owned by the Logger so the page and SW prefixes are mutually exclusive.
 
 ## Rule identifiers
 

@@ -5,8 +5,9 @@
  *   1. Structured `type: 'debug'` events through `ChaosEventEmitter` —
  *      consumers subscribe via `instance.on('debug', cb)` and switch on
  *      `event.detail.stage` for the stage taxonomy.
- *   2. A formatted `[Chaos] <stage> ...` line to `console.debug`. Hidden by
- *      default in CI loggers, visible in browser DevTools.
+ *   2. A formatted `[Chaos] <stage> ...` line (or `[Chaos SW] <stage> ...`
+ *      when the logger targets a Service Worker) to `console.debug`. Hidden
+ *      by default in CI loggers, visible in browser DevTools.
  *
  * Framework-agnostic: never reads `process.env.DEBUG`, `--debug`, or
  * `localStorage.debug`. The only signal is `ChaosConfig.debug`.
@@ -71,7 +72,11 @@ export function buildRuleIdMap(config: ChaosConfig): WeakMap<object, RuleIdEntry
   return map;
 }
 
-/** Build the human-readable line mirrored to `console.debug`. */
+/**
+ * Build the human-readable body mirrored to `console.debug`. Does NOT include
+ * the `[Chaos]` / `[Chaos SW]` prefix — that is owned by `Logger.log()` and
+ * varies by target so the two never compose into a doubled prefix.
+ */
 export function formatDebugMessage(stage: ChaosDebugStage, detail: ChaosEvent['detail']): string {
   const parts: string[] = [];
   if (detail.ruleId) parts.push(`rule=${detail.ruleId}`);
@@ -87,7 +92,7 @@ export function formatDebugMessage(stage: ChaosDebugStage, detail: ChaosEvent['d
   if (detail.strategy) parts.push(`strategy=${detail.strategy}`);
   if (detail.groupName) parts.push(`group=${detail.groupName}`);
   if (detail.reason) parts.push(`reason=${detail.reason}`);
-  return parts.length === 0 ? `[Chaos] ${stage}` : `[Chaos] ${stage}: ${parts.join(' ')}`;
+  return parts.length === 0 ? stage : `${stage}: ${parts.join(' ')}`;
 }
 
 export class Logger {
@@ -98,11 +103,19 @@ export class Logger {
   }
 
   /**
-   * Build a `type: 'debug'` event with `detail.stage = stage`, mirror the
-   * formatted line to `console.debug`, and return the event for the emitter
-   * to fan out. The formatted string is never stored on the event payload.
+   * Build a `type: 'debug'` event with `detail.stage = stage`, mirror a
+   * `[Chaos] ...` (page) or `[Chaos SW] ...` (Service Worker) line to
+   * `console.debug`, and return the event for the emitter to fan out. The
+   * formatted string is never stored on the event payload.
+   *
+   * Returns `null` when the logger was constructed with `enabled: false`.
+   * Internal callers (the emitter fast-path) never reach this branch because
+   * `ChaosMaker` does not attach a logger when debug is off, but the guard
+   * keeps the public `Logger` API consistent with the `DebugOptions.enabled`
+   * contract for external consumers who instantiate it directly.
    */
-  log(stage: ChaosDebugStage, detail: ChaosEvent['detail']): ChaosEvent {
+  log(stage: ChaosDebugStage, detail: ChaosEvent['detail']): ChaosEvent | null {
+    if (!this.opts.enabled) return null;
     const finalDetail: ChaosEvent['detail'] = { ...detail, stage };
     const event: ChaosEvent = {
       type: 'debug',
@@ -111,8 +124,8 @@ export class Logger {
       detail: finalDetail,
     };
     if (typeof console !== 'undefined' && typeof console.debug === 'function') {
-      const prefix = this.target === 'sw' ? '[Chaos SW] ' : '';
-      console.debug(`${prefix}${formatDebugMessage(stage, finalDetail)}`);
+      const prefix = this.target === 'sw' ? '[Chaos SW]' : '[Chaos]';
+      console.debug(`${prefix} ${formatDebugMessage(stage, finalDetail)}`);
     }
     return event;
   }

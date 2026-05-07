@@ -37,41 +37,76 @@ describe('Logger', () => {
     const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
     const evt = logger.log('rule-applied', { url: '/api', method: 'GET', statusCode: 503 });
 
-    expect(evt.type).toBe('debug');
-    expect(evt.applied).toBe(false);
-    expect(evt.detail.stage).toBe('rule-applied');
-    expect(evt.detail.url).toBe('/api');
-    expect(evt.detail.statusCode).toBe(503);
+    expect(evt).not.toBeNull();
+    expect(evt!.type).toBe('debug');
+    expect(evt!.applied).toBe(false);
+    expect(evt!.detail.stage).toBe('rule-applied');
+    expect(evt!.detail.url).toBe('/api');
+    expect(evt!.detail.statusCode).toBe(503);
     // RFC-002: formatted message must not be stored on the event payload.
-    expect((evt.detail as Record<string, unknown>).message).toBeUndefined();
+    expect((evt!.detail as Record<string, unknown>).message).toBeUndefined();
     expect(debugSpy).toHaveBeenCalledTimes(1);
 
     debugSpy.mockRestore();
   });
 
-  it('mirrors a [Chaos SW] prefix when target is "sw"', () => {
+  it('emits a single [Chaos] page-prefixed line for the page target', () => {
+    const logger = new Logger({ enabled: true });
+    const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+    logger.log('rule-applied', { ruleId: 'failure#0', method: 'GET', url: '/api', statusCode: 503 });
+    expect(debugSpy).toHaveBeenCalledTimes(1);
+    expect(debugSpy.mock.calls[0][0]).toBe(
+      '[Chaos] rule-applied: rule=failure#0 GET /api -> 503',
+    );
+    debugSpy.mockRestore();
+  });
+
+  it('emits a single [Chaos SW] SW-prefixed line for the sw target with no doubled [Chaos]', () => {
     const logger = new Logger({ enabled: true }, 'sw');
     const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
     logger.log('lifecycle', { phase: 'sw:config-applied' });
-    expect(debugSpy.mock.calls[0][0]).toMatch(/^\[Chaos SW\] /);
+    expect(debugSpy).toHaveBeenCalledTimes(1);
+    const line = debugSpy.mock.calls[0][0] as string;
+    // Exact format: SW prefix + body, no doubled [Chaos] anywhere in the line.
+    expect(line).toBe('[Chaos SW] lifecycle: sw:config-applied');
+    expect(line).not.toContain('[Chaos] [');
+    expect(line).not.toContain('[Chaos] [Chaos');
+    debugSpy.mockRestore();
+  });
+
+  it('returns null and skips console.debug when constructed with enabled:false', () => {
+    const logger = new Logger({ enabled: false });
+    const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+    const evt = logger.log('rule-applied', { url: '/api', method: 'GET', statusCode: 503 });
+    expect(evt).toBeNull();
+    expect(debugSpy).not.toHaveBeenCalled();
+    debugSpy.mockRestore();
+  });
+
+  it('returns null and skips console.debug for the sw target when enabled:false', () => {
+    const logger = new Logger({ enabled: false }, 'sw');
+    const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+    const evt = logger.log('lifecycle', { phase: 'sw:config-applied' });
+    expect(evt).toBeNull();
+    expect(debugSpy).not.toHaveBeenCalled();
     debugSpy.mockRestore();
   });
 });
 
 describe('formatDebugMessage', () => {
-  it('formats rule-applied with rule, method, url, status', () => {
+  it('formats rule-applied body without prefix (prefix is owned by Logger)', () => {
     const line = formatDebugMessage('rule-applied', {
       ruleId: 'failure#0',
       method: 'GET',
       url: '/api',
       statusCode: 503,
     });
-    expect(line).toBe('[Chaos] rule-applied: rule=failure#0 GET /api -> 503');
+    expect(line).toBe('rule-applied: rule=failure#0 GET /api -> 503');
   });
 
   it('formats lifecycle with phase only', () => {
     expect(formatDebugMessage('lifecycle', { phase: 'engine:start' }))
-      .toBe('[Chaos] lifecycle: engine:start');
+      .toBe('lifecycle: engine:start');
   });
 
   it('formats rule-skip-group with group + base detail', () => {
@@ -81,11 +116,11 @@ describe('formatDebugMessage', () => {
       url: '/api/slow',
       delayMs: 1000,
       groupName: 'payments',
-    })).toBe('[Chaos] rule-skip-group: rule=latency#1 POST /api/slow +1000ms group=payments');
+    })).toBe('rule-skip-group: rule=latency#1 POST /api/slow +1000ms group=payments');
   });
 
   it('falls back to bare stage when detail is empty', () => {
-    expect(formatDebugMessage('rule-evaluating', {})).toBe('[Chaos] rule-evaluating');
+    expect(formatDebugMessage('rule-evaluating', {})).toBe('rule-evaluating');
   });
 });
 
