@@ -164,7 +164,8 @@ export function patchXHR(originalXhrSend: (body?: Document | XMLHttpRequestBodyI
           continue;
         }
         emitter?.debug('rule-applied', { url, method }, cors);
-        console.debug(`[chaos-maker] CORS block: ${method} ${url}`);
+        // The `rule-applied` debug event above already conveys the apply
+        // signal; an extra console.debug would duplicate it.
         Object.defineProperty(this, 'status', { value: 0 });
         Object.defineProperty(this, 'statusText', { value: '' });
         this.dispatchEvent(new Event('error'));

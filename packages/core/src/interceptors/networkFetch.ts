@@ -254,6 +254,11 @@ export function patchFetch(originalFetch: typeof globalThis.fetch, config: Netwo
         }
         if (!gateGroup(cors, groups, emitter, { url, method })) continue;
         const applied = shouldApplyChaos(cors.probability, random);
+        // The `graphql-body-unparseable` diagnostic is intentionally gated on
+        // both group and probability so disabled groups / missed rolls do not
+        // produce noisy diagnostics for every unparseable body — see the
+        // "suppresses graphql-body-unparseable diagnostics" tests in
+        // packages/core/test/networkFetch.test.ts.
         if (gate.outcome?.kind === 'unparseable') {
           if (applied) {
             emitGraphQLDiagnostic(emitter, 'network:cors', url, method, {});
@@ -271,8 +276,9 @@ export function patchFetch(originalFetch: typeof globalThis.fetch, config: Netwo
           continue;
         }
         emitter?.debug('rule-applied', { url, method }, cors);
-        console.debug(`[chaos-maker] CORS block: ${method} ${url}`);
-        // Mimic a real browser network error with a clean stack trace.
+        // Mimic a real browser network error with a clean stack trace. The
+        // `rule-applied` debug event above already conveys the apply signal;
+        // no separate console.debug needed.
         const error = new TypeError('Failed to fetch');
         error.stack = '';
         throw error;
