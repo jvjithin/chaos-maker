@@ -125,7 +125,15 @@ export class Logger {
     };
     if (typeof console !== 'undefined' && typeof console.debug === 'function') {
       const prefix = this.target === 'sw' ? '[Chaos SW]' : '[Chaos]';
-      console.debug(`${prefix} ${formatDebugMessage(stage, finalDetail)}`);
+      // Isolate the console sink from the structured-event path: a host that
+      // monkey-patched `console.debug` to throw must not abort `Logger.log()`
+      // and starve the emitter of its event. Swallowed errors stay local to
+      // the sink.
+      try {
+        console.debug(`${prefix} ${formatDebugMessage(stage, finalDetail)}`);
+      } catch {
+        /* console sink unavailable or throwing — observability best-effort */
+      }
     }
     return event;
   }

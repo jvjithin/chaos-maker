@@ -225,8 +225,13 @@ export interface ChaosConfig {
    * `console.debug`. Framework-agnostic — does not touch
    * Playwright/Cypress/Puppeteer/WDIO debug semantics. Defaults to `false`;
    * fast-path no-op when off.
+   *
+   * Accepts `boolean` for the common case or `{ enabled: boolean }` to match
+   * the `DebugOptions` shape that future Debug Mode extensions (`level`,
+   * `prefix`, `console`, `sink`) will add. The validator coerces both forms;
+   * the runtime normalizes them via `normalizeDebugOption()`.
    */
-  debug?: boolean;
+  debug?: boolean | { enabled: boolean };
   /**
    * Seed for Chaos Maker's PRNG.
    *

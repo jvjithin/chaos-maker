@@ -241,6 +241,12 @@ function stopEngine(state: SWEngineState): void {
     state.webSocketHandle = undefined;
   }
   state.emitter.debug('lifecycle', { phase: 'sw:config-stopped' });
+  // Detach the SW debug sink so a stale Logger from the prior config can no
+  // longer fire after the engine is stopped — e.g. an out-of-band
+  // `__chaosMakerToggleGroup` message arriving post-stop must NOT emit
+  // `type: 'debug'` events or call `console.debug`.
+  state.emitter.setLogger(undefined);
+  state.emitter.setRuleIds(undefined);
   state.running = false;
 }
 
@@ -355,7 +361,7 @@ export function installChaosSW(opts: InstallChaosSWOptions = {}): SWChaosHandle 
         applied: true,
         detail: { groupName: name },
       });
-      state.emitter.debug('lifecycle', { phase: 'sw:group-toggled', groupName: name });
+      state.emitter.debug('lifecycle', { phase: 'sw:group-toggled', groupName: name, enabled });
       replyViaPortOrBroadcast(target, evt, {
         __chaosMakerAck: true,
         running: state.running,

@@ -318,6 +318,12 @@ describe('installChaosSW', () => {
   });
 
   describe('debug mode (RFC-002)', () => {
+    // Restore console.debug spies in one place so a failed assertion in any
+    // test below does not leak the spy into the next test.
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
     it('broadcasts a sw:config-applied lifecycle debug event when debug:true', async () => {
       const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
       const client = makeFakeClient('c1');
@@ -344,7 +350,6 @@ describe('installChaosSW', () => {
       expect(debugSpy.mock.calls.some(
         (args) => typeof args[0] === 'string' && (args[0] as string).startsWith('[Chaos SW] '),
       )).toBe(true);
-      debugSpy.mockRestore();
     });
 
     it('broadcasts sw:group-toggled when toggling a group while debug is on', async () => {
@@ -374,7 +379,48 @@ describe('installChaosSW', () => {
         (m) => m.event.type === 'debug' && m.event.detail.phase === 'sw:group-toggled',
       );
       expect(toggleDbg?.event.detail.groupName).toBe('payments');
-      vi.restoreAllMocks();
+      // RFC-002: the toggle debug payload must carry the new state so
+      // consumers can pivot enable vs disable on the debug stream alone.
+      expect(toggleDbg?.event.detail.enabled).toBe(false);
+    });
+
+    it('drops the SW logger after stop so a stale toggle cannot fire debug events', async () => {
+      const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+      const client = makeFakeClient('c1');
+      const target = makeSWTarget([client]);
+      const { installChaosSW } = await importSwWithTarget(target);
+      installChaosSW({ source: 'message' });
+
+      target.dispatchMessage({
+        __chaosMakerConfig: { debug: true, groups: [{ name: 'payments', enabled: true }] } satisfies ChaosConfig,
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+      target.dispatchMessage({ __chaosMakerStop: true });
+      await Promise.resolve();
+      await Promise.resolve();
+      // Snapshot what's been seen so far, then clear so the next assertion
+      // only inspects post-stop activity.
+      client.messages.length = 0;
+      debugSpy.mockClear();
+
+      // Out-of-band toggle after the engine is stopped: must NOT emit any
+      // type:'debug' event to clients OR call console.debug.
+      target.dispatchMessage({
+        __chaosMakerToggleGroup: { name: 'payments', enabled: false },
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const swEvents = client.messages.filter(
+        (m) => (m as { __chaosMakerSWEvent?: boolean }).__chaosMakerSWEvent,
+      ) as { event: ChaosEvent }[];
+      const debugEvents = swEvents.filter((m) => m.event.type === 'debug');
+      expect(debugEvents).toHaveLength(0);
+      const chaosDebugLines = debugSpy.mock.calls.filter(
+        (args) => typeof args[0] === 'string' && (args[0] as string).startsWith('[Chaos SW] '),
+      );
+      expect(chaosDebugLines).toHaveLength(0);
     });
   });
 });

@@ -84,6 +84,12 @@ export interface ChaosEvent {
     reason?: string;
     /** Group name (for `rule-group:*` events, and on gated rule diagnostics). */
     groupName?: string;
+    /** RFC-002. New state of a group when `stage === 'lifecycle'` and
+     *  `phase === 'engine:group-toggled' | 'sw:group-toggled'`. Distinguishes
+     *  enable from disable on the debug stream so consumers don't have to
+     *  pivot on the parallel `rule-group:enabled` / `rule-group:disabled`
+     *  emitter events. */
+    enabled?: boolean;
     /** RFC-002. Concrete stage of a rule's decision pipeline. Set on every
      *  `type: 'debug'` event; unset on non-debug events. */
     stage?: ChaosDebugStage;
