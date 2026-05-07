@@ -63,6 +63,30 @@ await injectChaos(browser, { /* config */ });
 const log = await getChaosLog(browser);
 ```
 
+## Presets
+
+Drop a built-in preset by name with the declarative `presets` field:
+
+```ts
+await browser.url('/');
+await browser.injectChaos({ presets: ['slow-api'] });
+```
+
+Register your own bundle inline via `customPresets`:
+
+```ts
+await browser.injectChaos({
+  customPresets: {
+    'team-flow': {
+      network: { failures: [{ urlPattern: '/checkout', statusCode: 503, probability: 1 }] },
+    },
+  },
+  presets: ['team-flow'],
+});
+```
+
+Built-in catalog and validation rules are documented in [`@chaos-maker/core`](../core/README.md#presets).
+
 ## Rule Groups
 
 Group rules by scenario and toggle them at runtime.

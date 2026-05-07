@@ -59,6 +59,27 @@ test('handles slow network', async ({ page, chaos }) => {
 
 ### With Presets
 
+Drop a built-in preset by name with the declarative `presets` field:
+
+```ts
+await injectChaos(page, { presets: ['slow-api'] });
+```
+
+Register your own bundle inline via `customPresets`:
+
+```ts
+await injectChaos(page, {
+  customPresets: {
+    'team-flow': {
+      network: { failures: [{ urlPattern: '/checkout', statusCode: 503, probability: 1 }] },
+    },
+  },
+  presets: ['team-flow'],
+});
+```
+
+The legacy spread style still works for migration:
+
 ```ts
 import { test, expect } from '@playwright/test';
 import { presets } from '@chaos-maker/core';

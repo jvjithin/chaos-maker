@@ -49,13 +49,81 @@ chaos.stop(); // restores original fetch/XHR
 
 ### Presets
 
-```ts
-import { ChaosMaker, presets } from '@chaos-maker/core';
+Presets are reusable bundles of rules. Drop them into a config by name with the `presets` field, and the engine merges them at construction time.
 
-// Available: unstableApi, slowNetwork, offlineMode, flakyConnection, degradedUi
-const chaos = new ChaosMaker(presets.slowNetwork);
+```ts
+import { ChaosMaker } from '@chaos-maker/core';
+
+const chaos = new ChaosMaker({
+  presets: ['slow-api'],
+  network: {
+    failures: [{ urlPattern: '/api/checkout', statusCode: 500, probability: 1 }],
+  },
+});
 chaos.start();
 ```
+
+**Built-in catalog**
+
+| camelCase name          | Kebab alias     | Behavior                                                          |
+| ----------------------- | --------------- | ----------------------------------------------------------------- |
+| `slowNetwork`           | `slow-api`      | 2000ms latency on every request                                   |
+| `flakyConnection`       | `flaky-api`     | 5% aborts plus 3000ms latency on 10% of requests                  |
+| `offlineMode`           | `offline-mode`  | Force CORS failure on every request                               |
+| `unstableApi`           | `high-latency`  | 10% failures + 20% 1000ms latency, scoped to `/api/`              |
+| `degradedUi`            |                 | 20% disable buttons, 10% hide links                               |
+| `unreliableWebSocket`   |                 | 10% drops, 500ms inbound delay, 5% inbound truncation             |
+| `unreliableEventStream` |                 | 5% drops, 200ms delay, 2% close after 2000ms                      |
+
+Kebab-case aliases (`slow-api`, `flaky-api`, `offline-mode`, `high-latency`) are registry-only. They resolve via `presets: ['slow-api']` and `new PresetRegistry().get('slow-api')`. They are NOT keys on the legacy `presets` record export — `presets['slow-api']` is `undefined` by design. Use the camelCase key (`presets.slowNetwork`) when reading from the record.
+
+**Custom presets**
+
+Register your own bundle inline via `customPresets`. Names collide fail-fast against built-ins and against each other.
+
+```ts
+new ChaosMaker({
+  customPresets: {
+    'team-flow': {
+      network: {
+        failures: [{ urlPattern: '/checkout', statusCode: 503, probability: 1 }],
+      },
+    },
+  },
+  presets: ['team-flow'],
+});
+```
+
+Custom preset values may carry only rule arrays plus the optional `groups` field — `presets`, `customPresets`, `seed`, and `debug` are rejected at validation. Dependency chains are out of scope.
+
+**Builder helper**
+
+```ts
+import { ChaosConfigBuilder } from '@chaos-maker/core';
+
+const config = new ChaosConfigBuilder()
+  .usePreset('slow-api')
+  .failRequests('/api/checkout', 500, 1)
+  .build();
+```
+
+**Validation**
+
+Unknown preset names, chain attempts, forbidden subfields, duplicate registrations, and group-name collisions across preset+user all surface as `ChaosConfigError` at construction time, never at runtime.
+
+**Mutability**
+
+Built-in preset configs are deep-frozen — `presets.slowNetwork.network!.latencies![0].delayMs = 1` throws. Your own custom presets passed via `customPresets` are NOT frozen — keep treating them as your data. The engine takes a deep clone at expansion, so any tweaks you make after construction are not observed.
+
+**Legacy spread**
+
+```ts
+import { presets } from '@chaos-maker/core';
+
+new ChaosMaker({ ...presets.slowNetwork, network: { failures: [{ urlPattern: '/api', statusCode: 500, probability: 1 }] } });
+```
+
+Still supported for migration. Prefer the declarative `presets:` field for new code.
 
 ### Config Builder
 
