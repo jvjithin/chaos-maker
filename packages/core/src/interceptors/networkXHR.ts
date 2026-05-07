@@ -284,36 +284,36 @@ export function patchXHR(originalXhrSend: (body?: Document | XMLHttpRequestBodyI
           continue;
         }
         emitter?.debug('rule-applied', { url, method, statusCode: failure.statusCode }, failure);
-        if (applied) {
-          console.warn(`CHAOS: Forcing ${failure.statusCode} for ${method} ${url}`);
-          Object.defineProperty(this, 'status', { value: failure.statusCode });
-          Object.defineProperty(this, 'statusText', {
-            value: failure.statusText ?? 'Service Unavailable (Chaos)',
-          });
-          const responseBody = failure.body ?? JSON.stringify({ error: 'Chaos Maker Attack!' });
-          Object.defineProperty(this, 'responseText', { value: responseBody, configurable: true });
-          const responseHeaders = failure.headers ?? {};
-          Object.defineProperty(this, 'getResponseHeader', {
-            value: (name: string) => {
-              const key = Object.keys(responseHeaders).find(
-                (k) => k.toLowerCase() === name.toLowerCase()
-              );
-              return key ? responseHeaders[key] : null;
-            },
-            configurable: true
-          });
-          Object.defineProperty(this, 'getAllResponseHeaders', {
-            value: () =>
-              Object.entries(responseHeaders)
-                .map(([k, v]) => `${k}: ${v}`)
-                .join('\r\n'),
-            configurable: true
-          });
-          this.dispatchEvent(new Event('error'));
-          this.dispatchEvent(new Event('load'));
-          this.dispatchEvent(new Event('loadend'));
-          return;
-        }
+        // The `if (!applied) continue;` above already proves applied is true,
+        // so no extra `if (applied)` wrapper is needed here.
+        console.warn(`CHAOS: Forcing ${failure.statusCode} for ${method} ${url}`);
+        Object.defineProperty(this, 'status', { value: failure.statusCode });
+        Object.defineProperty(this, 'statusText', {
+          value: failure.statusText ?? 'Service Unavailable (Chaos)',
+        });
+        const responseBody = failure.body ?? JSON.stringify({ error: 'Chaos Maker Attack!' });
+        Object.defineProperty(this, 'responseText', { value: responseBody, configurable: true });
+        const responseHeaders = failure.headers ?? {};
+        Object.defineProperty(this, 'getResponseHeader', {
+          value: (name: string) => {
+            const key = Object.keys(responseHeaders).find(
+              (k) => k.toLowerCase() === name.toLowerCase()
+            );
+            return key ? responseHeaders[key] : null;
+          },
+          configurable: true
+        });
+        Object.defineProperty(this, 'getAllResponseHeaders', {
+          value: () =>
+            Object.entries(responseHeaders)
+              .map(([k, v]) => `${k}: ${v}`)
+              .join('\r\n'),
+          configurable: true
+        });
+        this.dispatchEvent(new Event('error'));
+        this.dispatchEvent(new Event('load'));
+        this.dispatchEvent(new Event('loadend'));
+        return;
       }
     }
 
