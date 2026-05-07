@@ -186,11 +186,19 @@ function startEngine(state: SWEngineState, config: ChaosConfig): number {
   });
   state.groups.ensure(DEFAULT_GROUP_NAME, { enabled: true });
 
-  // RFC-002. Refresh the rule-id map and (re)attach the SW logger for every
-  // config swap so positional IDs always match the live config.
-  state.emitter.setRuleIds(buildRuleIdMap(config));
+  // RFC-002. Only allocate the positional rule-id map and attach a Logger
+  // when debug mode is enabled — matches the same gating used in
+  // `ChaosMaker.ts` so the SW disabled path stays allocation-free. Both
+  // bindings are also explicitly cleared on a config swap that disables
+  // debug, so a stale logger from a prior config can't reach interceptors.
   const debugOpts = normalizeDebugOption(config.debug);
-  state.emitter.setLogger(debugOpts.enabled ? new Logger(debugOpts, 'sw') : undefined);
+  if (debugOpts.enabled) {
+    state.emitter.setRuleIds(buildRuleIdMap(config));
+    state.emitter.setLogger(new Logger(debugOpts, 'sw'));
+  } else {
+    state.emitter.setRuleIds(undefined);
+    state.emitter.setLogger(undefined);
+  }
   state.emitter.debug('lifecycle', { phase: 'sw:config-applied' });
 
   if (config.network) {
