@@ -17,9 +17,11 @@ test.use({ trace: 'on' });
 // flush (which happens between test 1's teardown and test 2's start).
 test.describe.configure({ mode: 'serial' });
 
-// Shared state between the two tests in this describe.
+// Shared state between paired tests in this describe — Playwright writes
+// trace.zip at end-of-test, so we always read it from a follow-up test.
 let traceZipPath: string | null = null;
 let chaosLogAttachmentPath: string | null = null;
+let debugTraceZipPath: string | null = null;
 
 /** Unzip a Playwright trace zip and return every newline-delimited JSON event. */
 function readTraceEvents(zipPath: string): unknown[] {
@@ -123,7 +125,7 @@ test.describe('Playwright trace integration', () => {
     }
   });
 
-  test('debug events land in attachment but never as inline test.step entries', async ({ page, chaos }, testInfo) => {
+  test('debug events ride into chaos-log.json attachment', async ({ page, chaos }, testInfo) => {
     await chaos.inject({
       debug: true,
       network: {
@@ -137,6 +139,8 @@ test.describe('Playwright trace integration', () => {
     const log = await chaos.getLog();
     expect(log.some((e) => e.type === 'debug' && e.detail.stage === 'rule-applied')).toBe(true);
 
+    // Force early dispose so the attachment lands on THIS test (mirrors the
+    // pattern used in test 1).
     await chaos.remove();
 
     const attachment = testInfo.attachments.find((a) => a.name === 'chaos-log.json');
@@ -145,17 +149,24 @@ test.describe('Playwright trace integration', () => {
     // instead of silently passing through a conditional.
     expect(attachment!.body).toBeTruthy();
     const payload = JSON.parse(attachment!.body!.toString('utf-8'));
-    // Debug events ride in the attachment.
     expect(payload.events.some((e: { type: string }) => e.type === 'debug')).toBe(true);
 
-    const traceZip = join(testInfo.outputDir, 'trace.zip');
+    // Stash the expected trace path for the follow-up test. Playwright flushes
+    // trace.zip during teardown AFTER this body returns, so we read it from a
+    // separate test — same trick as `traceZipPath` above.
+    debugTraceZipPath = join(testInfo.outputDir, 'trace.zip');
+  });
+
+  test('debug events never render as inline test.step entries in trace.zip', async ({}, _testInfo) => {
+    expect(debugTraceZipPath).toBeTruthy();
     const deadline = Date.now() + 5000;
-    while (!existsSync(traceZip) && Date.now() < deadline) {
+    while (!(debugTraceZipPath && existsSync(debugTraceZipPath)) && Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, 50));
     }
     // Hard-require the trace zip so a missing artifact fails the test.
-    expect(existsSync(traceZip)).toBe(true);
-    const events = readTraceEvents(traceZip);
+    expect(existsSync(debugTraceZipPath!)).toBe(true);
+
+    const events = readTraceEvents(debugTraceZipPath!);
     const titles = events
       .map((e) => (e as { title?: unknown; metadata?: { title?: unknown } })?.title
         ?? (e as { metadata?: { title?: unknown } })?.metadata?.title)
