@@ -1,4 +1,5 @@
 import type { RuleGroupConfig } from './groups';
+import type { PresetConfigSlice } from './presets';
 
 /** Counting options shared by all network chaos config types.
  *  At most one of `onNth`, `everyNth`, or `afterN` may be set on a single rule.
@@ -232,6 +233,32 @@ export interface ChaosConfig {
    * the runtime normalizes them via `normalizeDebugOption()`.
    */
   debug?: boolean | { enabled: boolean };
+  /**
+   * RFC-003. Names of presets to expand into this config at engine init.
+   * Resolved against the per-instance `PresetRegistry` seeded with built-ins
+   * (camelCase names plus the four kebab-case aliases) and any
+   * `customPresets` provided alongside this field.
+   *
+   * Merge semantics: append-only. Each preset's rule arrays concatenate onto
+   * the user's rule arrays in the order listed here, preset rules first and
+   * user rules last. Duplicate names are silently deduplicated, preserving
+   * first occurrence. Unknown names throw `ChaosConfigError` at construction.
+   *
+   * Preset configs themselves cannot carry `presets` or `customPresets` —
+   * dependency chains are out of scope and rejected by the schema.
+   */
+  presets?: string[];
+  /**
+   * RFC-003. Per-instance custom presets registered alongside the built-ins.
+   * Each value is a `PresetConfigSlice` (a `ChaosConfig` minus `presets`,
+   * `customPresets`, `seed`, and `debug`). Names collide fail-fast against
+   * built-ins and against each other — pick a unique label.
+   *
+   * Custom preset literals stay mutable on input; the engine deep-clones them
+   * during expansion, so post-construction tweaks are not observed by the
+   * runtime.
+   */
+  customPresets?: Record<string, PresetConfigSlice>;
   /**
    * Seed for Chaos Maker's PRNG.
    *

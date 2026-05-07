@@ -1,5 +1,11 @@
 import { ChaosConfig } from './config';
 
+/** ChaosConfig slice a preset is allowed to carry. Auto-includes any new
+ *  rule category added to ChaosConfig — the `Omit` is bounded to fields that
+ *  are explicitly forbidden inside a preset (`presets`, `customPresets`,
+ *  `seed`, `debug`). */
+export type PresetConfigSlice = Omit<ChaosConfig, 'presets' | 'customPresets' | 'seed' | 'debug'>;
+
 const MATCH_ALL_URLS = '*';
 
 function deepFreeze<T>(obj: T): Readonly<T> {
