@@ -79,6 +79,9 @@ export function gateGroup(
       detail: { ...baseDetail, groupName },
     });
   }
+  // RFC-002 debug event — independent of the dedup gate above so debug logs
+  // surface every gated request (one per rule per call), not one per cycle.
+  emitter?.debug('rule-skip-group', { ...baseDetail, groupName }, rule);
   return false;
 }
 

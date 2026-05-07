@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { patchFetch } from '../src/interceptors/networkFetch';
 import { NetworkConfig } from '../src/config';
 import { ChaosEventEmitter, ChaosEvent } from '../src/events';
+import { Logger, buildRuleIdMap } from '../src/debug';
 import { RuleGroupRegistry } from '../src/groups';
 import { ChaosMaker } from '../src/ChaosMaker';
 import { mockFetch } from './setup';
@@ -11,6 +12,12 @@ const deterministicRandom = () => 0;
 beforeEach(() => {
   mockFetch.mockClear();
   mockFetch.mockResolvedValue(new global.Response('{}', { status: 200 }));
+});
+
+// Restore any spies (e.g. console.debug taps) between tests so a failed
+// assertion can't leak a mock into the next test's globals.
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe('runtime group gating — network fetch', () => {
@@ -132,6 +139,27 @@ describe('runtime group gating — network fetch', () => {
     groups.setEnabled('payments', true);
     const r3 = await patched('/api/pay') as { status?: number }; // count=3, fires
     expect(r3.status).toBe(503);
+  });
+
+  it('emits a rule-skip-group debug event when group is disabled (RFC-002)', async () => {
+    vi.spyOn(console, 'debug').mockImplementation(() => {});
+    const groups = new RuleGroupRegistry();
+    groups.ensure('payments', { enabled: false, explicit: true });
+
+    const failure = { urlPattern: '/api/pay', statusCode: 503, probability: 1, group: 'payments' };
+    const config: NetworkConfig = { failures: [failure] };
+    const emitter = new ChaosEventEmitter();
+    emitter.setLogger(new Logger({ enabled: true }));
+    emitter.setRuleIds(buildRuleIdMap({ network: config }));
+    const patched = patchFetch(mockFetch, config, deterministicRandom, emitter, new Map(), groups);
+
+    await patched('/api/pay');
+    const skipGroup = emitter.getLog().filter(
+      (e) => e.type === 'debug' && e.detail.stage === 'rule-skip-group',
+    );
+    expect(skipGroup.length).toBe(1);
+    expect(skipGroup[0].detail.groupName).toBe('payments');
+    expect(skipGroup[0].detail.ruleId).toBe('failure#0');
   });
 });
 

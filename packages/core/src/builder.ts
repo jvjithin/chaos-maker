@@ -258,6 +258,12 @@ export class ChaosConfigBuilder {
     return this;
   }
 
+  /** RFC-002. Toggle Debug Mode on this config. Off by default. */
+  withDebug(enabled: boolean = true) {
+    this.config.debug = enabled;
+    return this;
+  }
+
   build(): ChaosConfig {
     return cloneConfig(this.config);
   }

@@ -280,7 +280,14 @@ export type {
   SSECloseConfig,
   SSECorruptionStrategy,
   SSEEventTypeMatcher,
+  ChaosDebugStage,
+  ChaosLifecyclePhase,
+  DebugOptions,
 } from '@chaos-maker/core';
+
+// RFC-002. Runtime export so adapter consumers can construct a Logger
+// directly alongside the type re-exports above.
+export { Logger } from '@chaos-maker/core';
 
 export {
   injectSWChaos,

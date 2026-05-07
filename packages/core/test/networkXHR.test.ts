@@ -81,11 +81,20 @@ describe('patchXHR (send)', () => {
     // Should not call original send
     expect(mockXhrSend).not.toHaveBeenCalled();
     
-    // Should set status and dispatch events to simulate failure
+    // Should set status and dispatch events to simulate failure. Per the
+    // XHR spec, an HTTP-level failure (server returns 5xx) fires `load`
+    // then `loadend`, NOT `error` — `error` is reserved for network-level
+    // failures (DNS / connection refused / CORS), which the dedicated CORS
+    // branch covers separately. Inspect via `Event.type` because vitest's
+    // deep-equal cannot distinguish Event instances by constructor argument.
     expect(xhr.status).toBe(503);
     expect(xhr.statusText).toBe('Service Unavailable (Chaos)');
-    expect(errorSpy).toHaveBeenCalledWith(new Event('error'));
-    expect(errorSpy).toHaveBeenCalledWith(new Event('load'));
+    const dispatchedTypes = errorSpy.mock.calls.map(
+      (call) => (call[0] as Event).type,
+    );
+    expect(dispatchedTypes).toContain('load');
+    expect(dispatchedTypes).toContain('loadend');
+    expect(dispatchedTypes).not.toContain('error');
   });
 
   it('should not intercept a non-matching URL', () => {

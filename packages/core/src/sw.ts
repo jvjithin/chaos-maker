@@ -23,6 +23,7 @@ import { patchFetch } from './interceptors/networkFetch';
 import { patchWebSocket, WebSocketPatchHandle } from './interceptors/websocket';
 import { DEFAULT_GROUP_NAME, RuleGroupRegistry } from './groups';
 import { forEachRule } from './utils';
+import { Logger, buildRuleIdMap, normalizeDebugOption } from './debug';
 
 /**
  * Service-Worker global scope. Typed manually so this file compiles under the
@@ -185,6 +186,21 @@ function startEngine(state: SWEngineState, config: ChaosConfig): number {
   });
   state.groups.ensure(DEFAULT_GROUP_NAME, { enabled: true });
 
+  // RFC-002. Only allocate the positional rule-id map and attach a Logger
+  // when debug mode is enabled — matches the same gating used in
+  // `ChaosMaker.ts` so the SW disabled path stays allocation-free. Both
+  // bindings are also explicitly cleared on a config swap that disables
+  // debug, so a stale logger from a prior config can't reach interceptors.
+  const debugOpts = normalizeDebugOption(config.debug);
+  if (debugOpts.enabled) {
+    state.emitter.setRuleIds(buildRuleIdMap(config));
+    state.emitter.setLogger(new Logger(debugOpts, 'sw'));
+  } else {
+    state.emitter.setRuleIds(undefined);
+    state.emitter.setLogger(undefined);
+  }
+  state.emitter.debug('lifecycle', { phase: 'sw:config-applied' });
+
   if (config.network) {
     const target = state.target;
     if (typeof target.fetch === 'function') {
@@ -232,6 +248,13 @@ function stopEngine(state: SWEngineState): void {
     state.webSocketHandle.uninstall();
     state.webSocketHandle = undefined;
   }
+  state.emitter.debug('lifecycle', { phase: 'sw:config-stopped' });
+  // Detach the SW debug sink so a stale Logger from the prior config can no
+  // longer fire after the engine is stopped — e.g. an out-of-band
+  // `__chaosMakerToggleGroup` message arriving post-stop must NOT emit
+  // `type: 'debug'` events or call `console.debug`.
+  state.emitter.setLogger(undefined);
+  state.emitter.setRuleIds(undefined);
   state.running = false;
 }
 
@@ -346,6 +369,7 @@ export function installChaosSW(opts: InstallChaosSWOptions = {}): SWChaosHandle 
         applied: true,
         detail: { groupName: name },
       });
+      state.emitter.debug('lifecycle', { phase: 'sw:group-toggled', groupName: name, enabled });
       replyViaPortOrBroadcast(target, evt, {
         __chaosMakerAck: true,
         running: state.running,

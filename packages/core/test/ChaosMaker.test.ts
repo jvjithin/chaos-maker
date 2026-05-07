@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { ChaosMaker } from '../src/ChaosMaker';
 import { ChaosConfig } from '../src/config';
 
@@ -96,5 +96,82 @@ describe('ChaosMaker', () => {
 
     const response = await global.fetch('/api/test');
     expect(response.status).toBe(500);
+  });
+
+  describe('debug mode (RFC-002)', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('emits lifecycle debug events on start/stop when debug:true', () => {
+      const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+      chaosMaker = new ChaosMaker({ debug: true });
+      chaosMaker.start();
+      chaosMaker.stop();
+
+      const debugEvents = chaosMaker.getLog().filter((e) => e.type === 'debug');
+      expect(debugEvents.length).toBeGreaterThanOrEqual(2);
+      const phases = debugEvents.map((e) => e.detail.phase);
+      expect(phases).toContain('engine:start');
+      expect(phases).toContain('engine:stop');
+      for (const e of debugEvents) {
+        expect(e.detail.stage).toBe('lifecycle');
+      }
+
+      // Console mirror: every lifecycle debug event must produce a
+      // `[Chaos] lifecycle: <phase>` line on `console.debug`. Assert both
+      // phases land on the spy with the expected prefix.
+      const chaosLines = debugSpy.mock.calls
+        .map((args) => (typeof args[0] === 'string' ? args[0] : ''))
+        .filter((line) => line.startsWith('[Chaos] '));
+      expect(chaosLines.length).toBeGreaterThanOrEqual(2);
+      expect(chaosLines.some((l) => l.includes('lifecycle') && l.includes('engine:start'))).toBe(true);
+      expect(chaosLines.some((l) => l.includes('lifecycle') && l.includes('engine:stop'))).toBe(true);
+    });
+
+    it('emits lifecycle debug events on enableGroup/disableGroup', () => {
+      const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+      chaosMaker = new ChaosMaker({ debug: true });
+      chaosMaker.enableGroup('payments');
+      chaosMaker.disableGroup('payments');
+
+      const debugEvents = chaosMaker.getLog().filter((e) => e.type === 'debug');
+      const groupToggles = debugEvents.filter((e) => e.detail.phase === 'engine:group-toggled');
+      expect(groupToggles).toHaveLength(2);
+      for (const e of groupToggles) {
+        expect(e.detail.groupName).toBe('payments');
+        expect(e.detail.stage).toBe('lifecycle');
+      }
+      // RFC-002: distinct enabled state on each toggle for debug consumers.
+      expect(groupToggles[0].detail.enabled).toBe(true);
+      expect(groupToggles[1].detail.enabled).toBe(false);
+
+      // Console mirror: each toggle must produce a `[Chaos] lifecycle: ...`
+      // line that mentions the toggled group.
+      const chaosLines = debugSpy.mock.calls
+        .map((args) => (typeof args[0] === 'string' ? args[0] : ''))
+        .filter((line) => line.startsWith('[Chaos] '));
+      const toggleLines = chaosLines.filter(
+        (l) => l.includes('lifecycle') && l.includes('engine:group-toggled') && l.includes('payments'),
+      );
+      expect(toggleLines).toHaveLength(2);
+    });
+
+    it('emits no debug events when debug:false', () => {
+      const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+      chaosMaker = new ChaosMaker({});
+      chaosMaker.start();
+      chaosMaker.enableGroup('p');
+      chaosMaker.disableGroup('p');
+      chaosMaker.stop();
+      const debugEvents = chaosMaker.getLog().filter((e) => e.type === 'debug');
+      expect(debugEvents).toHaveLength(0);
+      // Ensure no [Chaos] line was mirrored (other console.debug calls from
+      // existing CORS path are unrelated; we don't trigger CORS here).
+      const chaosLines = debugSpy.mock.calls.filter((args) =>
+        typeof args[0] === 'string' && args[0].startsWith('[Chaos] '),
+      );
+      expect(chaosLines).toHaveLength(0);
+    });
   });
 });

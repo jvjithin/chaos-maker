@@ -616,4 +616,36 @@ describe('validateConfig', () => {
       expect(() => validateConfig(config)).toThrow(ChaosConfigError);
     });
   });
+
+  describe('debug option (RFC-002)', () => {
+    it('accepts debug:true', () => {
+      expect(() => validateConfig({ debug: true })).not.toThrow();
+    });
+
+    it('accepts debug:false', () => {
+      expect(() => validateConfig({ debug: false })).not.toThrow();
+    });
+
+    it('accepts debug:{ enabled: true }', () => {
+      expect(() => validateConfig({ debug: { enabled: true } })).not.toThrow();
+    });
+
+    it('accepts debug:{ enabled: false }', () => {
+      expect(() => validateConfig({ debug: { enabled: false } })).not.toThrow();
+    });
+
+    it('rejects debug:"yes"', () => {
+      expect(() => validateConfig({ debug: 'yes' })).toThrow(ChaosConfigError);
+    });
+
+    it('rejects debug:{ enabled: "no" }', () => {
+      expect(() => validateConfig({ debug: { enabled: 'no' } })).toThrow(ChaosConfigError);
+    });
+
+    it('rejects unknown sub-fields under strict object form', () => {
+      expect(() =>
+        validateConfig({ debug: { enabled: true, level: 'info' } }),
+      ).toThrow(ChaosConfigError);
+    });
+  });
 });

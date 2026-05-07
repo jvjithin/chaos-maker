@@ -13,8 +13,11 @@ export { SW_BRIDGE_SOURCE } from './sw-bridge-source';
 export { extractGraphQLOperation, parseOperationFromQueryString, operationNameMatches } from './graphql';
 export { serializeForTransport, deserializeForTransport } from './transport';
 export { DEFAULT_GROUP_NAME, RuleGroupRegistry } from './groups';
+export { Logger, normalizeDebugOption, formatDebugMessage, buildRuleIdMap } from './debug';
 export type { RuleGroup, RuleGroupConfig } from './groups';
 export type { GraphQLExtractResult, GraphQLRuleOutcome } from './graphql';
+export type { DebugOptions, ChaosDebugStage, RuleIdEntry } from './debug';
+export type { ChaosLifecyclePhase } from './events';
 export type { ChaosConfig, CorruptionStrategy, GraphQLOperationMatcher, NetworkFailureConfig, NetworkLatencyConfig, NetworkAbortConfig, NetworkCorruptionConfig, NetworkCorsConfig, NetworkConfig, NetworkRuleMatchers, RuleGroupAssignment, UiAssaultConfig, UiConfig, WebSocketConfig, WebSocketDropConfig, WebSocketDelayConfig, WebSocketCorruptConfig, WebSocketCloseConfig, WebSocketDirection, WebSocketCorruptionStrategy, SSEConfig, SSEDropConfig, SSEDelayConfig, SSECorruptConfig, SSECloseConfig, SSECorruptionStrategy, SSEEventTypeMatcher, ChaosEvent, ChaosEventType, ChaosEventListener };
 
 // --- NEW INTERFACE ---
@@ -39,15 +42,22 @@ if (typeof window !== 'undefined') {
     instance: null,
     
     start: (config: ChaosConfig) => {
+      // Stop any prior instance first, then construct + start the next one in
+      // a temporary so a throw from `deserializeForTransport`, the
+      // `ChaosMaker` constructor, or `start()` doesn't leave a stale stopped
+      // instance bound to `chaosUtilsApi.instance`. On failure the global
+      // resets to `null` so getLog/enableGroup/stop short-circuit cleanly.
+      if (chaosUtilsApi.instance) {
+        chaosUtilsApi.instance.stop();
+        chaosUtilsApi.instance = null;
+      }
       try {
-        if (chaosUtilsApi.instance) {
-          chaosUtilsApi.instance.stop();
-        }
         // Reconstruct any RegExp matchers shipped via JSON-encoding adapters.
         // Idempotent for already-deserialized configs.
         const cfg = deserializeForTransport(config);
-        chaosUtilsApi.instance = new ChaosMaker(cfg);
-        chaosUtilsApi.instance.start();
+        const newInstance = new ChaosMaker(cfg);
+        newInstance.start();
+        chaosUtilsApi.instance = newInstance;
         return { success: true, message: "Chaos started" };
       } catch (e: any) {
         console.error("Chaos Utils Error:", e);

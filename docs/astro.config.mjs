@@ -77,6 +77,7 @@ export default defineConfig({
           items: [
             { label: 'Core', link: '/api/core/' },
             { label: 'Config Reference', link: '/api/config-reference/' },
+            { label: 'Debug Mode', link: '/api/debug/' },
           ],
         },
         {
