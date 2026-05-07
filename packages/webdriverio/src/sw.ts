@@ -1,5 +1,5 @@
 import type { ChaosConfig, ChaosEvent } from '@chaos-maker/core';
-import { validateConfig, SW_BRIDGE_SOURCE } from '@chaos-maker/core';
+import { prepareChaosConfig, SW_BRIDGE_SOURCE } from '@chaos-maker/core';
 import type { ChaosBrowser } from './index';
 
 export interface SWChaosOptions {
@@ -36,7 +36,7 @@ export async function injectSWChaos(
   config: ChaosConfig,
   opts: SWChaosOptions = {},
 ): Promise<InjectSWChaosResult> {
-  const validated = validateConfig(config);
+  const validated = prepareChaosConfig(config);
   const timeoutMs = opts.timeoutMs ?? 10_000;
 
   // Install bridge source via `execute` (sync eval + inline <script> tag),

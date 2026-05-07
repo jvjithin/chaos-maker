@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import type { ChaosConfig, ChaosEvent } from '@chaos-maker/core';
-import { validateConfig, SW_BRIDGE_SOURCE } from '@chaos-maker/core';
+import { prepareChaosConfig, SW_BRIDGE_SOURCE } from '@chaos-maker/core';
 
 /**
  * Options accepted by {@link injectSWChaos} / {@link removeSWChaos} /
@@ -62,7 +62,7 @@ export async function injectSWChaos(
   config: ChaosConfig,
   opts: SWChaosOptions = {},
 ): Promise<InjectSWChaosResult> {
-  const validated = validateConfig(config);
+  const validated = prepareChaosConfig(config);
   const timeoutMs = opts.timeoutMs ?? 10_000;
 
   await ensurePageBridge(page);

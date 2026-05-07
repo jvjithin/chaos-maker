@@ -1,22 +1,6 @@
 import { ChaosConfig, CorruptionStrategy, GraphQLOperationMatcher, RequestCountingOptions, SSECorruptionStrategy, WebSocketDirection, WebSocketCorruptionStrategy } from './config';
 import type { RuleGroupConfig } from './groups';
-
-function cloneValue<T>(value: T): T {
-  if (value === null || typeof value !== 'object') return value;
-  if (value instanceof RegExp) {
-    // RegExp must be preserved literally — JSON.stringify would drop it,
-    // breaking `graphqlOperation: /^Get/` matchers.
-    return new RegExp(value.source, value.flags) as unknown as T;
-  }
-  if (Array.isArray(value)) {
-    return value.map((item) => cloneValue(item)) as unknown as T;
-  }
-  const out: Record<string, unknown> = {};
-  for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
-    out[key] = cloneValue(val);
-  }
-  return out as T;
-}
+import { cloneValue } from './utils';
 
 function cloneConfig(config: ChaosConfig): ChaosConfig {
   return cloneValue(config);
@@ -30,12 +14,23 @@ function normalizeGroupName(name: string): string {
   return trimmed;
 }
 
+function normalizePresetNameForBuilder(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    throw new Error('[chaos-maker] preset name cannot be empty');
+  }
+  return trimmed;
+}
+
 export class ChaosConfigBuilder {
   private config: ChaosConfig;
   /** Single-shot group name applied to the next rule pushed and then cleared.
    *  Sticky semantics intentionally rejected — silent capture of stale groups
    *  is harder to debug than the explicit re-chain. */
   private pendingGroup?: string;
+  /** RFC-003. Queued preset names for `.usePreset(...)`. Silently deduped on
+   *  push. Flushed onto `out.presets` in `.build()` when non-empty. */
+  private pendingPresets: string[] = [];
 
   constructor(initialConfig?: ChaosConfig) {
     this.config = initialConfig ? cloneConfig(initialConfig) : { network: {}, ui: {}, websocket: {}, sse: {} };
@@ -264,7 +259,30 @@ export class ChaosConfigBuilder {
     return this;
   }
 
+  /** RFC-003. Queue a preset name to be expanded at engine init.
+   *  Silently dedups within the builder, preserving insertion order. Empty
+   *  / whitespace-only names throw, matching the schema and registry rules. */
+  usePreset(name: string): this {
+    const norm = normalizePresetNameForBuilder(name);
+    if (!this.pendingPresets.includes(norm)) this.pendingPresets.push(norm);
+    return this;
+  }
+
   build(): ChaosConfig {
-    return cloneConfig(this.config);
+    const out = cloneConfig(this.config);
+    const merged: string[] = [];
+    const seen = new Set<string>();
+    for (const name of [...(out.presets ?? []), ...this.pendingPresets]) {
+      if (!seen.has(name)) {
+        seen.add(name);
+        merged.push(name);
+      }
+    }
+    if (merged.length) {
+      out.presets = merged;
+    } else {
+      delete out.presets;
+    }
+    return out;
   }
 }

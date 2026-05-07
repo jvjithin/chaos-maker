@@ -59,6 +59,27 @@ describe('checkout resilience', () => {
 
 ### With presets
 
+Drop a built-in preset by name with the declarative `presets` field:
+
+```ts
+cy.injectChaos({ presets: ['slow-api'] });
+```
+
+Register your own bundle inline via `customPresets`:
+
+```ts
+cy.injectChaos({
+  customPresets: {
+    'team-flow': {
+      network: { failures: [{ urlPattern: '/checkout', statusCode: 503, probability: 1 }] },
+    },
+  },
+  presets: ['team-flow'],
+});
+```
+
+The legacy spread style still works for migration:
+
 ```ts
 import { presets } from '@chaos-maker/core';
 

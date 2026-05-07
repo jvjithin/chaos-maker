@@ -1,5 +1,5 @@
 import { ChaosConfig } from './config';
-import { validateConfig } from './validation';
+import { prepareChaosConfig } from './validation';
 import { createPrng } from './prng';
 import { ChaosEventEmitter, ChaosEvent, ChaosEventType, ChaosEventListener } from './events';
 import { patchFetch } from './interceptors/networkFetch';
@@ -64,9 +64,9 @@ export class ChaosMaker {
   private logger?: Logger;
 
   constructor(config: ChaosConfig, options: ChaosMakerOptions = {}) {
-    this.config = validateConfig(config);
+    this.config = prepareChaosConfig(config);
     this.emitter = new ChaosEventEmitter();
-    const prng = createPrng(config.seed);
+    const prng = createPrng(this.config.seed);
     this.random = prng.random;
     this.seed = prng.seed;
     this.target = options.target ?? globalThis;

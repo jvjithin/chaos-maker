@@ -1,6 +1,6 @@
 /// <reference types="cypress" />
 import type { ChaosConfig, ChaosEvent } from '@chaos-maker/core';
-import { validateConfig, SW_BRIDGE_SOURCE } from '@chaos-maker/core';
+import { prepareChaosConfig, SW_BRIDGE_SOURCE } from '@chaos-maker/core';
 
 /**
  * Options accepted by `cy.injectSWChaos` / `cy.removeSWChaos`.
@@ -49,7 +49,7 @@ function ensureBridge(win: Cypress.AUTWindow): SWBridge {
  */
 export function registerSWChaosCommands(): void {
   Cypress.Commands.add('injectSWChaos', (config: ChaosConfig, options?: SWChaosOptions) => {
-    const validated = validateConfig(config);
+    const validated = prepareChaosConfig(config);
     const timeoutMs = options?.timeoutMs ?? 10_000;
     return cy.window({ log: false }).then((win) => {
       const bridge = ensureBridge(win);

@@ -85,6 +85,29 @@ beforeEach(async () => {
 afterEach(() => teardown());
 ```
 
+## Presets
+
+Drop a built-in preset by name with the declarative `presets` field:
+
+```ts
+await injectChaos(page, { presets: ['slow-api'] });
+```
+
+Register your own bundle inline via `customPresets`:
+
+```ts
+await injectChaos(page, {
+  customPresets: {
+    'team-flow': {
+      network: { failures: [{ urlPattern: '/checkout', statusCode: 503, probability: 1 }] },
+    },
+  },
+  presets: ['team-flow'],
+});
+```
+
+Built-in catalog and validation rules are documented in [`@chaos-maker/core`](../core/README.md#presets).
+
 ## Service Worker chaos
 
 ```ts
