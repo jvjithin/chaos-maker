@@ -682,7 +682,7 @@ describe('validateConfig', () => {
     it('rejects customPresets whose value carries a chained presets field', () => {
       expect(() =>
         validateConfig({
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           customPresets: { x: { presets: ['y'] } as any },
         }),
       ).toThrow(ChaosConfigError);
@@ -691,7 +691,7 @@ describe('validateConfig', () => {
     it('rejects customPresets whose value carries seed (forbidden subfield)', () => {
       expect(() =>
         validateConfig({
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           customPresets: { x: { seed: 1 } as any },
         }),
       ).toThrow(ChaosConfigError);
@@ -700,7 +700,7 @@ describe('validateConfig', () => {
     it('rejects customPresets whose value carries debug (forbidden subfield)', () => {
       expect(() =>
         validateConfig({
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           customPresets: { x: { debug: true } as any },
         }),
       ).toThrow(ChaosConfigError);
@@ -709,7 +709,7 @@ describe('validateConfig', () => {
     it('rejects customPresets whose value carries customPresets (chain attempt)', () => {
       expect(() =>
         validateConfig({
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           customPresets: { x: { customPresets: { y: {} } } as any },
         }),
       ).toThrow(ChaosConfigError);

@@ -97,7 +97,7 @@ describe('expandPresets', () => {
     const registry = new PresetRegistry([]);
     registry.register({
       name: 'broken',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       config: { network: { failures: 'oops' as any } },
     });
     expect(() => expandPresets({ presets: ['broken'] }, registry)).toThrow(/must be an array/);
@@ -139,7 +139,7 @@ describe('prepareChaosConfig', () => {
   it('throws ChaosConfigError when customPresets carries a chain (presets field)', () => {
     expect(() =>
       prepareChaosConfig({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         customPresets: { x: { presets: ['y'] } as any },
       }),
     ).toThrow(ChaosConfigError);
@@ -148,7 +148,7 @@ describe('prepareChaosConfig', () => {
   it('throws ChaosConfigError when customPresets carries seed (forbidden subfield)', () => {
     expect(() =>
       prepareChaosConfig({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         customPresets: { x: { seed: 1 } as any },
       }),
     ).toThrow(ChaosConfigError);

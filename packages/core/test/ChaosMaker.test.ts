@@ -198,7 +198,7 @@ describe('ChaosMaker', () => {
     it('throws ChaosConfigError on unknown preset name with the offending name in the message', () => {
       let caught: unknown;
       try {
-        // eslint-disable-next-line no-new
+         
         new ChaosMaker({ presets: ['nope'] });
       } catch (e) {
         caught = e;
@@ -226,7 +226,7 @@ describe('ChaosMaker', () => {
     it('throws ChaosConfigError when a customPreset attempts a chain (presets sub-field)', () => {
       let caught: unknown;
       try {
-        // eslint-disable-next-line no-new, @typescript-eslint/no-explicit-any
+         
         new ChaosMaker({ customPresets: { x: { presets: ['y'] } as any } });
       } catch (e) {
         caught = e;
