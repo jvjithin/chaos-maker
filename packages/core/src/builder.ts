@@ -14,12 +14,23 @@ function normalizeGroupName(name: string): string {
   return trimmed;
 }
 
+function normalizePresetNameForBuilder(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    throw new Error('[chaos-maker] preset name cannot be empty');
+  }
+  return trimmed;
+}
+
 export class ChaosConfigBuilder {
   private config: ChaosConfig;
   /** Single-shot group name applied to the next rule pushed and then cleared.
    *  Sticky semantics intentionally rejected — silent capture of stale groups
    *  is harder to debug than the explicit re-chain. */
   private pendingGroup?: string;
+  /** RFC-003. Queued preset names for `.usePreset(...)`. Silently deduped on
+   *  push. Flushed onto `out.presets` in `.build()` when non-empty. */
+  private pendingPresets: string[] = [];
 
   constructor(initialConfig?: ChaosConfig) {
     this.config = initialConfig ? cloneConfig(initialConfig) : { network: {}, ui: {}, websocket: {}, sse: {} };
@@ -248,7 +259,20 @@ export class ChaosConfigBuilder {
     return this;
   }
 
+  /** RFC-003. Queue a preset name to be expanded at engine init.
+   *  Silently dedups within the builder, preserving insertion order. Empty
+   *  / whitespace-only names throw, matching the schema and registry rules. */
+  usePreset(name: string): this {
+    const norm = normalizePresetNameForBuilder(name);
+    if (!this.pendingPresets.includes(norm)) this.pendingPresets.push(norm);
+    return this;
+  }
+
   build(): ChaosConfig {
-    return cloneConfig(this.config);
+    const out = cloneConfig(this.config);
+    if (this.pendingPresets.length) {
+      out.presets = [...this.pendingPresets];
+    }
+    return out;
   }
 }
