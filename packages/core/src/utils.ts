@@ -2,6 +2,25 @@ import type { ChaosConfig, CorruptionStrategy, RequestCountingOptions } from './
 import { DEFAULT_GROUP_NAME, RuleGroupRegistry } from './groups';
 import type { ChaosEvent, ChaosEventEmitter } from './events';
 
+/** Recursive deep clone that preserves `RegExp` instances literally.
+ *  `JSON.parse(JSON.stringify(...))` would silently drop `RegExp`, breaking
+ *  matchers like `graphqlOperation: /^Get/`. Shared by builder + presets so a
+ *  single implementation owns RegExp survival. */
+export function cloneValue<T>(value: T): T {
+  if (value === null || typeof value !== 'object') return value;
+  if (value instanceof RegExp) {
+    return new RegExp(value.source, value.flags) as unknown as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => cloneValue(item)) as unknown as T;
+  }
+  const out: Record<string, unknown> = {};
+  for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
+    out[key] = cloneValue(val);
+  }
+  return out as T;
+}
+
 export function shouldApplyChaos(probability: number, random: () => number): boolean {
   return random() < probability;
 }

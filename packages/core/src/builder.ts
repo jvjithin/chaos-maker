@@ -1,22 +1,6 @@
 import { ChaosConfig, CorruptionStrategy, GraphQLOperationMatcher, RequestCountingOptions, SSECorruptionStrategy, WebSocketDirection, WebSocketCorruptionStrategy } from './config';
 import type { RuleGroupConfig } from './groups';
-
-function cloneValue<T>(value: T): T {
-  if (value === null || typeof value !== 'object') return value;
-  if (value instanceof RegExp) {
-    // RegExp must be preserved literally — JSON.stringify would drop it,
-    // breaking `graphqlOperation: /^Get/` matchers.
-    return new RegExp(value.source, value.flags) as unknown as T;
-  }
-  if (Array.isArray(value)) {
-    return value.map((item) => cloneValue(item)) as unknown as T;
-  }
-  const out: Record<string, unknown> = {};
-  for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
-    out[key] = cloneValue(val);
-  }
-  return out as T;
-}
+import { cloneValue } from './utils';
 
 function cloneConfig(config: ChaosConfig): ChaosConfig {
   return cloneValue(config);
