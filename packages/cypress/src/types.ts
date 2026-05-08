@@ -1,3 +1,5 @@
+import type { ValidateChaosConfigOptions } from '@chaos-maker/core';
+
 export interface InjectChaosOptions {
   /**
    * When true (default), chaos re-injects on every subsequent `cy.visit()`
@@ -9,6 +11,13 @@ export interface InjectChaosOptions {
    * @default true
    */
   persistAcrossNavigations?: boolean;
+  /**
+   * RFC-004. Forwarded to `validateChaosConfig` before the config is
+   * serialized for the AUT window. Malformed configs throw a
+   * `ChaosConfigError` synchronously inside the Cypress command body so the
+   * step fails before `cy.visit()` runs.
+   */
+  validation?: ValidateChaosConfigOptions;
 }
 
 export type {

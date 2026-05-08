@@ -1,6 +1,6 @@
 /// <reference types="cypress" />
 import type { ChaosConfig, ChaosEvent } from '@chaos-maker/core';
-import { serializeForTransport } from '@chaos-maker/core';
+import { serializeForTransport, validateChaosConfig } from '@chaos-maker/core';
 import type { InjectChaosOptions } from './types';
 
 /**
@@ -45,7 +45,8 @@ function attachChaos(config: ChaosConfig, umdSource: string, persist: boolean): 
   detachBeforeLoad();
 
   // Pre-serialize so RegExp matchers transit cleanly across the test ↔ AUT
-  // realm boundary. RegExp instances created in Cypress's runner realm fail
+  // realm boundary. Caller already passed a `validateChaosConfig`-validated
+  // config. RegExp instances created in Cypress's runner realm fail
   // `z.instanceof(RegExp)` validation in the AUT realm; reconstructing in-page
   // via deserializeForTransport sidesteps the cross-realm constructor mismatch.
   const serialized = serializeForTransport(config);
@@ -86,8 +87,13 @@ export function registerChaosCommands(): void {
   Cypress.Commands.add('injectChaos', (config: ChaosConfig, options?: InjectChaosOptions) => {
     const persist = options?.persistAcrossNavigations ?? true;
 
+    // Validate synchronously inside the command body so `ChaosConfigError`
+    // fails the step before `cy.visit()` runs and before any browser-side
+    // bootstrap fires.
+    const validated = validateChaosConfig(config, options?.validation);
+
     if (cachedUmdSource !== null) {
-      attachChaos(config, cachedUmdSource, persist);
+      attachChaos(validated, cachedUmdSource, persist);
       // Explicit return type aligns with `Chainable<void>` on the augmented
       // Cypress.Chainable.injectChaos signature — Cypress accepts commands
       // that don't return anything, but this keeps the overload happy.
@@ -96,7 +102,7 @@ export function registerChaosCommands(): void {
 
     cy.task<string>('chaos:getUmdSource', null, { log: false }).then((src) => {
       cachedUmdSource = src;
-      attachChaos(config, src, persist);
+      attachChaos(validated, src, persist);
     });
   });
 

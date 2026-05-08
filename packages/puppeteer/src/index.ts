@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import type { ChaosConfig, ChaosEvent } from '@chaos-maker/core';
-import { serializeForTransport } from '@chaos-maker/core';
+import type { ChaosConfig, ChaosEvent, ValidateChaosConfigOptions } from '@chaos-maker/core';
+import { serializeForTransport, validateChaosConfig } from '@chaos-maker/core';
 
 /**
  * Minimal structural type for a Puppeteer `Page` object. Typed this way so we
@@ -59,6 +59,16 @@ function loadCoreUmdSource(): string {
   return cachedUmdSource;
 }
 
+/** Options accepted by {@link injectChaos}. */
+export interface InjectChaosOptions {
+  /**
+   * RFC-004. Forwarded to `validateChaosConfig` before the config is
+   * serialized for the page. Malformed configs throw a `ChaosConfigError`
+   * synchronously from Node before any page touch.
+   */
+  validation?: ValidateChaosConfigOptions;
+}
+
 /**
  * Inject chaos into a Puppeteer page. Call **before** `page.goto()` — uses
  * `evaluateOnNewDocument` to patch `fetch`, `XMLHttpRequest`, and `WebSocket`
@@ -81,7 +91,14 @@ function loadCoreUmdSource(): string {
  * await page.goto('http://localhost:3000');
  * ```
  */
-export async function injectChaos(page: ChaosPage, config: ChaosConfig): Promise<void> {
+export async function injectChaos(
+  page: ChaosPage,
+  config: ChaosConfig,
+  opts: InjectChaosOptions = {},
+): Promise<void> {
+  // Validate before any page side-effect so a malformed config throws
+  // synchronously from Node, not from the browser console.
+  const validated = validateChaosConfig(config, opts.validation);
   const umdSource = loadCoreUmdSource();
 
   // Remove any previously registered init scripts for this page so a repeat
@@ -96,7 +113,7 @@ export async function injectChaos(page: ChaosPage, config: ChaosConfig): Promise
   // picks it up. Puppeteer JSON-encodes the argument, which would drop RegExp
   // matchers — pre-serialize to a transport-safe form. The in-page
   // chaosUtils.start auto-deserializes via deserializeForTransport.
-  const serialized = serializeForTransport(config);
+  const serialized = serializeForTransport(validated);
   const configHandle = await page.evaluateOnNewDocument((cfg: unknown) => {
     (globalThis as unknown as Record<string, unknown>)['__CHAOS_CONFIG__'] = cfg;
   }, serialized as unknown);
@@ -246,8 +263,9 @@ export async function getChaosSeed(page: ChaosPage): Promise<number | null> {
 export async function useChaos(
   page: ChaosPage,
   config: ChaosConfig,
+  opts: InjectChaosOptions = {},
 ): Promise<() => Promise<void>> {
-  await injectChaos(page, config);
+  await injectChaos(page, config, opts);
   return () => removeChaos(page);
 }
 
@@ -288,6 +306,16 @@ export type {
 // RFC-002. Runtime export so adapter consumers can construct a Logger
 // directly alongside the type re-exports above.
 export { Logger } from '@chaos-maker/core';
+// RFC-004. Validation surface re-exported for adapter consumers.
+export { validateChaosConfig, ChaosConfigError } from '@chaos-maker/core';
+export type {
+  ValidateChaosConfigOptions,
+  ValidationIssue,
+  ValidationIssueCode,
+  RuleType,
+  CustomRuleValidator,
+  CustomValidatorMap,
+} from '@chaos-maker/core';
 
 export {
   injectSWChaos,
