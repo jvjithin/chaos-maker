@@ -85,6 +85,16 @@ beforeEach(async () => {
 afterEach(() => teardown());
 ```
 
+## Validation
+
+`injectChaos` validates the config from Node before `evaluateOnNewDocument` runs. A malformed config throws `ChaosConfigError` synchronously from the test runner. `ChaosConfigError.issues` is a structured `ValidationIssue[]`. See the [Rule Validation concept page](https://chaos-maker-dev.github.io/chaos-maker/concepts/validation/).
+
+```ts
+await injectChaos(page, config, {
+  validation: { unknownFields: 'warn' },
+});
+```
+
 ## Presets
 
 Drop a built-in preset by name with the declarative `presets` field:

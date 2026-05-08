@@ -149,6 +149,16 @@ await browser.injectChaos({
 await $('#refresh').click();
 ```
 
+## Validation
+
+`injectChaos` validates the config from Node before `browser.execute` touches the page. A malformed config throws `ChaosConfigError` synchronously from the test runner. `ChaosConfigError.issues` is a structured `ValidationIssue[]`. See the [Rule Validation concept page](https://chaos-maker-dev.github.io/chaos-maker/concepts/validation/).
+
+```ts
+await injectChaos(browser, config, {
+  validation: { unknownFields: 'warn' },
+});
+```
+
 ## Content Security Policy
 
 `injectChaos` appends an inline `<script>` to the page. A restrictive `script-src` policy (no `'unsafe-inline'` / no matching nonce) blocks it and `injectChaos` throws `[chaos-maker] injectChaos did not start.` — relax CSP for your test environment (e.g. add `'unsafe-inline'` or a matching nonce) or serve a chaos-friendly CSP from your test fixture.

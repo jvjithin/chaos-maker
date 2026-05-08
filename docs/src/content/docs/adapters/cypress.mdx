@@ -44,3 +44,15 @@ SSE chaos and GraphQL operation matching use the same `cy.injectChaos()` command
 ## Debug Mode
 
 Pass `debug: true` to `cy.injectChaos()` to enable [Debug Mode](/api/debug/). It does not affect Cypress's own `--browser` debugger or the `DEBUG=cypress:*` env var — Chaos Maker never reads them. Capture console mirrors with `cy.spy(win.console, 'debug')` inside `onBeforeLoad`; debug events also surface in `cy.getChaosLog()`.
+
+## Validation
+
+`cy.injectChaos` validates the config synchronously inside the command body. A malformed config throws `ChaosConfigError` and fails the step before `cy.visit()` runs.
+
+```typescript
+cy.injectChaos(config, {
+  validation: { unknownFields: 'warn' },
+});
+```
+
+Pass `validation` to relax unknown-field handling, hook deprecation events, or run custom per-`RuleType` validators. See [Rule Validation](/concepts/validation/).

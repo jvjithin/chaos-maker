@@ -11,7 +11,10 @@ The core package owns config validation, the seeded PRNG, event emission, preset
 export {
   ChaosMaker,
   ChaosConfigError,
+  validateChaosConfig,
   validateConfig,
+  prepareChaosConfig,
+  VALIDATOR_BRAND_VERSION,
   ChaosEventEmitter,
   ChaosConfigBuilder,
   presets,
@@ -20,6 +23,8 @@ export {
   SW_BRIDGE_SOURCE,
 };
 ```
+
+`validateChaosConfig(input, opts?)` is the canonical structured validation entry — see [Rule Validation](/concepts/validation/) for the full pipeline. `validateConfig` (schema-only, no preset expansion) and `prepareChaosConfig` (Zod pass 1 + preset expansion + Zod pass 2, no brand or custom validators) remain available for advanced use.
 
 ## ChaosMaker
 

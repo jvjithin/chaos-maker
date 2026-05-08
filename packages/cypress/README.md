@@ -205,6 +205,16 @@ Toggle a browser-side Rule Group at runtime.
 
 Toggle a Service Worker Rule Group at runtime. Pass `options.timeoutMs` to override the Service Worker acknowledgement timeout.
 
+## Validation
+
+`cy.injectChaos` validates the config synchronously inside the command body. A malformed config throws `ChaosConfigError` and fails the step before `cy.visit()` runs. `ChaosConfigError.issues` is a structured `ValidationIssue[]` with `path`, `code`, `ruleType`, and optional `expected` / `received`. See the [Rule Validation concept page](https://chaos-maker-dev.github.io/chaos-maker/concepts/validation/).
+
+```ts
+cy.injectChaos(config, {
+  validation: { unknownFields: 'warn' },
+});
+```
+
 ## How it works
 
 - The plugin-side `chaos:getUmdSource` task (registered by `registerChaosTasks`) reads the `@chaos-maker/core` UMD bundle from disk via `require.resolve`. It runs once per spec; the result is cached in the Node process.
