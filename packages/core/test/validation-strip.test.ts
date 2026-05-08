@@ -1,0 +1,119 @@
+import { describe, it, expect } from 'vitest';
+import { stripUnknownKeys, collectUnknownPaths } from '../src/validation-strip';
+import { chaosConfigSchemaStrict } from '../src/validation';
+
+describe('stripUnknownKeys', () => {
+  it('removes unknown top-level keys', () => {
+    const out = stripUnknownKeys({ network: {}, foo: 'x', bar: 1 });
+    expect(out).not.toHaveProperty('foo');
+    expect(out).not.toHaveProperty('bar');
+    expect(out).toHaveProperty('network');
+  });
+
+  it('removes unknown nested rule fields under network.failures[i]', () => {
+    const out = stripUnknownKeys({
+      network: {
+        failures: [
+          { urlPattern: '/api', statusCode: 500, probability: 1, weird: 'x' },
+        ],
+      },
+    });
+    const f = (out.network!.failures as { weird?: string }[])[0];
+    expect(f).not.toHaveProperty('weird');
+    expect(f.statusCode).toBe(500);
+  });
+
+  it('preserves all known optional keys when present', () => {
+    const out = stripUnknownKeys({
+      network: {
+        failures: [{
+          urlPattern: '/api',
+          statusCode: 503,
+          probability: 1,
+          body: 'b',
+          statusText: 's',
+          headers: { 'x-test': 'y' },
+          methods: ['GET'],
+          onNth: 2,
+        }],
+      },
+    });
+    expect(out.network!.failures![0]).toMatchObject({
+      urlPattern: '/api',
+      statusCode: 503,
+      probability: 1,
+      body: 'b',
+      statusText: 's',
+      headers: { 'x-test': 'y' },
+      methods: ['GET'],
+      onNth: 2,
+    });
+  });
+
+  it('does not mutate input', () => {
+    const input = { network: { failures: [{ urlPattern: '/a', statusCode: 500, probability: 1, foo: 1 }] }, weirdTop: 'y' };
+    const inputCopy = JSON.parse(JSON.stringify(input));
+    stripUnknownKeys(input);
+    expect(input).toEqual(inputCopy);
+  });
+
+  it('round-trip: strip(passthrough-parsed) deep-equals strict-parsed minus unknowns', () => {
+    const cfg = {
+      network: {
+        failures: [
+          { urlPattern: '/api', statusCode: 500, probability: 1.0 },
+        ],
+      },
+      groups: [{ name: 'a', enabled: true }],
+    };
+    const stripped = stripUnknownKeys(cfg);
+    const strictParsed = chaosConfigSchemaStrict.parse(cfg);
+    expect(stripped).toEqual(strictParsed);
+  });
+});
+
+describe('collectUnknownPaths', () => {
+  it('returns deterministic sorted paths for unknown keys', () => {
+    const paths = collectUnknownPaths({
+      foo: 1,
+      bar: 'x',
+      network: {
+        failures: [{ urlPattern: '/a', statusCode: 500, probability: 1, hello: 'y', world: 'z' }],
+        weird: 'k',
+      },
+    });
+    const sorted = [...paths].sort();
+    expect(paths).toEqual(sorted);
+    expect(paths).toContain('foo');
+    expect(paths).toContain('bar');
+    expect(paths).toContain('network.weird');
+    expect(paths).toContain('network.failures[0].hello');
+    expect(paths).toContain('network.failures[0].world');
+  });
+
+  it('returns empty array for clean config', () => {
+    expect(collectUnknownPaths({ network: { failures: [] } })).toEqual([]);
+  });
+
+  it('detects unknown keys inside groups', () => {
+    const paths = collectUnknownPaths({
+      groups: [{ name: 'a', enabled: true, mystery: 1 }],
+    });
+    expect(paths).toContain('groups[0].mystery');
+  });
+
+  it('detects unknown keys inside customPresets slice', () => {
+    const paths = collectUnknownPaths({
+      customPresets: {
+        myPreset: {
+          network: {
+            latencies: [{ urlPattern: '/a', delayMs: 10, probability: 1, alien: true }],
+          },
+          extraTopInside: 'x',
+        },
+      },
+    });
+    expect(paths).toContain('customPresets.myPreset.extraTopInside');
+    expect(paths).toContain('customPresets.myPreset.network.latencies[0].alien');
+  });
+});
