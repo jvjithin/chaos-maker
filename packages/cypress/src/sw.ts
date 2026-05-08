@@ -1,6 +1,6 @@
 /// <reference types="cypress" />
-import type { ChaosConfig, ChaosEvent } from '@chaos-maker/core';
-import { prepareChaosConfig, SW_BRIDGE_SOURCE } from '@chaos-maker/core';
+import type { ChaosConfig, ChaosEvent, ValidateChaosConfigOptions } from '@chaos-maker/core';
+import { validateChaosConfig, SW_BRIDGE_SOURCE } from '@chaos-maker/core';
 
 /**
  * Options accepted by `cy.injectSWChaos` / `cy.removeSWChaos`.
@@ -11,6 +11,12 @@ export interface SWChaosOptions {
    * ack message. Defaults to `10000`. Raise for slow CI workers.
    */
   timeoutMs?: number;
+  /**
+   * RFC-004. Forwarded to `validateChaosConfig` before the config is posted
+   * to the SW. Malformed configs throw a `ChaosConfigError` synchronously
+   * inside the Cypress command body.
+   */
+  validation?: ValidateChaosConfigOptions;
 }
 
 interface SWBridge {
@@ -49,7 +55,7 @@ function ensureBridge(win: Cypress.AUTWindow): SWBridge {
  */
 export function registerSWChaosCommands(): void {
   Cypress.Commands.add('injectSWChaos', (config: ChaosConfig, options?: SWChaosOptions) => {
-    const validated = prepareChaosConfig(config);
+    const validated = validateChaosConfig(config, options?.validation);
     const timeoutMs = options?.timeoutMs ?? 10_000;
     return cy.window({ log: false }).then((win) => {
       const bridge = ensureBridge(win);
