@@ -10,7 +10,6 @@ import type { ValidationIssue } from '../src/validation-types';
 const probabilitySchema = z.number().min(0).max(1);
 const enumSchema = z.enum(['a', 'b', 'c']);
 const objSchema = z.object({ a: z.number(), b: z.string() }).strict();
-const arrSchema = z.array(z.string()).min(2);
 
 function issuesOf(schema: z.ZodTypeAny, value: unknown): z.ZodIssue[] {
   const r = schema.safeParse(value);

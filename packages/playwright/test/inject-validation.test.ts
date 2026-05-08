@@ -23,17 +23,16 @@ describe('injectChaos validation gate', () => {
 
   it('first issue carries structured ValidationIssue fields', async () => {
     const page = makeFakePage();
+    let captured: ChaosConfigError | undefined;
     try {
       await injectChaos(page, {
         network: { failures: [{ urlPattern: '/a', statusCode: 999, probability: 2 }] },
       } as unknown as Parameters<typeof injectChaos>[1]);
     } catch (e) {
-      expect(e).toBeInstanceOf(ChaosConfigError);
-      const issue = (e as ChaosConfigError).issues[0];
-      expect(issue.path).toMatch(/^network\.failures\[0\]/);
-      return;
+      if (e instanceof ChaosConfigError) captured = e;
     }
-    throw new Error('should have thrown');
+    expect(captured).toBeInstanceOf(ChaosConfigError);
+    expect(captured!.issues[0].path).toMatch(/^network\.failures\[0\]/);
   });
 
   it('valid config still calls addInitScript', async () => {

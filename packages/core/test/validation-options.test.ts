@@ -10,14 +10,14 @@ describe('unknownFields option', () => {
   });
 
   it("'reject' issue carries unknown_field code", () => {
+    let captured: ChaosConfigError | undefined;
     try {
       validateChaosConfig({ network: {}, foo: 'x' });
     } catch (e) {
-      expect(e).toBeInstanceOf(ChaosConfigError);
-      expect((e as ChaosConfigError).issues.some((i) => i.code === 'unknown_field')).toBe(true);
-      return;
+      if (e instanceof ChaosConfigError) captured = e;
     }
-    throw new Error('should have thrown');
+    expect(captured).toBeInstanceOf(ChaosConfigError);
+    expect(captured!.issues.some((i) => i.code === 'unknown_field')).toBe(true);
   });
 
   it("'warn' returns parsed config with unknowns stripped + emits ONE aggregated console.warn", () => {

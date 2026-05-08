@@ -721,37 +721,39 @@ describe('validateConfig', () => {
   });
 });
 
+function captureValidateConfigThrow(fn: () => unknown): ChaosConfigError {
+  try {
+    fn();
+  } catch (e) {
+    if (e instanceof ChaosConfigError) return e;
+    throw e;
+  }
+  throw new Error('expected validateConfig to throw ChaosConfigError');
+}
+
 describe('ValidationIssue shape (RFC-004)', () => {
   it('every issue carries a structured ValidationIssue', () => {
-    try {
+    const err = captureValidateConfigThrow(() =>
       validateConfig({
         network: { failures: [{ urlPattern: '', statusCode: 999, probability: 1.5 }] },
-      });
-    } catch (e) {
-      expect(e).toBeInstanceOf(ChaosConfigError);
-      for (const issue of (e as ChaosConfigError).issues) {
-        expect(issue).toHaveProperty('path');
-        expect(issue).toHaveProperty('code');
-        expect(issue).toHaveProperty('ruleType');
-        expect(issue).toHaveProperty('message');
-      }
-      return;
+      }),
+    );
+    for (const issue of err.issues) {
+      expect(issue).toHaveProperty('path');
+      expect(issue).toHaveProperty('code');
+      expect(issue).toHaveProperty('ruleType');
+      expect(issue).toHaveProperty('message');
     }
-    throw new Error('should have thrown');
   });
 
   it('backward-compat messages getter still returns string array', () => {
-    try {
+    const err = captureValidateConfigThrow(() =>
       validateConfig({
         network: { failures: [{ urlPattern: '/a', statusCode: 500, probability: 1.5 }] },
-      });
-    } catch (e) {
-      const messages = (e as ChaosConfigError).messages;
-      expect(Array.isArray(messages)).toBe(true);
-      expect(messages.every((m) => typeof m === 'string')).toBe(true);
-      return;
-    }
-    throw new Error('should have thrown');
+      }),
+    );
+    expect(Array.isArray(err.messages)).toBe(true);
+    expect(err.messages.every((m) => typeof m === 'string')).toBe(true);
   });
 
   it('cross-feature regression: groups + presets + debug + schemaVersion validates clean', () => {
