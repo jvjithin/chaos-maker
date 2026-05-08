@@ -236,7 +236,7 @@ export function registerChaosCommands(browser: ChaosBrowser): void {
     );
   }
   browser.addCommand('injectChaos', async function (this: ChaosBrowser, ...args: unknown[]) {
-    await injectChaos(this, args[0] as ChaosConfig);
+    await injectChaos(this, args[0] as ChaosConfig, args[1] as InjectChaosOptions | undefined);
   });
   browser.addCommand('removeChaos', async function (this: ChaosBrowser) {
     await removeChaos(this);

@@ -29,6 +29,7 @@ describe('renderValidationIssues cap behaviour', () => {
 
   it('51 issues render 50 + summary line', () => {
     const out = renderValidationIssues(make(51));
+    expect((out.match(/^  - \[/gm) ?? []).length).toBe(50);
     expect(out).toContain('... and 1 more');
   });
 });

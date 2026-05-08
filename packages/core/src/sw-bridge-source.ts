@@ -94,9 +94,9 @@ export const SW_BRIDGE_SOURCE = /* js */ `
     apply: function (cfg, timeoutMs) {
       // Defensive: page-side adapters validate before calling apply. The
       // page-side bundle deliberately excludes Zod, so a null/primitive/
-      // wildly-wrong payload throws here instead of silently posting garbage
-      // to the SW.
-      if (!cfg || typeof cfg !== 'object') {
+      // array/wildly-wrong payload throws here instead of silently posting
+      // garbage to the SW. \`typeof [] === 'object'\` so reject arrays too.
+      if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) {
         return Promise.reject(new Error('[chaos-maker] bridge.apply: config must be an object'));
       }
       // Stash cfg BEFORE awaiting ack — intentional. If the first ack times
