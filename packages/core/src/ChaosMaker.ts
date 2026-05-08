@@ -1,5 +1,5 @@
 import { ChaosConfig } from './config';
-import { prepareChaosConfig } from './validation';
+import { validateChaosConfig, type ValidateChaosConfigOptions } from './validation';
 import { createPrng } from './prng';
 import { ChaosEventEmitter, ChaosEvent, ChaosEventType, ChaosEventListener } from './events';
 import { patchFetch } from './interceptors/networkFetch';
@@ -26,6 +26,12 @@ export interface ChaosMakerOptions {
    * `window` or `self` explicitly only for cross-context testing.
    */
   target?: ChaosTarget;
+  /**
+   * RFC-004. Forwarded to `validateChaosConfig` during construction. Use to
+   * relax unknown-field handling, hook deprecation events, or run custom
+   * per-`RuleType` validators.
+   */
+  validation?: ValidateChaosConfigOptions;
 }
 
 function normalizeGroupName(name: string): string {
@@ -64,7 +70,7 @@ export class ChaosMaker {
   private logger?: Logger;
 
   constructor(config: ChaosConfig, options: ChaosMakerOptions = {}) {
-    this.config = prepareChaosConfig(config);
+    this.config = validateChaosConfig(config, options.validation);
     this.emitter = new ChaosEventEmitter();
     const prng = createPrng(this.config.seed);
     this.random = prng.random;

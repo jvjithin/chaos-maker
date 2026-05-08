@@ -260,6 +260,13 @@ export interface ChaosConfig {
    */
   customPresets?: Record<string, PresetConfigSlice>;
   /**
+   * RFC-004. Reserved for forward-compatibility with future shape changes.
+   * Defaults to `1`. Unknown values are rejected at validation time with
+   * `code: 'unknown_schema_version'`. Omit this field unless a future major
+   * release explicitly bumps the supported version.
+   */
+  schemaVersion?: 1;
+  /**
    * Seed for Chaos Maker's PRNG.
    *
    * The seed controls every probability-driven chaos decision across network,

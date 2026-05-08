@@ -5,7 +5,7 @@ import { cloneValue } from './utils';
  *  rule category added to ChaosConfig — the `Omit` is bounded to fields that
  *  are explicitly forbidden inside a preset (`presets`, `customPresets`,
  *  `seed`, `debug`). */
-export type PresetConfigSlice = Omit<ChaosConfig, 'presets' | 'customPresets' | 'seed' | 'debug'>;
+export type PresetConfigSlice = Omit<ChaosConfig, 'presets' | 'customPresets' | 'seed' | 'debug' | 'schemaVersion'>;
 
 /** RFC-003. A named preset packaged for registry registration. */
 export interface Preset {
