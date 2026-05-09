@@ -50,7 +50,7 @@ Pick presets the way engineers describe scenarios — flaky backend, bad mobile 
 The presets fire deterministically given a fixed `seed`. Existence-check, not rate, keeps tests stable across browsers:
 
 - `mobile-3g` — observed elapsed time on a fetch should exceed 1000ms (well below the 1500ms target).
-- `checkout-degraded` — `getChaosLog()` should contain at least one `network:failure` event matching `/checkout` or `/api/payments`.
+- `checkout-degraded` — every rule on `/checkout` and `/api/payments` is probabilistic (30% latency, 5% / 10% failure), so a single request is not enough to assert against. Issue a small fixed batch (e.g. 20 sequential requests across `/checkout` and `/api/payments`) under a fixed `seed`, then call `getChaosLog()` and assert at least one event whose `detail.url` matches `/checkout` or `/api/payments` (any of `network:latency`, `network:failure`).
 - `unreliableWebSocket` — chaos log should contain at least one `websocket:delay` event with `applied: true`.
 - `unreliableEventStream` — chaos log should contain at least one `sse:delay` or `sse:close` event.
 
