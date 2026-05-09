@@ -24,6 +24,16 @@ describe('PresetRegistry', () => {
     expect(registry.get('flaky-api')).toBe(registry.get('flakyConnection'));
     expect(registry.get('offline-mode')).toBe(registry.get('offlineMode'));
     expect(registry.get('high-latency')).toBe(registry.get('unstableApi'));
+    expect(registry.get('mobile-3g')).toBe(registry.get('mobileThreeG'));
+    expect(registry.get('checkout-degraded')).toBe(registry.get('checkoutDegraded'));
+  });
+
+  it('RFC-005 aliases for existing slices share identity with their camelCase entry', () => {
+    const registry = new PresetRegistry();
+    expect(registry.get('api-flaky')).toBe(registry.get('flakyConnection'));
+    expect(registry.get('api-flaky')).toBe(registry.get('flaky-api'));
+    expect(registry.get('websocket-instability')).toBe(registry.get('unreliableWebSocket'));
+    expect(registry.get('realtime-lag')).toBe(registry.get('unreliableEventStream'));
   });
 
   it('legacy presets record matches registry identity for camelCase entries', () => {
@@ -32,6 +42,8 @@ describe('PresetRegistry', () => {
     expect(presets.unstableApi).toBe(registry.get('high-latency'));
     expect(presets.flakyConnection).toBe(registry.get('flaky-api'));
     expect(presets.offlineMode).toBe(registry.get('offline-mode'));
+    expect(presets.mobileThreeG).toBe(registry.get('mobile-3g'));
+    expect(presets.checkoutDegraded).toBe(registry.get('checkout-degraded'));
   });
 
   it('legacy presets record exposes only the 9 camelCase keys', () => {

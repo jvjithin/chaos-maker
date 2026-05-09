@@ -130,6 +130,59 @@ describe('expandPresets', () => {
     expect(() => expandPresets({ presets: ['broken'] }, registry)).toThrow(/must be an array/);
   });
 
+  it('expands mobile-3g into network latency + abort rules', () => {
+    const out = expandPresets({ presets: ['mobile-3g'] }, new PresetRegistry());
+    expect(out.network!.latencies).toHaveLength(1);
+    expect(out.network!.latencies![0]).toEqual({ urlPattern: '*', delayMs: 1500, probability: 1.0 });
+    expect(out.network!.aborts).toHaveLength(1);
+    expect(out.network!.aborts![0]).toEqual({ urlPattern: '*', probability: 0.02 });
+  });
+
+  it('expands checkout-degraded into scoped latency + failure rules', () => {
+    const out = expandPresets({ presets: ['checkout-degraded'] }, new PresetRegistry());
+    expect(out.network!.latencies?.[0].urlPattern).toBe('/checkout');
+    expect(out.network!.failures).toHaveLength(2);
+    expect(out.network!.failures![0]).toMatchObject({ urlPattern: '/checkout', statusCode: 503 });
+    expect(out.network!.failures![1]).toMatchObject({ urlPattern: '/api/payments', statusCode: 500 });
+  });
+
+  it('concatenates new presets in declared order', () => {
+    const out = expandPresets({ presets: ['mobile-3g', 'checkout-degraded'] }, new PresetRegistry());
+    expect(out.network!.latencies?.[0].urlPattern).toBe('*');
+    expect(out.network!.latencies?.[1].urlPattern).toBe('/checkout');
+    expect(out.network!.failures).toHaveLength(2);
+    expect(out.network!.aborts).toHaveLength(1);
+  });
+
+  it('RFC-005 alias dedup: websocket-instability and unreliableWebSocket collapse to one expansion', () => {
+    const out = expandPresets(
+      { presets: ['websocket-instability', 'unreliableWebSocket'] },
+      new PresetRegistry(),
+    );
+    expect(out.websocket!.drops).toHaveLength(1);
+    expect(out.websocket!.delays).toHaveLength(1);
+    expect(out.websocket!.corruptions).toHaveLength(1);
+  });
+
+  it('RFC-005 alias dedup: realtime-lag and unreliableEventStream collapse to one expansion', () => {
+    const out = expandPresets(
+      { presets: ['realtime-lag', 'unreliableEventStream'] },
+      new PresetRegistry(),
+    );
+    expect(out.sse!.drops).toHaveLength(1);
+    expect(out.sse!.delays).toHaveLength(1);
+    expect(out.sse!.closes).toHaveLength(1);
+  });
+
+  it('RFC-005 alias dedup: api-flaky and flakyConnection collapse to one expansion', () => {
+    const out = expandPresets(
+      { presets: ['api-flaky', 'flakyConnection'] },
+      new PresetRegistry(),
+    );
+    expect(out.network!.aborts).toHaveLength(1);
+    expect(out.network!.latencies).toHaveLength(1);
+  });
+
   it('concatenates groups across preset and user', () => {
     const registry = new PresetRegistry();
     registry.registerAll({

@@ -309,4 +309,15 @@ describe('ChaosConfigBuilder.usePreset', () => {
     const config = new ChaosConfigBuilder({ presets: ['flaky-api'] }).build();
     expect(config.presets).toEqual(['flaky-api']);
   });
+
+  it('queues RFC-005 presets together and round-trips through validation', () => {
+    const config = new ChaosConfigBuilder()
+      .usePreset('mobile-3g')
+      .usePreset('checkout-degraded')
+      .withSeed(1234)
+      .build();
+    expect(config.presets).toEqual(['mobile-3g', 'checkout-degraded']);
+    expect(config.seed).toBe(1234);
+    expect(() => validateConfig(config)).not.toThrow();
+  });
 });
