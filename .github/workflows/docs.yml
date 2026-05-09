@@ -61,6 +61,13 @@ jobs:
         if: github.event_name != 'pull_request'
         run: pnpm --filter chaos-maker-docs build
 
+      # Validates per-version sidebar isolation, internal-link rewriting,
+      # pagination scope, version-selector rendering, and that `latest/`
+      # tracks the newest stable git tag. Runs against whichever build
+      # produced docs/dist/ above.
+      - name: Validate Docs Versioning
+        run: pnpm --filter chaos-maker-docs run test:versions
+
       - name: Upload PR Preview Artifact
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
