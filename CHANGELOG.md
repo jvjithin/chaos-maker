@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2026-05-10
+
+### Added
+
+- **Production-ready presets (RFC-005)**: two new built-in presets, `mobileThreeG` (alias `mobile-3g`) approximating 3G round-trip with 1500ms latency at 100% plus 2% aborts on every URL, and `checkoutDegraded` (alias `checkout-degraded`) scoping payment instability to `/checkout` and `/api/payments` with 30% latency at 800ms and occasional 503/500 responses. Three new kebab aliases for existing slices share object identity with their camelCase entries: `api-flaky` → `flakyConnection`, `websocket-instability` → `unreliableWebSocket`, `realtime-lag` → `unreliableEventStream`. The legacy `presets` record gains `mobileThreeG` and `checkoutDegraded`; aliases stay registry-only. New unit coverage for registry seeding (now 18 entries: 9 camelCase + 9 kebab), expansion of new presets, alias dedup, and builder round-trip. New E2E spec `preset-mobile-3g` on Playwright, Cypress, Puppeteer, and WebdriverIO using deterministic existence checks (fixed seed, no rate / tolerance assertions). Documentation: catalog rebuild in `concepts/presets.mdx` covers name, aliases, transports, intent, and suggested assertions; getting-started pages and the root README now lead with preset-first examples and keep explicit-rule examples as the lower-level alternative.
+
 ## [0.5.0] - 2026-05-09
 
 ### Added
