@@ -31,6 +31,20 @@ Then in `cypress/support/e2e.ts`, register the browser-side commands:
 import '@chaos-maker/cypress/support';
 ```
 
+The fastest start is a named preset — drop a scenario into the config and run:
+
+```typescript
+describe('checkout', () => {
+  it('works under degraded mobile network', () => {
+    cy.injectChaos({ presets: ['mobile-3g', 'checkout-degraded'], seed: 42 });
+    cy.visit('/checkout');
+    cy.get('[data-testid="checkout-form"]').should('be.visible');
+  });
+});
+```
+
+See the [Presets catalog](/chaos-maker/concepts/presets/) for the full list. When you need precise control, drop down to explicit rules:
+
 ```typescript
 describe('orders', () => {
   it('shows error state when the API fails', () => {

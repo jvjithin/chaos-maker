@@ -69,6 +69,23 @@ const UNRELIABLE_EVENT_STREAM: PresetConfigSlice = {
   },
 };
 
+const MOBILE_3G: PresetConfigSlice = {
+  network: {
+    latencies: [{ urlPattern: MATCH_ALL_URLS, delayMs: 1500, probability: 1.0 }],
+    aborts: [{ urlPattern: MATCH_ALL_URLS, probability: 0.02 }],
+  },
+};
+
+const CHECKOUT_DEGRADED: PresetConfigSlice = {
+  network: {
+    latencies: [{ urlPattern: '/checkout', delayMs: 800, probability: 0.3 }],
+    failures: [
+      { urlPattern: '/checkout', statusCode: 503, probability: 0.05 },
+      { urlPattern: '/api/payments', statusCode: 500, probability: 0.1 },
+    ],
+  },
+};
+
 function deepFreeze<T>(value: T): T {
   if (value && typeof value === 'object' && !Object.isFrozen(value)) {
     Object.freeze(value);
@@ -81,7 +98,7 @@ function deepFreeze<T>(value: T): T {
 // .latencies![0].delayMs = 1` is a no-op in sloppy mode and throws in strict
 // mode. Custom presets passed via `customPresets` are NOT frozen — users keep
 // ownership of their literals; the engine deep-clones them at expansion time.
-[SLOW_NETWORK, FLAKY_CONNECTION, OFFLINE_MODE, UNSTABLE_API, DEGRADED_UI, UNRELIABLE_WEBSOCKET, UNRELIABLE_EVENT_STREAM].forEach(deepFreeze);
+[SLOW_NETWORK, FLAKY_CONNECTION, OFFLINE_MODE, UNSTABLE_API, DEGRADED_UI, UNRELIABLE_WEBSOCKET, UNRELIABLE_EVENT_STREAM, MOBILE_3G, CHECKOUT_DEGRADED].forEach(deepFreeze);
 
 /** All built-in presets including kebab aliases.
  *  Aliases are EXTRA registry entries pointing at the SAME config object
@@ -101,10 +118,17 @@ export const BUILT_IN_PRESETS: ReadonlyArray<Preset> = Object.freeze(
     { name: 'degradedUi',            config: DEGRADED_UI },
     { name: 'unreliableWebSocket',   config: UNRELIABLE_WEBSOCKET },
     { name: 'unreliableEventStream', config: UNRELIABLE_EVENT_STREAM },
-    { name: 'slow-api',      config: SLOW_NETWORK },
-    { name: 'flaky-api',     config: FLAKY_CONNECTION },
-    { name: 'offline-mode',  config: OFFLINE_MODE },
-    { name: 'high-latency',  config: UNSTABLE_API },
+    { name: 'mobileThreeG',          config: MOBILE_3G },
+    { name: 'checkoutDegraded',      config: CHECKOUT_DEGRADED },
+    { name: 'slow-api',              config: SLOW_NETWORK },
+    { name: 'flaky-api',             config: FLAKY_CONNECTION },
+    { name: 'api-flaky',             config: FLAKY_CONNECTION },
+    { name: 'offline-mode',          config: OFFLINE_MODE },
+    { name: 'high-latency',          config: UNSTABLE_API },
+    { name: 'websocket-instability', config: UNRELIABLE_WEBSOCKET },
+    { name: 'realtime-lag',          config: UNRELIABLE_EVENT_STREAM },
+    { name: 'mobile-3g',             config: MOBILE_3G },
+    { name: 'checkout-degraded',     config: CHECKOUT_DEGRADED },
   ] as Preset[]).map((p) => Object.freeze(p)),
 );
 
@@ -264,4 +288,6 @@ export const presets: Readonly<Record<string, PresetConfigSlice>> = Object.freez
   degradedUi:            DEGRADED_UI,
   unreliableWebSocket:   UNRELIABLE_WEBSOCKET,
   unreliableEventStream: UNRELIABLE_EVENT_STREAM,
+  mobileThreeG:          MOBILE_3G,
+  checkoutDegraded:      CHECKOUT_DEGRADED,
 });
