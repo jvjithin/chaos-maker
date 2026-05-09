@@ -5,13 +5,19 @@
  *   - For every `v*.*.*` tag, extract that tag's docs source into
  *     `<repo>/docs/src/content/docs/<slug>/` (slug = tag with dots → dashes,
  *     e.g. `v0.4.0` → `v0-4-0`).
- *   - The newest tag also lands at `docs/src/content/docs/latest/`. `/latest/`
- *     is therefore the public default and tracks released npm versions.
+ *   - The newest stable tag also lands at `docs/src/content/docs/latest/`.
+ *     `/latest/` is the public default and tracks released npm versions.
+ *     Prereleases never become `/latest/`.
  *   - With `--dev`, the working-tree contents of `docs/content-source/` are
  *     additionally laid down at `docs/src/content/docs/main/` so contributors
  *     can preview unreleased docs locally. CI builds never pass `--dev`, so
  *     `main/` never reaches production.
  *   - Writes a top-level `index.mdx` that redirects `/` → `/latest/`.
+ *   - Writes `src/generated/versions.json` with each version's slug, label,
+ *     `isLatest` flag, and a manifest of relative page slugs. The route
+ *     middleware uses this to scope the sidebar to a single version, and the
+ *     VersionSelect component uses the manifests to pick the closest matching
+ *     page when the user switches versions.
  *
  * Tag content is sourced from one of:
  *   - `docs/content-source/`     (post-v0.5.0 layout)
@@ -32,7 +38,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { compareTag, isStable, parseTag } from './semver.mjs';
@@ -41,6 +47,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '../..');
 const DOCS_OUT = resolve(__dirname, '../src/content/docs');
 const DEV_SOURCE = resolve(__dirname, '../content-source');
+const GENERATED_OUT = resolve(__dirname, '../src/generated');
 const PAGES_BASE = '/chaos-maker';
 
 const HISTORICAL_SOURCE_PATHS = [
@@ -194,6 +201,47 @@ function injectEditUrl(dir, slug, mode) {
   });
 }
 
+// Walk a version directory after extraction and return the relative slugs
+// Starlight will produce. A file at `<dir>/getting-started/install.mdx` maps
+// to slug `getting-started/install`; an `index.mdx` collapses to its parent
+// directory (or empty string for the version root).
+function collectVersionPages(dir) {
+  const pages = [];
+  const walk = (current) => {
+    for (const entry of readdirSync(current)) {
+      const full = join(current, entry);
+      const st = statSync(full);
+      if (st.isDirectory()) { walk(full); continue; }
+      if (!entry.endsWith('.mdx') && !entry.endsWith('.md')) continue;
+      const rel = relative(dir, full).replace(/\\/g, '/');
+      const withoutExt = rel.replace(/\.(mdx|md)$/, '');
+      const slug = withoutExt === 'index'
+        ? ''
+        : withoutExt.endsWith('/index')
+          ? withoutExt.slice(0, -'/index'.length)
+          : withoutExt;
+      pages.push(slug);
+    }
+  };
+  walk(dir);
+  // Sort for deterministic output (test snapshots, hash-stable sidebars).
+  pages.sort();
+  return pages;
+}
+
+function writeVersionsManifest(entries, latestTag) {
+  mkdirSync(GENERATED_OUT, { recursive: true });
+  const payload = {
+    base: PAGES_BASE,
+    latestTag,
+    versions: entries,
+  };
+  writeFileSync(
+    join(GENERATED_OUT, 'versions.json'),
+    `${JSON.stringify(payload, null, 2)}\n`,
+  );
+}
+
 function tagToSlug(tag) {
   // Slug encoding maps every `.` to `-`, so prereleases must use only
   // dot-separated alphanumeric identifiers. A hyphen inside an identifier
@@ -276,6 +324,11 @@ function main() {
 
   clean();
 
+  // Collect manifest entries as we extract so versions.json reflects exactly
+  // what shipped to the filesystem (a tag missing docs is skipped from both
+  // sides). Order: latest first, then tags newest → oldest, then main if dev.
+  const archivedEntries = [];
+
   for (const tag of tags) {
     const slug = tagToSlug(tag);
     const dest = join(DOCS_OUT, slug);
@@ -283,13 +336,19 @@ function main() {
       console.warn(`[docs-versions] ${tag} has no docs source; skipping`);
       continue;
     }
-    const isLatest = tag === latestTag;
-    const banner = isLatest
-      ? `Latest stable: <strong>${tag}</strong>.`
-      : `Archived <strong>${tag}</strong> docs. <a href="${PAGES_BASE}/latest/">Latest</a>.`;
+    const banner = `Archived <strong>${tag}</strong> docs. <a href="${PAGES_BASE}/latest/">Latest</a>.`;
     rewriteVersionLinks(dest, slug);
     injectBanner(dest, banner);
     injectEditUrl(dest, slug, 'disabled');
+    archivedEntries.push({
+      slug,
+      label: tag,
+      tag,
+      isLatest: false,
+      isMain: false,
+      isPrerelease: !isStable(parseTag(tag)),
+      pages: collectVersionPages(dest),
+    });
     console.log(`[docs-versions]   ${tag} → ${slug}/`);
   }
 
@@ -307,6 +366,17 @@ function main() {
   injectEditUrl(latestDest, 'latest', 'enabled');
   console.log(`[docs-versions]   ${latestTag} → latest/`);
 
+  const latestEntry = {
+    slug: 'latest',
+    label: `Latest (${latestTag})`,
+    tag: latestTag,
+    isLatest: true,
+    isMain: false,
+    isPrerelease: false,
+    pages: collectVersionPages(latestDest),
+  };
+
+  let mainEntry = null;
   if (isDev) {
     if (existsSync(DEV_SOURCE)) {
       const mainDest = join(DOCS_OUT, 'main');
@@ -317,6 +387,15 @@ function main() {
         `Unreleased <strong>main</strong> preview. <a href="${PAGES_BASE}/latest/">View latest</a>.`,
       );
       injectEditUrl(mainDest, 'main', 'enabled');
+      mainEntry = {
+        slug: 'main',
+        label: 'main (unreleased)',
+        tag: null,
+        isLatest: false,
+        isMain: true,
+        isPrerelease: true,
+        pages: collectVersionPages(join(DOCS_OUT, 'main')),
+      };
       console.log('[docs-versions]   docs/content-source/ → main/ (dev)');
     } else {
       console.warn(
@@ -325,8 +404,21 @@ function main() {
     }
   }
 
+  // Dropdown order: `latest` first so newcomers land on the supported
+  // version, archived tags next sorted newest → oldest, then `main` last as
+  // an opt-in preview. archivedEntries was pushed in tag-asc order.
+  const manifestEntries = [
+    latestEntry,
+    ...archivedEntries.slice().reverse(),
+    ...(mainEntry ? [mainEntry] : []),
+  ];
+
   writeRedirectIndex(latestTag);
+  writeVersionsManifest(manifestEntries, latestTag);
   console.log('[docs-versions] index.mdx → redirects to /latest/');
+  console.log(
+    `[docs-versions] versions.json → ${manifestEntries.length} entries`,
+  );
 }
 
 main();
