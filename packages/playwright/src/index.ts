@@ -1,6 +1,6 @@
 import type { Page, TestInfo } from '@playwright/test';
-import type { ChaosConfig, ChaosEvent } from '@chaos-maker/core';
-import { serializeForTransport } from '@chaos-maker/core';
+import type { ChaosConfig, ChaosEvent, ValidateChaosConfigOptions } from '@chaos-maker/core';
+import { serializeForTransport, validateChaosConfig } from '@chaos-maker/core';
 import { resolve, dirname } from 'path';
 import { createRequire } from 'module';
 import { fileURLToPath } from 'url';
@@ -50,6 +50,13 @@ export interface InjectChaosOptions {
   testInfo?: TestInfo;
   /** Pass through to the trace reporter. */
   traceOptions?: TraceReporterOptions;
+  /**
+   * RFC-004. Forwarded to `validateChaosConfig` before the config is
+   * serialized for the page. Use to relax unknown-field handling, hook
+   * deprecation events, or run custom per-`RuleType` validators. Malformed
+   * configs throw a `ChaosConfigError` synchronously from Node.
+   */
+  validation?: ValidateChaosConfigOptions;
 }
 
 /** Symbol used to stash the tracing handle on the Page object for cleanup. */
@@ -78,6 +85,11 @@ export async function injectChaos(
   config: ChaosConfig,
   opts: InjectChaosOptions = {},
 ): Promise<void> {
+  // Validate from Node BEFORE touching the page so a malformed config throws
+  // synchronously from the test runner instead of asynchronously from the
+  // browser console.
+  const validated = validateChaosConfig(config, opts.validation);
+
   const umdPath = getCoreUmdPath();
 
   // Resolve tracing decision before touching the page.
@@ -103,7 +115,7 @@ export async function injectChaos(
   // addInitScript JSON-encodes its argument, which would drop RegExp matchers
   // (e.g. `graphqlOperation: /^Get/`). Serialize to a transport-safe form here;
   // the in-page chaosUtils.start auto-deserializes via deserializeForTransport.
-  const serialized = serializeForTransport(config);
+  const serialized = serializeForTransport(validated);
   await page.addInitScript((cfg: unknown) => {
     const win = globalThis as any;
     win.__CHAOS_CONFIG__ = cfg;
@@ -246,6 +258,12 @@ export async function getChaosSeed(page: Page): Promise<number | null> {
 export type {
   ChaosConfig,
   ChaosEvent,
+  ValidateChaosConfigOptions,
+  ValidationIssue,
+  ValidationIssueCode,
+  RuleType,
+  CustomRuleValidator,
+  CustomValidatorMap,
   GraphQLOperationMatcher,
   NetworkConfig,
   NetworkFailureConfig,
@@ -278,6 +296,9 @@ export type { TraceReporterOptions, ChaosTraceAttachment } from './trace';
 // RFC-002. Runtime export so adapter consumers can construct a Logger
 // directly alongside the type re-exports above.
 export { Logger } from '@chaos-maker/core';
+// RFC-004. Re-export the structured validation surface so adapter consumers
+// can validate on demand outside of injectChaos and import the error type.
+export { validateChaosConfig, ChaosConfigError } from '@chaos-maker/core';
 
 export {
   injectSWChaos,

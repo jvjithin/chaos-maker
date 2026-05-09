@@ -46,3 +46,17 @@ UI chaos requires the DOM to exist, so do **not** pass a `ui` config into the pr
 ## Debug Mode
 
 Pass `debug: true` to `injectChaos()` to enable [Debug Mode](/api/debug/). It does not interact with `puppeteer.launch({ devtools: true })` or `DEBUG=puppeteer:*` — Chaos Maker never reads them. Capture console mirrors with `page.on('console', msg => …)` filtering on `msg.type() === 'debug'`; structured events ride into `getChaosLog()`.
+
+## Validation
+
+`injectChaos` validates the config from Node before `evaluateOnNewDocument` runs. A malformed config throws `ChaosConfigError` synchronously from the test runner.
+
+```typescript
+import { injectChaos, ChaosConfigError } from '@chaos-maker/puppeteer';
+
+await injectChaos(page, config, {
+  validation: { unknownFields: 'warn' },
+});
+```
+
+Pass `validation` to relax unknown-field handling, hook deprecation events, or run custom per-`RuleType` validators. See [Rule Validation](/concepts/validation/).

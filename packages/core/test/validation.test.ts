@@ -720,3 +720,55 @@ describe('validateConfig', () => {
     });
   });
 });
+
+function captureValidateConfigThrow(fn: () => unknown): ChaosConfigError {
+  try {
+    fn();
+  } catch (e) {
+    if (e instanceof ChaosConfigError) return e;
+    throw e;
+  }
+  throw new Error('expected validateConfig to throw ChaosConfigError');
+}
+
+describe('ValidationIssue shape (RFC-004)', () => {
+  it('every issue carries a structured ValidationIssue', () => {
+    const err = captureValidateConfigThrow(() =>
+      validateConfig({
+        network: { failures: [{ urlPattern: '', statusCode: 999, probability: 1.5 }] },
+      }),
+    );
+    for (const issue of err.issues) {
+      expect(issue).toHaveProperty('path');
+      expect(issue).toHaveProperty('code');
+      expect(issue).toHaveProperty('ruleType');
+      expect(issue).toHaveProperty('message');
+    }
+  });
+
+  it('backward-compat messages getter still returns string array', () => {
+    const err = captureValidateConfigThrow(() =>
+      validateConfig({
+        network: { failures: [{ urlPattern: '/a', statusCode: 500, probability: 1.5 }] },
+      }),
+    );
+    expect(Array.isArray(err.messages)).toBe(true);
+    expect(err.messages.every((m) => typeof m === 'string')).toBe(true);
+  });
+
+  it('cross-feature regression: groups + presets + debug + schemaVersion validates clean', () => {
+    expect(() =>
+      validateConfig({
+        schemaVersion: 1,
+        debug: true,
+        groups: [{ name: 'payments', enabled: false }],
+        customPresets: {
+          myPreset: {
+            network: { failures: [{ urlPattern: '/api', statusCode: 500, probability: 1, group: 'payments' }] },
+          },
+        },
+        presets: ['myPreset'],
+      }),
+    ).not.toThrow();
+  });
+});

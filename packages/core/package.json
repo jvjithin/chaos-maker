@@ -52,7 +52,8 @@
   ],
   "scripts": {
     "dev": "vite build --watch",
-    "build": "vite build && vite build -c vite.config.sw.ts && tsc -p tsconfig.build.json",
+    "build": "vite build && vite build -c vite.config.sw.ts && tsc -p tsconfig.build.json && pnpm run build:schema",
+    "build:schema": "node scripts/build-schema.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -64,6 +65,7 @@
     "jsdom": "^27.0.1",
     "typescript": "^5.4.5",
     "vite": "^6.4.2",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "zod-to-json-schema": "3.24.5"
   }
 }

@@ -78,3 +78,17 @@ const debugEvents = log.filter((e) => e.type === 'debug');
 ```
 
 Cross-realm note: in some Firefox/geckodriver setups `browser.execute`'s body runs in a sandbox whose `console.debug` reassignment never reaches the page realm. If you observe `consoleLines` empty on Firefox, inject the tap via an inline `<script>` tag instead and stash captured lines on a DOM holder element you can read back from a separate `browser.execute()`.
+
+## Validation
+
+`injectChaos` validates the config from Node before `browser.execute` touches the page. A malformed config throws `ChaosConfigError` synchronously from the test runner.
+
+```typescript
+import { injectChaos, ChaosConfigError } from '@chaos-maker/webdriverio';
+
+await injectChaos(browser, config, {
+  validation: { unknownFields: 'warn' },
+});
+```
+
+Pass `validation` to relax unknown-field handling, hook deprecation events, or run custom per-`RuleType` validators. See [Rule Validation](/concepts/validation/).

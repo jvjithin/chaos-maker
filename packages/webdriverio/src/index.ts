@@ -2,9 +2,20 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import type { ChaosConfig, ChaosEvent } from '@chaos-maker/core';
-import { serializeForTransport } from '@chaos-maker/core';
+import type { ChaosConfig, ChaosEvent, ValidateChaosConfigOptions } from '@chaos-maker/core';
+import { serializeForTransport, validateChaosConfig } from '@chaos-maker/core';
 import './types';
+
+/** Options accepted by {@link injectChaos}. */
+export interface InjectChaosOptions {
+  /**
+   * RFC-004. Forwarded to `validateChaosConfig` before the config is
+   * serialized into the inline `<script>`. Malformed configs throw a
+   * `ChaosConfigError` synchronously from Node before `browser.execute`
+   * touches the page.
+   */
+  validation?: ValidateChaosConfigOptions;
+}
 
 /**
  * Minimal structural type for the WebdriverIO `Browser` object. Typed this way
@@ -68,7 +79,11 @@ function loadCoreUmdSource(): string {
 export async function injectChaos(
   browser: ChaosBrowser,
   config: ChaosConfig,
+  opts: InjectChaosOptions = {},
 ): Promise<void> {
+  // Validate before any browser-side script touches the page so a malformed
+  // config throws synchronously from Node, not from `browser.execute`.
+  const validated = validateChaosConfig(config, opts.validation);
   const umdSource = loadCoreUmdSource();
   // Both the config assignment and UMD source run inside the <script> tag's
   // textContent so they execute in the page realm — Firefox/geckodriver runs
@@ -78,7 +93,7 @@ export async function injectChaos(
   // Pre-serialize so RegExp matchers (e.g. `graphqlOperation: /^Get/`) survive
   // the JSON.stringify into the inline <script> body. The in-page
   // chaosUtils.start auto-deserializes via deserializeForTransport.
-  const serialized = serializeForTransport(config);
+  const serialized = serializeForTransport(validated);
   const scriptSource = `window.__CHAOS_CONFIG__ = ${JSON.stringify(serialized)};\n${umdSource}`;
   const started = await browser.execute((src: string) => {
     const script = document.createElement('script');
@@ -221,7 +236,7 @@ export function registerChaosCommands(browser: ChaosBrowser): void {
     );
   }
   browser.addCommand('injectChaos', async function (this: ChaosBrowser, ...args: unknown[]) {
-    await injectChaos(this, args[0] as ChaosConfig);
+    await injectChaos(this, args[0] as ChaosConfig, args[1] as InjectChaosOptions | undefined);
   });
   browser.addCommand('removeChaos', async function (this: ChaosBrowser) {
     await removeChaos(this);
@@ -277,6 +292,16 @@ export type {
 // RFC-002. Runtime export so adapter consumers can construct a Logger
 // directly alongside the type re-exports above.
 export { Logger } from '@chaos-maker/core';
+// RFC-004. Validation surface re-exported for adapter consumers.
+export { validateChaosConfig, ChaosConfigError } from '@chaos-maker/core';
+export type {
+  ValidateChaosConfigOptions,
+  ValidationIssue,
+  ValidationIssueCode,
+  RuleType,
+  CustomRuleValidator,
+  CustomValidatorMap,
+} from '@chaos-maker/core';
 
 export {
   injectSWChaos,

@@ -125,9 +125,10 @@ test.describe('everyNth counting', () => {
   test('fetch: latency applied on every 2nd request', async ({ page }) => {
     // Use a large delay so the injected latency dominates CI cold-start /
     // scheduler jitter (uninjected requests can cost 100–300ms on first hit
-    // in firefox/webkit). 800ms vs a ~500ms threshold leaves comfortable headroom.
+    // in firefox/webkit). 800ms vs a ~400ms threshold leaves headroom for
+    // slow Firefox CI runners where undelayed requests approach 300ms.
     const DELAY = 800;
-    const THRESHOLD = 500;
+    const THRESHOLD = 400;
 
     await injectChaos(page, {
       network: {

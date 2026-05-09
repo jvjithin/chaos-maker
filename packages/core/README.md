@@ -259,21 +259,35 @@ Event types: `network:failure`, `network:latency`, `network:abort`, `network:cor
 
 ## Config Validation
 
-All configs are validated with Zod in strict mode. Unknown keys are rejected. Invalid values throw `ChaosConfigError` with descriptive messages.
+All configs are validated with Zod in strict mode. Unknown keys are rejected by default. Invalid values throw `ChaosConfigError` whose `issues` is a `ValidationIssue[]` with structured `path` / `code` / `ruleType` / `message` / `expected` / `received`.
 
 ```ts
-import { validateConfig, ChaosConfigError } from '@chaos-maker/core';
+import { validateChaosConfig, ChaosConfigError } from '@chaos-maker/core';
 
 try {
-  validateConfig({ network: { failures: [{ urlPattern: '', statusCode: 999 }] } });
+  validateChaosConfig({
+    network: { failures: [{ urlPattern: '', statusCode: 999, probability: 2 }] },
+  });
 } catch (e) {
   if (e instanceof ChaosConfigError) {
-    console.log(e.issues);
-    // ['network.failures.0.urlPattern: urlPattern must not be empty',
-    //  'network.failures.0.statusCode: Number must be less than or equal to 599']
+    for (const issue of e.issues) {
+      console.log(issue.path, issue.code, issue.message);
+    }
+    // legacy v0.4.x string array still available:
+    console.log(e.messages);
   }
 }
 ```
+
+`validateChaosConfig(input, opts?)` accepts:
+
+- `unknownFields: 'reject' | 'warn' | 'ignore'` — strict by default. `'warn'` and `'ignore'` strip unknowns from the returned config; `'warn'` emits exactly one aggregated `console.warn` per call.
+- `customValidators: Partial<Record<RuleType, (rule, ctx) => ValidationIssue[] | void>>` — run extra checks per rule type.
+- `onDeprecation: (issue) => void` — receive `ValidationIssue` events for deprecated fields (rails only in v0.5.0).
+
+A JSON Schema artifact ships at `node_modules/@chaos-maker/core/dist/chaos-config.schema.json` for IDE / `"$schema"` autocomplete plus a sidecar `chaos-config.schema.notes.md` listing parity caveats. The artifact is a tooling approximation — runtime canonical validation is always Zod via `validateChaosConfig`.
+
+See the [Rule Validation concept page](https://chaos-maker-dev.github.io/chaos-maker/concepts/validation/) for the full pipeline, brand semantics, and migration notes.
 
 ## Service Worker chaos
 

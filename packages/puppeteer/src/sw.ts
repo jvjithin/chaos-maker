@@ -1,5 +1,5 @@
-import type { ChaosConfig, ChaosEvent } from '@chaos-maker/core';
-import { prepareChaosConfig, SW_BRIDGE_SOURCE } from '@chaos-maker/core';
+import type { ChaosConfig, ChaosEvent, ValidateChaosConfigOptions } from '@chaos-maker/core';
+import { validateChaosConfig, SW_BRIDGE_SOURCE } from '@chaos-maker/core';
 import type { ChaosPage } from './index';
 
 export interface SWChaosOptions {
@@ -8,6 +8,11 @@ export interface SWChaosOptions {
    * ack message. Defaults to `10000`.
    */
   timeoutMs?: number;
+  /**
+   * RFC-004. Forwarded to `validateChaosConfig` before the config is posted
+   * to the SW. Malformed configs throw a `ChaosConfigError` from Node.
+   */
+  validation?: ValidateChaosConfigOptions;
 }
 
 export interface InjectSWChaosResult {
@@ -60,7 +65,7 @@ export async function injectSWChaos(
   config: ChaosConfig,
   opts: SWChaosOptions = {},
 ): Promise<InjectSWChaosResult> {
-  const validated = prepareChaosConfig(config);
+  const validated = validateChaosConfig(config, opts.validation);
   const timeoutMs = opts.timeoutMs ?? 10_000;
   await ensurePageBridge(page);
 

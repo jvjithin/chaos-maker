@@ -217,6 +217,25 @@ Available when importing `test` from `@chaos-maker/playwright/fixture`:
 - `chaos.enableSWGroup(name, opts?)` — same as `enableSWGroup(page, name, opts)`
 - `chaos.disableSWGroup(name, opts?)` — same as `disableSWGroup(page, name, opts)`
 
+## Validation
+
+`injectChaos` validates the config from Node BEFORE any page touch. A malformed config throws `ChaosConfigError` synchronously from the test runner — your test fails before navigation, not in the browser console. `ChaosConfigError.issues` is a structured `ValidationIssue[]` with `path`, `code`, `ruleType`, and optional `expected` / `received`. See the [Rule Validation concept page](https://chaos-maker-dev.github.io/chaos-maker/concepts/validation/).
+
+```ts
+import { injectChaos, ChaosConfigError } from '@chaos-maker/playwright';
+
+try {
+  await injectChaos(page, config, {
+    validation: { unknownFields: 'warn' },
+  });
+} catch (e) {
+  if (e instanceof ChaosConfigError) {
+    for (const issue of e.issues) console.error(issue.path, issue.code, issue.message);
+  }
+  throw e;
+}
+```
+
 ## Debugging with trace
 
 When a chaos test fails, the Playwright trace viewer is the first place to look. Enable tracing in your Playwright config and use the fixture — every applied chaos decision appears inline in the trace action timeline as a `chaos:<type>` step, and the full event log is attached as `chaos-log.json`.

@@ -1,22 +1,33 @@
 import { ChaosMaker } from './ChaosMaker';
 import { ChaosConfig, CorruptionStrategy, GraphQLOperationMatcher, NetworkFailureConfig, NetworkLatencyConfig, NetworkAbortConfig, NetworkCorruptionConfig, NetworkCorsConfig, NetworkConfig, NetworkRuleMatchers, RuleGroupAssignment, UiAssaultConfig, UiConfig, WebSocketConfig, WebSocketDropConfig, WebSocketDelayConfig, WebSocketCorruptConfig, WebSocketCloseConfig, WebSocketDirection, WebSocketCorruptionStrategy, SSEConfig, SSEDropConfig, SSEDelayConfig, SSECorruptConfig, SSECloseConfig, SSECorruptionStrategy, SSEEventTypeMatcher } from './config';
 import { ChaosConfigError } from './errors';
-import { validateConfig, prepareChaosConfig } from './validation';
+import { validateConfig, prepareChaosConfig, validateChaosConfig, VALIDATOR_BRAND_VERSION, type ValidateChaosConfigOptions, type PrepareChaosConfigOptions } from './validation';
 import { ChaosEvent, ChaosEventType, ChaosEventListener, ChaosEventEmitter } from './events';
 import { ChaosConfigBuilder } from './builder';
 import { presets, PresetRegistry, BUILT_IN_PRESETS, expandPresets } from './presets';
 import { createPrng, generateSeed } from './prng';
 import { deserializeForTransport } from './transport';
 
-/** `prepareChaosConfig` is the canonical runtime preparation entry point for
- *  a `ChaosConfig` — validates the input shape, expands `presets` /
- *  `customPresets`, and re-validates the merged result. The `ChaosMaker`
- *  constructor and every adapter SW page-side helper call through it.
+/** `validateChaosConfig` is the canonical structured validation entry. Layers
+ *  schema-version gating, brand-cache short-circuit, deprecation walk, and
+ *  custom validators on top of `prepareChaosConfig` (Zod pass 1 + preset
+ *  expansion + Zod pass 2). The `ChaosMaker` constructor and every adapter
+ *  call through it.
  *
- *  `validateConfig` remains exported as the schema-only primitive but DOES
- *  NOT expand presets. Use it for unit-test structural assertions only — for
- *  any runtime preparation, call `prepareChaosConfig`. */
-export { ChaosMaker, ChaosConfigError, validateConfig, prepareChaosConfig, ChaosEventEmitter, ChaosConfigBuilder, presets, PresetRegistry, BUILT_IN_PRESETS, expandPresets, createPrng, generateSeed };
+ *  `prepareChaosConfig` is the lower-level primitive without the brand /
+ *  deprecation / customValidators layers; useful in advanced flows that
+ *  manage their own re-validation cadence.
+ *
+ *  `validateConfig` is the schema-only primitive — does NOT expand presets.
+ *  Use only for unit-test structural assertions. */
+export { ChaosMaker, ChaosConfigError, validateConfig, prepareChaosConfig, validateChaosConfig, VALIDATOR_BRAND_VERSION, ChaosEventEmitter, ChaosConfigBuilder, presets, PresetRegistry, BUILT_IN_PRESETS, expandPresets, createPrng, generateSeed };
+/** Internal: prebuilt Zod schema variants. Exported so the JSON-schema build
+ *  script can serialize the canonical strict variant. Application code should
+ *  call `validateChaosConfig` instead — the schemas are not the public
+ *  validation surface and may evolve without a version bump. */
+export { chaosConfigSchemaStrict, chaosConfigSchemaPassthrough } from './validation';
+export type { ValidateChaosConfigOptions, PrepareChaosConfigOptions };
+export type { ValidationIssue, ValidationIssueCode, RuleType, CustomRuleValidator, CustomValidatorMap, DeprecationEntry } from './validation-types';
 export type { Preset, PresetConfigSlice } from './presets';
 export { SW_BRIDGE_SOURCE } from './sw-bridge-source';
 export { extractGraphQLOperation, parseOperationFromQueryString, operationNameMatches } from './graphql';
@@ -40,6 +51,7 @@ interface ChaosUtilsApi {
   disableGroup: (name: string) => { success: boolean; message: string };
   createGroup: (name: string, opts?: { enabled?: boolean }) => { success: boolean; message: string };
   getGroupState: (name: string) => boolean | null;
+  validate: (config: unknown, opts?: ValidateChaosConfigOptions) => ChaosConfig;
 }
 
 // --- Global API & Auto-Start Logic ---
@@ -135,6 +147,9 @@ if (typeof window !== 'undefined') {
         return null;
       }
     },
+
+    validate: (config: unknown, opts?: ValidateChaosConfigOptions) =>
+      validateChaosConfig(config, opts),
   };
   
   (window as any).chaosUtils = chaosUtilsApi;

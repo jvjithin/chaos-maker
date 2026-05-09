@@ -7,15 +7,20 @@ description: ChaosConfig, event, and rule type reference.
 
 ```typescript
 interface ChaosConfig {
+  schemaVersion?: 1;
   network?: NetworkConfig;
   ui?: UiConfig;
   websocket?: WebSocketConfig;
   sse?: SSEConfig;
   groups?: RuleGroupConfig[];
+  presets?: string[];
+  customPresets?: Record<string, PresetConfigSlice>;
   seed?: number;
-  debug?: boolean;
+  debug?: boolean | { enabled: boolean };
 }
 ```
+
+`schemaVersion` is reserved for forward-compatibility. Default is `1`; unknown values reject with `code: 'unknown_schema_version'`. See [Rule Validation](/concepts/validation/).
 
 `seed` controls probability-driven chaos decisions. The same seed plus the same interaction sequence produces the same normalized event sequence.
 

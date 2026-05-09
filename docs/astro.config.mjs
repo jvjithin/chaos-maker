@@ -42,6 +42,7 @@ export default defineConfig({
             { label: 'Service Worker Chaos', link: '/concepts/service-worker-chaos/' },
             { label: 'SSE Chaos', link: '/concepts/sse-chaos/' },
             { label: 'Presets', link: '/concepts/presets/' },
+            { label: 'Rule Validation', link: '/concepts/validation/' },
             { label: 'Config Builder', link: '/concepts/builder/' },
             { label: 'Seeded Reproducibility', link: '/concepts/seeded-reproducibility/' },
             { label: 'Nth Counting', link: '/concepts/nth-counting/' },
