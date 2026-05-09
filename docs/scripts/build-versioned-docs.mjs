@@ -195,6 +195,18 @@ function injectEditUrl(dir, slug, mode) {
 }
 
 function tagToSlug(tag) {
+  // Slug encoding maps every `.` to `-`, so prereleases must use only
+  // dot-separated alphanumeric identifiers. A hyphen inside an identifier
+  // would collide with the separator and break round-tripping. parseTag
+  // rejects such tags up front, so this is a defensive check for callers
+  // that bypass parseTag.
+  const parsed = parseTag(tag);
+  if (!parsed) {
+    throw new Error(
+      `[docs-versions] tag "${tag}" is not a valid version tag; ` +
+        'prereleases must be dot-separated alphanumeric identifiers (e.g. v1.0.0-rc.1)',
+    );
+  }
   return tag.replace(/\./g, '-');
 }
 

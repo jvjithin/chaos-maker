@@ -9,8 +9,14 @@
  * is centralised here.
  */
 
-const TAG_RE = /^v(\d+)\.(\d+)\.(\d+)(?:-([\w.-]+))?$/;
-const SLUG_RE = /^v(\d+)-(\d+)-(\d+)(?:-([\w.-]+))?$/;
+// Prerelease is restricted to dot-separated alphanumeric identifiers. Hyphens
+// inside an identifier would alias against the `.`→`-` slug encoding (e.g.
+// `v1.0.0-alpha-beta` and `v1.0.0-alpha.beta` would both produce slug
+// `v1-0-0-alpha-beta`), so we reject them at parse time and at slug emission.
+const PRERELEASE_RE = '[A-Za-z0-9]+(?:\\.[A-Za-z0-9]+)*';
+const PRERELEASE_SLUG_RE = '[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*';
+const TAG_RE = new RegExp(`^v(\\d+)\\.(\\d+)\\.(\\d+)(?:-(${PRERELEASE_RE}))?$`);
+const SLUG_RE = new RegExp(`^v(\\d+)-(\\d+)-(\\d+)(?:-(${PRERELEASE_SLUG_RE}))?$`);
 
 export function parseTag(tag) {
   const m = TAG_RE.exec(tag);
