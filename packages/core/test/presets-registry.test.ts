@@ -2,15 +2,18 @@ import { describe, it, expect } from 'vitest';
 import { BUILT_IN_PRESETS, PresetRegistry, presets } from '../src/presets';
 
 describe('PresetRegistry', () => {
-  it('seeds 15 keys (9 camelCase + 6 kebab) in BUILT_IN_PRESETS order', () => {
+  it('seeds 18 keys (9 camelCase + 9 kebab) in BUILT_IN_PRESETS order', () => {
     const registry = new PresetRegistry();
     const keys = registry.list();
-    expect(keys).toHaveLength(15);
+    expect(keys).toHaveLength(18);
     expect(keys).toEqual(BUILT_IN_PRESETS.map((p) => p.name));
     expect(keys).toContain('slow-api');
     expect(keys).toContain('flaky-api');
+    expect(keys).toContain('api-flaky');
     expect(keys).toContain('offline-mode');
     expect(keys).toContain('high-latency');
+    expect(keys).toContain('websocket-instability');
+    expect(keys).toContain('realtime-lag');
     expect(keys).toContain('mobile-3g');
     expect(keys).toContain('checkout-degraded');
   });
