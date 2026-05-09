@@ -1,0 +1,77 @@
+---
+title: Abort Upload Midflight
+description: Verify upload cancellation and recovery when a request aborts midflight.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Abort an upload request after it starts and assert that the UI exits the uploading state.
+
+<Tabs>
+  <TabItem label="Playwright">
+
+```typescript
+await injectChaos(page, {
+  seed: 42,
+  network: { aborts: [{ urlPattern: '/api/uploads', timeout: 500, probability: 1 }] },
+});
+await page.goto('/upload');
+await page.setInputFiles('input[type="file"]', 'fixtures/photo.png');
+await page.click('[data-testid="upload"]');
+await expect(page.locator('[data-testid="upload-error"]')).toBeVisible();
+expect((await getChaosLog(page)).some((event) => event.type === 'network:abort' && event.applied)).toBe(true);
+```
+
+  </TabItem>
+  <TabItem label="Cypress">
+
+```typescript
+cy.injectChaos({
+  seed: 42,
+  network: { aborts: [{ urlPattern: '/api/uploads', timeout: 500, probability: 1 }] },
+});
+cy.visit('/upload');
+cy.get('input[type="file"]').selectFile('cypress/fixtures/photo.png');
+cy.get('[data-testid="upload"]').click();
+cy.get('[data-testid="upload-error"]').should('be.visible');
+cy.getChaosLog().should((log) => {
+  expect(log.some((event) => event.type === 'network:abort' && event.applied)).to.equal(true);
+});
+```
+
+  </TabItem>
+  <TabItem label="WebdriverIO">
+
+```typescript
+await browser.url('/upload');
+await injectChaos(browser, {
+  seed: 42,
+  network: { aborts: [{ urlPattern: '/api/uploads', timeout: 500, probability: 1 }] },
+});
+await $('input[type="file"]').setValue('/absolute/path/to/photo.png');
+await $('[data-testid="upload"]').click();
+await expect($('[data-testid="upload-error"]')).toBeDisplayed();
+expect((await getChaosLog(browser)).some((event) => event.type === 'network:abort' && event.applied)).toBe(true);
+```
+
+  </TabItem>
+  <TabItem label="Puppeteer">
+
+```typescript
+await injectChaos(page, {
+  seed: 42,
+  network: { aborts: [{ urlPattern: '/api/uploads', timeout: 500, probability: 1 }] },
+});
+await page.goto('http://localhost:3000/upload');
+const input = await page.$('input[type="file"]');
+await input!.uploadFile('/absolute/path/to/photo.png');
+await page.click('[data-testid="upload"]');
+await page.waitForSelector('[data-testid="upload-error"]');
+const log = await getChaosLog(page);
+if (!log.some((event) => event.type === 'network:abort' && event.applied)) {
+  throw new Error('Expected upload abort');
+}
+```
+
+  </TabItem>
+</Tabs>

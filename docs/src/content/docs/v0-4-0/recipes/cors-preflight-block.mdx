@@ -1,0 +1,74 @@
+---
+title: CORS Preflight Block
+description: Verify cross-origin fallback UI when the browser rejects a request.
+banner:
+  content: 'Archived <strong>v0.4.0</strong> docs. <a href="/chaos-maker/">View latest</a>.'
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Simulate a browser-style CORS/network failure and assert that the UI explains the blocked integration.
+
+<Tabs>
+  <TabItem label="Playwright">
+
+```typescript
+await injectChaos(page, {
+  seed: 42,
+  network: { cors: [{ urlPattern: '/api/external-tax', methods: ['OPTIONS', 'POST'], probability: 1 }] },
+});
+await page.goto('/checkout');
+await page.click('#estimate-tax');
+await expect(page.locator('[data-testid="tax-service-error"]')).toBeVisible();
+expect((await getChaosLog(page)).some((event) => event.type === 'network:cors' && event.applied)).toBe(true);
+```
+
+  </TabItem>
+  <TabItem label="Cypress">
+
+```typescript
+cy.injectChaos({
+  seed: 42,
+  network: { cors: [{ urlPattern: '/api/external-tax', methods: ['OPTIONS', 'POST'], probability: 1 }] },
+});
+cy.visit('/checkout');
+cy.get('#estimate-tax').click();
+cy.get('[data-testid="tax-service-error"]').should('be.visible');
+cy.getChaosLog().should((log) => {
+  expect(log.some((event) => event.type === 'network:cors' && event.applied)).to.equal(true);
+});
+```
+
+  </TabItem>
+  <TabItem label="WebdriverIO">
+
+```typescript
+await browser.url('/checkout');
+await injectChaos(browser, {
+  seed: 42,
+  network: { cors: [{ urlPattern: '/api/external-tax', methods: ['OPTIONS', 'POST'], probability: 1 }] },
+});
+await $('#estimate-tax').click();
+await expect($('[data-testid="tax-service-error"]')).toBeDisplayed();
+expect((await getChaosLog(browser)).some((event) => event.type === 'network:cors' && event.applied)).toBe(true);
+```
+
+  </TabItem>
+  <TabItem label="Puppeteer">
+
+```typescript
+await injectChaos(page, {
+  seed: 42,
+  network: { cors: [{ urlPattern: '/api/external-tax', methods: ['OPTIONS', 'POST'], probability: 1 }] },
+});
+await page.goto('http://localhost:3000/checkout');
+await page.click('#estimate-tax');
+await page.waitForSelector('[data-testid="tax-service-error"]');
+const log = await getChaosLog(page);
+if (!log.some((event) => event.type === 'network:cors' && event.applied)) {
+  throw new Error('Expected CORS chaos');
+}
+```
+
+  </TabItem>
+</Tabs>

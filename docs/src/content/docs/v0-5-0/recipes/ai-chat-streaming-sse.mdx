@@ -1,0 +1,100 @@
+---
+title: AI Chat Streaming Under Flaky SSE
+description: Verify streaming chat UI when EventSource tokens drop or stall.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+AI chat and notification screens often depend on one long-lived `EventSource`. Drop or delay named token events and assert that the UI stays recoverable.
+
+<Tabs>
+  <TabItem label="Playwright">
+
+```typescript
+await injectChaos(page, {
+  seed: 42,
+  sse: {
+    drops: [{ urlPattern: '/chat/stream', eventType: 'token', probability: 0.15 }],
+    delays: [{ urlPattern: '/chat/stream', eventType: 'token', delayMs: 750, probability: 1 }],
+  },
+});
+
+await page.goto('/chat');
+await page.getByRole('textbox').fill('Summarize the incident');
+await page.getByRole('button', { name: 'Send' }).click();
+
+await expect(page.locator('[data-testid="streaming-indicator"]')).toBeVisible();
+await expect(page.locator('[data-testid="retry-stream"]')).toBeVisible();
+expect((await getChaosLog(page)).some((event) => event.type === 'sse:drop' && event.applied)).toBe(true);
+```
+
+  </TabItem>
+  <TabItem label="Cypress">
+
+```typescript
+cy.injectChaos({
+  seed: 42,
+  sse: {
+    drops: [{ urlPattern: '/chat/stream', eventType: 'token', probability: 0.15 }],
+    delays: [{ urlPattern: '/chat/stream', eventType: 'token', delayMs: 750, probability: 1 }],
+  },
+});
+
+cy.visit('/chat');
+cy.findByRole('textbox').type('Summarize the incident');
+cy.findByRole('button', { name: 'Send' }).click();
+
+cy.get('[data-testid="streaming-indicator"]').should('be.visible');
+cy.get('[data-testid="retry-stream"]').should('be.visible');
+cy.getChaosLog().should((log) => {
+  expect(log.some((event) => event.type === 'sse:drop' && event.applied)).to.equal(true);
+});
+```
+
+  </TabItem>
+  <TabItem label="WebdriverIO">
+
+```typescript
+await browser.url('/chat');
+await injectChaos(browser, {
+  seed: 42,
+  sse: {
+    drops: [{ urlPattern: '/chat/stream', eventType: 'token', probability: 0.15 }],
+    delays: [{ urlPattern: '/chat/stream', eventType: 'token', delayMs: 750, probability: 1 }],
+  },
+});
+
+await $('[data-testid="prompt"]').setValue('Summarize the incident');
+await $('[data-testid="send"]').click();
+
+await expect($('[data-testid="streaming-indicator"]')).toBeDisplayed();
+await expect($('[data-testid="retry-stream"]')).toBeDisplayed();
+expect((await getChaosLog(browser)).some((event) => event.type === 'sse:drop' && event.applied)).toBe(true);
+```
+
+  </TabItem>
+  <TabItem label="Puppeteer">
+
+```typescript
+await injectChaos(page, {
+  seed: 42,
+  sse: {
+    drops: [{ urlPattern: '/chat/stream', eventType: 'token', probability: 0.15 }],
+    delays: [{ urlPattern: '/chat/stream', eventType: 'token', delayMs: 750, probability: 1 }],
+  },
+});
+
+await page.goto('http://localhost:3000/chat');
+await page.type('[data-testid="prompt"]', 'Summarize the incident');
+await page.click('[data-testid="send"]');
+
+await page.waitForSelector('[data-testid="streaming-indicator"]');
+await page.waitForSelector('[data-testid="retry-stream"]');
+const log = await getChaosLog(page);
+if (!log.some((event) => event.type === 'sse:drop' && event.applied)) {
+  throw new Error('Expected SSE drop');
+}
+```
+
+  </TabItem>
+</Tabs>

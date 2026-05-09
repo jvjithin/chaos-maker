@@ -1,0 +1,77 @@
+---
+title: Flaky API With Retries
+description: Verify retry UX when an API intermittently returns 503.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Fail the first matching request and assert that the retry path recovers.
+
+<Tabs>
+  <TabItem label="Playwright">
+
+```typescript
+await injectChaos(page, {
+  seed: 42,
+  network: { failures: [{ urlPattern: '/api/dashboard', statusCode: 503, probability: 1, onNth: 1 }] },
+});
+await page.goto('/dashboard');
+await expect(page.locator('[data-testid="error-state"]')).toBeVisible();
+await page.click('[data-testid="retry-button"]');
+await expect(page.locator('[data-testid="dashboard-content"]')).toBeVisible();
+expect((await getChaosLog(page)).some((event) => event.type === 'network:failure' && event.applied)).toBe(true);
+```
+
+  </TabItem>
+  <TabItem label="Cypress">
+
+```typescript
+cy.injectChaos({
+  seed: 42,
+  network: { failures: [{ urlPattern: '/api/dashboard', statusCode: 503, probability: 1, onNth: 1 }] },
+});
+cy.visit('/dashboard');
+cy.get('[data-testid="error-state"]').should('be.visible');
+cy.get('[data-testid="retry-button"]').click();
+cy.get('[data-testid="dashboard-content"]').should('be.visible');
+cy.getChaosLog().should((log) => {
+  expect(log.some((event) => event.type === 'network:failure' && event.applied)).to.equal(true);
+});
+```
+
+  </TabItem>
+  <TabItem label="WebdriverIO">
+
+```typescript
+await browser.url('/dashboard');
+await injectChaos(browser, {
+  seed: 42,
+  network: { failures: [{ urlPattern: '/api/dashboard', statusCode: 503, probability: 1, onNth: 1 }] },
+});
+await $('#reload-dashboard').click();
+await expect($('[data-testid="error-state"]')).toBeDisplayed();
+await $('[data-testid="retry-button"]').click();
+await expect($('[data-testid="dashboard-content"]')).toBeDisplayed();
+expect((await getChaosLog(browser)).some((event) => event.type === 'network:failure' && event.applied)).toBe(true);
+```
+
+  </TabItem>
+  <TabItem label="Puppeteer">
+
+```typescript
+await injectChaos(page, {
+  seed: 42,
+  network: { failures: [{ urlPattern: '/api/dashboard', statusCode: 503, probability: 1, onNth: 1 }] },
+});
+await page.goto('http://localhost:3000/dashboard');
+await page.waitForSelector('[data-testid="error-state"]');
+await page.click('[data-testid="retry-button"]');
+await page.waitForSelector('[data-testid="dashboard-content"]');
+const log = await getChaosLog(page);
+if (!log.some((event) => event.type === 'network:failure' && event.applied)) {
+  throw new Error('Expected one failed dashboard request');
+}
+```
+
+  </TabItem>
+</Tabs>

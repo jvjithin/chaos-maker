@@ -1,0 +1,135 @@
+---
+title: Debug Mode
+description: ChaosConfig.debug, the debug event payload, and the rule decision stage taxonomy.
+---
+
+Debug Mode is the second-line tool for diagnosing rules that don't fire. Toggle it with the `debug` field on `ChaosConfig`.
+
+## Quickstart
+
+```typescript
+import { injectChaos } from '@chaos-maker/playwright';
+
+await injectChaos(page, {
+  debug: true,
+  network: {
+    failures: [{ urlPattern: '/api/payments', statusCode: 503, probability: 1 }],
+  },
+});
+```
+
+Or via the builder:
+
+```typescript
+import { ChaosConfigBuilder } from '@chaos-maker/core';
+
+const config = new ChaosConfigBuilder()
+  .failRequests('/api/payments', 503, 1)
+  .withDebug()
+  .build();
+```
+
+## DebugOptions
+
+The public type accepts a boolean. Internally Chaos Maker carries a `DebugOptions` object so future fields can land non-breaking.
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `enabled` | `boolean` | `false` | Toggles the dual-sink Logger. |
+
+The fields below are **reserved** and not yet shipped — included only so you can plan ahead:
+
+| Reserved | Planned use |
+|---|---|
+| `level` | Filter stage emission (`'verbose' \| 'decisions' \| 'lifecycle'`). |
+| `prefix` | Override the `[Chaos] ` console prefix. |
+| `console` | Disable the console sink while keeping structured events. |
+| `sink` | Custom sink for off-loading debug events. |
+
+## Stage taxonomy
+
+`type: 'debug'` events carry the concrete stage on `detail.stage`. The eight stages cover the full rule decision pipeline plus engine lifecycle.
+
+| Stage | Meaning |
+|---|---|
+| `rule-evaluating` | Entered the rule's matcher gate. |
+| `rule-matched` | `urlPattern` + `methods` + `graphqlOperation` all passed. |
+| `rule-skip-match` | The matcher gate rejected. |
+| `rule-skip-counting` | Counting condition (`onNth` / `everyNth` / `afterN`) not met. |
+| `rule-skip-group` | Rule's group is currently disabled. |
+| `rule-skip-probability` | Matched, but the probability roll missed. |
+| `rule-applied` | Chaos applied. |
+| `lifecycle` | Engine start, stop, group toggle, or SW config swap. |
+
+## Lifecycle phases
+
+When `detail.stage === 'lifecycle'`, the concrete moment is on `detail.phase`:
+
+| Phase | Origin |
+|---|---|
+| `engine:start` | `ChaosMaker.start()` |
+| `engine:stop` | `ChaosMaker.stop()` |
+| `engine:group-toggled` | `enableGroup()` / `disableGroup()` |
+| `sw:install` | First SW install (reserved) |
+| `sw:config-applied` | SW received a `__chaosMakerConfig` message |
+| `sw:config-stopped` | SW received a `__chaosMakerStop` message |
+| `sw:group-toggled` | SW received a `__chaosMakerToggleGroup` message |
+
+WebSocket / SSE direction stays on `detail.direction` — `phase` is intentionally lifecycle-only.
+
+## Debug event payload
+
+```typescript
+interface ChaosEvent {
+  type: 'debug';
+  timestamp: number;
+  applied: false;
+  detail: {
+    stage: ChaosDebugStage;
+    // Lifecycle-only:
+    phase?: ChaosLifecyclePhase;
+    // Rule context:
+    ruleType?: string;       // 'failure' | 'latency' | 'abort' | 'corruption' | 'cors' | 'ui-assault' | 'ws-drop' | 'ws-delay' | 'ws-corrupt' | 'ws-close' | 'sse-drop' | 'sse-delay' | 'sse-corrupt' | 'sse-close'
+    ruleId?: string;         // e.g. 'failure#0' — positional within the current config snapshot
+    ruleName?: string;       // reserved for a future builder field
+    groupName?: string;
+    // Inherited per rule type (url, method, statusCode, delayMs, strategy, …)
+    [key: string]: unknown;
+  };
+}
+```
+
+`applied` is always `false` on debug events — they describe decisions, not chaos. The structured event mirrors a `[Chaos] <stage>: ...` line (or `[Chaos SW] <stage>: ...` from inside a Service Worker) to `console.debug` at emit time. The formatted string is **not** stored on the payload, and the prefix is owned by the Logger so the page and SW prefixes are mutually exclusive.
+
+## Rule identifiers
+
+`ruleId` is a **positional** identifier derived from `<ruleType>#<index>` within the current config. Reordering rules between runs changes the IDs — that's acceptable for in-test diagnostics. Persistent IDs across config evolution are out of scope for v0.5.0.
+
+`ruleName` is reserved for a future builder field (e.g. `.failRequests({ ..., name: 'slow-api' })`). It is undefined today.
+
+## Subscribing programmatically
+
+```typescript
+instance.on('debug', (event) => {
+  // event.type === 'debug' always; route on stage.
+  switch (event.detail.stage) {
+    case 'rule-applied':
+      myReporter.record(event);
+      break;
+    case 'rule-skip-probability':
+      myMetrics.incr('chaos.skip.probability', { ruleId: event.detail.ruleId });
+      break;
+    case 'lifecycle':
+      myReporter.lifecycle(event.detail.phase!);
+      break;
+  }
+});
+```
+
+The `'*'` wildcard listener also receives debug events, alongside every other chaos event.
+
+## See also
+
+- [`ChaosConfigBuilder.withDebug()`](/api/core/) on the builder
+- [`debug` field on ChaosConfig](/api/config-reference/)
+- [Observability concepts](/concepts/observability/)

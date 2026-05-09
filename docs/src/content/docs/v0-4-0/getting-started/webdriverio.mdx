@@ -1,0 +1,45 @@
+---
+title: WebdriverIO
+description: Inject chaos into WebdriverIO tests after navigation.
+banner:
+  content: 'Archived <strong>v0.4.0</strong> docs. <a href="/chaos-maker/">View latest</a>.'
+---
+
+WebdriverIO has no cross-browser pre-navigation hook, so call `injectChaos()` after `browser.url()`. Initial-load requests are not intercepted in this adapter.
+
+```bash
+npm install @chaos-maker/core @chaos-maker/webdriverio
+```
+
+```typescript
+import { browser, expect, $ } from '@wdio/globals';
+import { injectChaos, getChaosLog } from '@chaos-maker/webdriverio';
+
+describe('orders', () => {
+  it('shows error state when the API fails', async () => {
+    await browser.url('/orders');
+    await injectChaos(browser, {
+      seed: 42,
+      network: {
+        failures: [{ urlPattern: '/api/orders', statusCode: 503, probability: 1 }],
+      },
+    });
+
+    await $('#reload-orders').click();
+    await expect($('[data-testid="error-state"]')).toBeDisplayed();
+
+    const log = await getChaosLog(browser);
+    expect(log.some((event) => event.type === 'network:failure' && event.applied)).toBe(true);
+  });
+});
+```
+
+## Custom commands
+
+Call `registerChaosCommands(browser)` in a WDIO setup hook if you prefer `browser.injectChaos(config)`, `browser.getChaosLog()`, and related commands.
+
+## Next steps
+
+- [WebdriverIO adapter API](/chaos-maker/adapters/webdriverio/)
+- [Nth request fails](/chaos-maker/recipes/nth-request-fails/)
+- [Adapter comparison](/chaos-maker/adapters/playwright/)

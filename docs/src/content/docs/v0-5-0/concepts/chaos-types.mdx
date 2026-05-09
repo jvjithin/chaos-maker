@@ -1,0 +1,74 @@
+---
+title: Chaos Types
+description: Network, UI, WebSocket, Service Worker, SSE, and GraphQL chaos primitives.
+---
+
+Chaos Maker applies browser-side chaos to APIs your frontend already uses.
+
+## Network
+
+| Type | Config key | Effect |
+| --- | --- | --- |
+| Failure | `network.failures` | Returns a configured HTTP status and body. |
+| Latency | `network.latencies` | Delays matched requests by `delayMs`. |
+| Abort | `network.aborts` | Aborts immediately or after `timeout`. |
+| Corruption | `network.corruptions` | Rewrites response text with `truncate`, `malformed-json`, `empty`, or `wrong-type`. |
+| CORS | `network.cors` | Simulates a browser network/CORS failure. |
+
+Network rules match by `urlPattern` substring and optional `methods`.
+
+GraphQL operations can be matched inside the same network rules with `graphqlOperation`.
+
+```typescript
+network: {
+  failures: [{
+    urlPattern: '/graphql',
+    graphqlOperation: 'GetUser',
+    statusCode: 503,
+    probability: 1,
+  }],
+}
+```
+
+## UI
+
+`ui.assaults` targets DOM nodes by CSS selector and applies `disable`, `hide`, or `remove`.
+
+```typescript
+ui: {
+  assaults: [{ selector: 'button[type="submit"]', action: 'disable', probability: 0.5 }],
+}
+```
+
+## WebSocket
+
+| Type | Config key | Effect |
+| --- | --- | --- |
+| Drop | `websocket.drops` | Drops inbound, outbound, or both directions. |
+| Delay | `websocket.delays` | Delays matched messages. |
+| Corrupt | `websocket.corruptions` | Rewrites text/binary payloads where supported. |
+| Close | `websocket.closes` | Closes a matched socket with code, reason, and optional delay. |
+
+All probability-driven decisions use the seeded PRNG.
+
+## Service Worker
+
+Service Worker chaos applies the same network rules inside `self.fetch`. Add the SW bundle to the worker, then send config from your adapter with `injectSWChaos`.
+
+```js
+// classic sw.js
+importScripts('/chaos-maker-sw.js');
+```
+
+See [Service Worker Chaos](/chaos-maker/concepts/service-worker-chaos/) for adapter-specific setup and limitations.
+
+## Server-Sent Events
+
+| Type | Config key | Effect |
+| --- | --- | --- |
+| Drop | `sse.drops` | Skips inbound EventSource events. |
+| Delay | `sse.delays` | Delays inbound events by `delayMs`. |
+| Corrupt | `sse.corruptions` | Rewrites `event.data`. |
+| Close | `sse.closes` | Closes the EventSource after optional `afterMs`. |
+
+SSE rules match by `urlPattern`; drop, delay, and corruption rules can also target `eventType`.

@@ -1,0 +1,62 @@
+---
+title: Puppeteer Adapter
+description: Public API and timing rules for @chaos-maker/puppeteer.
+---
+
+Use `@chaos-maker/puppeteer` for headless Chromium suites that need a small adapter around Puppeteer pages.
+
+## API
+
+```typescript
+import {
+  injectChaos,
+  removeChaos,
+  getChaosLog,
+  getChaosSeed,
+  useChaos,
+  injectSWChaos,
+  removeSWChaos,
+  getSWChaosLog,
+} from '@chaos-maker/puppeteer';
+```
+
+| Function | Purpose |
+| --- | --- |
+| `injectChaos(page, config)` | Registers config and UMD source with `evaluateOnNewDocument()`. |
+| `removeChaos(page)` | Stops chaos and removes registered init scripts where Puppeteer exposes script IDs. |
+| `getChaosLog(page)` | Returns `ChaosEvent[]`. |
+| `getChaosSeed(page)` | Returns the active seed or `null`. |
+| `useChaos(page, config)` | Injects chaos and returns an async teardown function. |
+| `injectSWChaos(page, config, options?)` | Sends config to the active Service Worker after it controls the page. |
+| `removeSWChaos(page, options?)` | Stops chaos inside the active Service Worker. |
+| `getSWChaosLog(page)` | Returns Service Worker chaos events buffered on the page. |
+
+## Timing
+
+Call before `page.goto()` for network, WebSocket, SSE, and GraphQL chaos. Puppeteer v21+ headless Chromium is the supported mode for v0.4.0.
+
+SSE chaos and GraphQL operation matching also use `injectChaos()` before navigation. For Service Worker chaos, navigate first, wait for `navigator.serviceWorker.controller`, then call `injectSWChaos()` before the user action that triggers SW fetches.
+
+UI chaos requires the DOM to exist, so do **not** pass a `ui` config into the pre-navigation `injectChaos()` call — the auto-bootstrap would run before `document.body` is available. Instead:
+
+1. Call `injectChaos(page, { network, websocket })` (or `injectChaos(page, {})`) before `page.goto()` to load the UMD bundle and install network/WebSocket interceptors.
+2. Navigate with `page.goto()`.
+3. Start UI chaos after navigation with `page.evaluate((cfg) => (window as any).chaosUtils.start(cfg), uiConfig)` — pass `uiConfig` as an explicit argument because the callback runs in the browser context.
+
+## Debug Mode
+
+Pass `debug: true` to `injectChaos()` to enable [Debug Mode](/api/debug/). It does not interact with `puppeteer.launch({ devtools: true })` or `DEBUG=puppeteer:*` — Chaos Maker never reads them. Capture console mirrors with `page.on('console', msg => …)` filtering on `msg.type() === 'debug'`; structured events ride into `getChaosLog()`.
+
+## Validation
+
+`injectChaos` validates the config from Node before `evaluateOnNewDocument` runs. A malformed config throws `ChaosConfigError` synchronously from the test runner.
+
+```typescript
+import { injectChaos, ChaosConfigError } from '@chaos-maker/puppeteer';
+
+await injectChaos(page, config, {
+  validation: { unknownFields: 'warn' },
+});
+```
+
+Pass `validation` to relax unknown-field handling, hook deprecation events, or run custom per-`RuleType` validators. See [Rule Validation](/concepts/validation/).

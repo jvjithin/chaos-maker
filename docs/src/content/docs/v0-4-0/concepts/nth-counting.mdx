@@ -1,0 +1,24 @@
+---
+title: Nth Counting
+description: Target exact matching requests with onNth, everyNth, and afterN.
+banner:
+  content: 'Archived <strong>v0.4.0</strong> docs. <a href="/chaos-maker/">View latest</a>.'
+---
+
+Network and WebSocket rules can include one counting selector.
+
+| Field | Meaning |
+| --- | --- |
+| `onNth` | Apply only on the Nth matching request or message. |
+| `everyNth` | Apply on every Nth matching request or message. |
+| `afterN` | Apply after the first N matches have passed. |
+
+```typescript
+network: {
+  failures: [
+    { urlPattern: '/api/orders', statusCode: 503, probability: 1, onNth: 3 },
+  ],
+}
+```
+
+Counting is per rule object and shared across fetch and XHR for the same config entry. Set at most one of `onNth`, `everyNth`, or `afterN` on a rule.

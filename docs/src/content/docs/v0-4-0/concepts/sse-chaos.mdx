@@ -1,0 +1,63 @@
+---
+title: SSE Chaos
+description: Drop, delay, corrupt, or close Server-Sent Event streams.
+banner:
+  content: 'Archived <strong>v0.4.0</strong> docs. <a href="/chaos-maker/">View latest</a>.'
+---
+
+Server-Sent Events use `EventSource`, not `fetch`, so streaming UI needs a separate chaos surface. Chaos Maker wraps `globalThis.EventSource` and intercepts inbound `MessageEvent`s before app listeners see them.
+
+## Config shape
+
+```typescript
+await injectChaos(page, {
+  seed: 42,
+  sse: {
+    drops: [{ urlPattern: '/events', probability: 0.1 }],
+    delays: [{ urlPattern: '/events', delayMs: 500, probability: 1 }],
+    corruptions: [{ urlPattern: '/events', strategy: 'truncate', probability: 0.05 }],
+    closes: [{ urlPattern: '/events', afterMs: 2000, probability: 0.02 }],
+  },
+});
+```
+
+All SSE rules support `urlPattern`, `probability`, and request counting with `onNth`, `everyNth`, or `afterN`. Drop, delay, and corruption rules also support `eventType`.
+
+## Event types
+
+```typescript
+sse: {
+  drops: [
+    { urlPattern: '/events', eventType: 'token', probability: 0.2 },
+    { urlPattern: '/events', eventType: '*', probability: 0.05 },
+  ],
+}
+```
+
+`eventType: 'message'` targets unnamed default events. A named value targets `event:` frames with that name. `eventType: '*'` applies to every data event and automatically attaches when the app subscribes to new named events.
+
+## Events
+
+Chaos Maker emits:
+
+| Event | Meaning |
+| --- | --- |
+| `sse:drop` | An inbound SSE event was skipped. |
+| `sse:delay` | An inbound event was scheduled for later delivery. |
+| `sse:corrupt` | `event.data` was rewritten. |
+| `sse:close` | The `EventSource` was closed by chaos. |
+
+Each SSE event includes `detail.url`. Drop, delay, and corruption events include `detail.eventType`, and corruption events also include `detail.strategy`. Close events include `detail.reason` instead of `detail.eventType`.
+
+## Preset
+
+```typescript
+import { presets } from '@chaos-maker/core';
+
+await injectChaos(page, {
+  ...presets.unreliableEventStream,
+  seed: 42,
+});
+```
+
+`unreliableEventStream` combines low-probability drops, a 200 ms delay, and occasional closes.

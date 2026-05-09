@@ -1,0 +1,72 @@
+---
+title: WebSocket Disconnect Storm
+description: Verify reconnect UI when WebSocket connections close repeatedly.
+banner:
+  content: 'Archived <strong>v0.4.0</strong> docs. <a href="/chaos-maker/">View latest</a>.'
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Force-close the socket shortly after connection and assert that the app enters a reconnecting state.
+
+<Tabs>
+  <TabItem label="Playwright">
+
+```typescript
+await injectChaos(page, {
+  seed: 42,
+  websocket: { closes: [{ urlPattern: '/realtime', code: 4000, reason: 'chaos', afterMs: 300, probability: 1 }] },
+});
+await page.goto('/messages');
+await expect(page.locator('[data-testid="ws-status"]')).toContainText('reconnecting');
+expect((await getChaosLog(page)).some((event) => event.type === 'websocket:close' && event.applied)).toBe(true);
+```
+
+  </TabItem>
+  <TabItem label="Cypress">
+
+```typescript
+cy.injectChaos({
+  seed: 42,
+  websocket: { closes: [{ urlPattern: '/realtime', code: 4000, reason: 'chaos', afterMs: 300, probability: 1 }] },
+});
+cy.visit('/messages');
+cy.get('[data-testid="ws-status"]').should('contain.text', 'reconnecting');
+cy.getChaosLog().should((log) => {
+  expect(log.some((event) => event.type === 'websocket:close' && event.applied)).to.equal(true);
+});
+```
+
+  </TabItem>
+  <TabItem label="WebdriverIO">
+
+```typescript
+await browser.url('/messages');
+await injectChaos(browser, {
+  seed: 42,
+  websocket: { closes: [{ urlPattern: '/realtime', code: 4000, reason: 'chaos', afterMs: 300, probability: 1 }] },
+});
+await $('#connect').click();
+await expect($('[data-testid="ws-status"]')).toHaveText(expect.stringContaining('reconnecting'));
+expect((await getChaosLog(browser)).some((event) => event.type === 'websocket:close' && event.applied)).toBe(true);
+```
+
+  </TabItem>
+  <TabItem label="Puppeteer">
+
+```typescript
+await injectChaos(page, {
+  seed: 42,
+  websocket: { closes: [{ urlPattern: '/realtime', code: 4000, reason: 'chaos', afterMs: 300, probability: 1 }] },
+});
+await page.goto('http://localhost:3000/messages');
+await page.waitForSelector('[data-testid="ws-status"]');
+await page.waitForFunction(() => document.querySelector('[data-testid="ws-status"]')?.textContent?.includes('reconnecting'));
+const log = await getChaosLog(page);
+if (!log.some((event) => event.type === 'websocket:close' && event.applied)) {
+  throw new Error('Expected websocket close');
+}
+```
+
+  </TabItem>
+</Tabs>

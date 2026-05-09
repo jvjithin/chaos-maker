@@ -1,0 +1,94 @@
+---
+title: WebdriverIO Adapter
+description: Public API and limitations for @chaos-maker/webdriverio.
+---
+
+Use `@chaos-maker/webdriverio` for WDIO suites that can inject chaos after navigation.
+
+## API
+
+```typescript
+import {
+  injectChaos,
+  removeChaos,
+  getChaosLog,
+  getChaosSeed,
+  registerChaosCommands,
+  registerSWChaosCommands,
+} from '@chaos-maker/webdriverio';
+```
+
+| Function | Purpose |
+| --- | --- |
+| `injectChaos(browser, config)` | Injects the core UMD into the current page. |
+| `removeChaos(browser)` | Stops chaos in the current page. |
+| `getChaosLog(browser)` | Returns `ChaosEvent[]`. |
+| `getChaosSeed(browser)` | Returns the active seed or `null`. |
+| `registerChaosCommands(browser)` | Adds `browser.injectChaos()`, `browser.removeChaos()`, `browser.getChaosLog()`, and `browser.getChaosSeed()`. |
+| `registerSWChaosCommands(browser)` | Adds `browser.injectSWChaos(config, options?)`, `browser.removeSWChaos(options?)`, `browser.getSWChaosLog()`, and `browser.getSWChaosLogFromSW(options?)`. |
+
+## Timing
+
+Call after `browser.url()`. WebDriver does not expose a reliable cross-browser pre-navigation hook, so initial page-load requests are outside this adapter's reach.
+
+```typescript
+await browser.url('/dashboard');
+await injectChaos(browser, config);
+await $('#reload').click();
+```
+
+For first-load interception, use Playwright or Cypress.
+
+SSE chaos and GraphQL operation matching work when the EventSource or request is created after injection. For Service Worker chaos, call `browser.url()`, wait for `navigator.serviceWorker.controller`, then call `browser.injectSWChaos(config)`.
+
+## Debug Mode
+
+Pass `debug: true` to `injectChaos()` (or `browser.injectChaos()`) to enable [Debug Mode](/api/debug/). It does not affect WDIO's `logLevel` config or `DEBUG=wdio:*` — Chaos Maker never reads them. WDIO has no first-class console-message stream, so capture mirrors by installing a `console.debug` tap inside `browser.execute()` before the action under test. Structured debug events ride into `browser.getChaosLog()`.
+
+```typescript
+import { injectChaos, getChaosLog } from '@chaos-maker/webdriverio';
+
+await browser.url('/checkout');
+
+// Install the tap BEFORE injectChaos so the very first lifecycle line is
+// captured. Stash the captured lines on a known global so a follow-up
+// browser.execute() call can read them back into the test process.
+await browser.execute(() => {
+  (window as { __chaosDebug?: string[] }).__chaosDebug = [];
+  const original = console.debug;
+  console.debug = (...args: unknown[]) => {
+    if (typeof args[0] === 'string' && args[0].startsWith('[Chaos] ')) {
+      (window as { __chaosDebug?: string[] }).__chaosDebug!.push(args[0]);
+    }
+    return original.apply(console, args as []);
+  };
+});
+
+await browser.injectChaos({
+  debug: true,
+  network: { failures: [{ urlPattern: '/api/pay', statusCode: 503, probability: 1 }] },
+});
+await browser.$('#submit').click();
+
+const consoleLines = await browser.execute(
+  () => (window as { __chaosDebug?: string[] }).__chaosDebug ?? [],
+);
+const log = await browser.getChaosLog();
+const debugEvents = log.filter((e) => e.type === 'debug');
+```
+
+Cross-realm note: in some Firefox/geckodriver setups `browser.execute`'s body runs in a sandbox whose `console.debug` reassignment never reaches the page realm. If you observe `consoleLines` empty on Firefox, inject the tap via an inline `<script>` tag instead and stash captured lines on a DOM holder element you can read back from a separate `browser.execute()`.
+
+## Validation
+
+`injectChaos` validates the config from Node before `browser.execute` touches the page. A malformed config throws `ChaosConfigError` synchronously from the test runner.
+
+```typescript
+import { injectChaos, ChaosConfigError } from '@chaos-maker/webdriverio';
+
+await injectChaos(browser, config, {
+  validation: { unknownFields: 'warn' },
+});
+```
+
+Pass `validation` to relax unknown-field handling, hook deprecation events, or run custom per-`RuleType` validators. See [Rule Validation](/concepts/validation/).
