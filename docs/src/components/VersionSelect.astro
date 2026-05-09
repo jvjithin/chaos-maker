@@ -1,0 +1,134 @@
+---
+import versionsData from '../generated/versions.json';
+
+interface VersionEntry {
+  slug: string;
+  label: string;
+  isLatest: boolean;
+  isMain: boolean;
+  isPrerelease: boolean;
+  pages: string[];
+}
+
+interface Manifest {
+  base: string;
+  latestTag: string;
+  versions: VersionEntry[];
+}
+
+const manifest = versionsData as Manifest;
+const route = Astro.locals.starlightRoute as
+  | { activeVersion?: VersionEntry | null }
+  | undefined;
+const active = route?.activeVersion ?? null;
+
+// Hide the dropdown only on routes that aren't a docs version (e.g. the root
+// redirect index). On the splash homepage of latest the active version is
+// still set, so the dropdown shows there too.
+const show = manifest.versions.length > 0;
+
+// Embed the manifest into the page as JSON for the client-side switcher.
+// Cross-version mapping needs every version's full page list, but the entire
+// payload is tens of KB of static data — fine for a docs site.
+const payload = {
+  base: manifest.base,
+  versions: manifest.versions.map((v) => ({
+    slug: v.slug,
+    label: v.label,
+    isLatest: v.isLatest,
+    pages: v.pages,
+  })),
+};
+---
+
+{show && (
+  <div class="version-select" data-active={active?.slug ?? ''}>
+    <label>
+      <span class="sr-only">Docs version</span>
+      <select aria-label="Docs version">
+        {manifest.versions.map((v) => (
+          <option value={v.slug} selected={active?.slug === v.slug}>
+            {v.label}
+          </option>
+        ))}
+      </select>
+    </label>
+    <script type="application/json" data-version-manifest set:html={JSON.stringify(payload)} />
+  </div>
+)}
+
+<script>
+  // Keep users inside the closest equivalent page when they switch versions.
+  // Strategy:
+  //   1. Strip the base + current version slug from the path.
+  //   2. Normalise to a slug (drop trailing slash, drop a trailing `/index`).
+  //   3. If the target version contains that slug, jump there.
+  //   4. Otherwise fall back to the version's homepage so we never 404.
+  // The manifest JSON is inlined at build time inside the .version-select,
+  // so this script ships zero network requests.
+  (() => {
+    const root = document.querySelector('.version-select');
+    if (!root) return;
+    const select = root.querySelector('select');
+    const manifestEl = root.querySelector('script[data-version-manifest]');
+    if (!select || !manifestEl) return;
+
+    let manifest: { base: string; versions: { slug: string; pages: string[] }[] };
+    try {
+      manifest = JSON.parse(manifestEl.textContent || '{}');
+    } catch {
+      return;
+    }
+
+    const stripTrailing = (p: string) => (p.endsWith('/') ? p.slice(0, -1) : p);
+    const base = stripTrailing(manifest.base || '');
+
+    const currentRelativeSlug = (): { slug: string; pageSlug: string } => {
+      let pathname = window.location.pathname;
+      if (base && pathname.startsWith(base)) pathname = pathname.slice(base.length);
+      const parts = pathname.split('/').filter(Boolean);
+      const versionSlug = parts.shift() || '';
+      const rest = parts.join('/');
+      return { slug: versionSlug, pageSlug: rest };
+    };
+
+    select.addEventListener('change', (event) => {
+      const target = (event.target as HTMLSelectElement).value;
+      const version = manifest.versions.find((v) => v.slug === target);
+      if (!version) return;
+      const { pageSlug } = currentRelativeSlug();
+      const pages = new Set(version.pages);
+      const dest = pages.has(pageSlug) ? pageSlug : '';
+      const url = `${base}/${version.slug}/${dest ? `${dest}/` : ''}`;
+      window.location.assign(url);
+    });
+  })();
+</script>
+
+<style>
+  .version-select {
+    display: flex;
+    align-items: center;
+  }
+  .version-select select {
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.25rem;
+    background-color: var(--sl-color-bg-nav);
+    color: var(--sl-color-text);
+    padding: 0.25rem 1.5rem 0.25rem 0.5rem;
+    font-size: var(--sl-text-xs);
+    appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+      linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position: calc(100% - 0.6rem) center, calc(100% - 0.35rem) center;
+    background-size: 0.25rem 0.25rem, 0.25rem 0.25rem;
+    background-repeat: no-repeat;
+    cursor: pointer;
+  }
+  .version-select select:hover {
+    color: var(--sl-color-white);
+  }
+  .version-select script {
+    display: none;
+  }
+</style>
