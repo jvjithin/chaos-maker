@@ -63,7 +63,7 @@ async function installDebugTap(): Promise<void> {
   });
 }
 
-describe('Debug Mode (RFC-002)', () => {
+describe('Debug Mode', () => {
   it('mirrors a [Chaos] line to console.debug when debug:true', async () => {
     await browser.url('/');
     await installDebugTap();

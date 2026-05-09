@@ -32,7 +32,7 @@ const countingFields = {
   afterN: z.number().int().min(0).optional(),
 };
 
-/** Optional `group` field shared by every rule type (RFC-001). */
+/** Optional `group` field shared by every rule type. */
 const groupField = {
   group: z.string().trim().min(1, 'group must not be empty').optional(),
 };

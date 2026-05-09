@@ -3,9 +3,7 @@ name: Docs
 on:
   push:
     branches: [main]
-    paths:
-      - 'docs/**'
-      - '.github/workflows/docs.yml'
+    tags: ['v*.*.*']
   pull_request:
     branches: [main]
     paths:
@@ -27,6 +25,12 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Fetch tags
+        run: git fetch --tags --force origin
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -40,7 +44,16 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build Docs
+      # PRs validate the branch's working-tree docs alongside tag archives so
+      # that broken mdx/frontmatter/imports fail review. The published site is
+      # tag-only, so non-PR builds (push to main / tag) skip the `--dev`
+      # overlay and never include `/main/` in the deployable artifact.
+      - name: Build Docs (PR preview, working tree + tags)
+        if: github.event_name == 'pull_request'
+        run: pnpm --filter chaos-maker-docs run build:dev
+
+      - name: Build Docs (production, tag-only)
+        if: github.event_name != 'pull_request'
         run: pnpm --filter chaos-maker-docs build
 
       - name: Upload PR Preview Artifact
@@ -51,14 +64,14 @@ jobs:
           path: docs/dist
 
       - name: Upload Pages Artifact
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
         uses: actions/upload-pages-artifact@v3
         with:
           path: docs/dist
 
   deploy:
     name: Docs Deploy
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     needs: build
     runs-on: ubuntu-latest
     permissions:

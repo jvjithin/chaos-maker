@@ -28,7 +28,7 @@ export class ChaosConfigBuilder {
    *  Sticky semantics intentionally rejected — silent capture of stale groups
    *  is harder to debug than the explicit re-chain. */
   private pendingGroup?: string;
-  /** RFC-003. Queued preset names for `.usePreset(...)`. Silently deduped on
+  /** Queued preset names for `.usePreset(...)`. Silently deduped on
    *  push. Flushed onto `out.presets` in `.build()` when non-empty. */
   private pendingPresets: string[] = [];
 
@@ -40,7 +40,7 @@ export class ChaosConfigBuilder {
     if (!this.config.sse) this.config.sse = {};
   }
 
-  /** Tag the next rule pushed with this group name (RFC-001).
+  /** Tag the next rule pushed with this group name.
    *  Single-shot: cleared after the next builder method that pushes a rule. */
   inGroup(name: string): this {
     this.pendingGroup = normalizeGroupName(name);
@@ -253,13 +253,13 @@ export class ChaosConfigBuilder {
     return this;
   }
 
-  /** RFC-002. Toggle Debug Mode on this config. Off by default. */
+  /** Toggle Debug Mode on this config. Off by default. */
   withDebug(enabled: boolean = true) {
     this.config.debug = enabled;
     return this;
   }
 
-  /** RFC-003. Queue a preset name to be expanded at engine init.
+  /** Queue a preset name to be expanded at engine init.
    *  Silently dedups within the builder, preserving insertion order. Empty
    *  / whitespace-only names throw, matching the schema and registry rules. */
   usePreset(name: string): this {

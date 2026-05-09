@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { injectChaos, ChaosConfigError } from '@chaos-maker/playwright';
 
-test.describe('RFC-004 validation surface', () => {
+test.describe('validation surface', () => {
   test('malformed config throws ChaosConfigError synchronously from Node', async ({ page }) => {
     let caught: unknown;
     try {

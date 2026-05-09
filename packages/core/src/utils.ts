@@ -67,7 +67,7 @@ export function corruptText(text: string, strategy: CorruptionStrategy): string 
 }
 
 /**
- * Group-active gate (RFC-001). Sits between `gateRule` and `shouldApplyChaos`
+ * Group-active gate. Sits between `gateRule` and `shouldApplyChaos`
  * inside every interceptor.
  *
  * - `registry === undefined` (legacy / direct interceptor caller): returns
@@ -98,14 +98,14 @@ export function gateGroup(
       detail: { ...baseDetail, groupName },
     });
   }
-  // RFC-002 debug event — independent of the dedup gate above so debug logs
+  // debug event — independent of the dedup gate above so debug logs
   // surface every gated request (one per rule per call), not one per cycle.
   emitter?.debug('rule-skip-group', { ...baseDetail, groupName }, rule);
   return false;
 }
 
 /** Minimal rule shape walked by `forEachRule`. Carries the optional `group`
- *  field every rule type now supports (RFC-001) plus an open index for the
+ *  field every rule type now supports plus an open index for the
  *  remaining per-rule fields the walker doesn't care about. */
 export type AnyRule = { group?: string;[k: string]: unknown };
 

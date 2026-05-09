@@ -1,17 +1,75 @@
+import { readdirSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+
+import { compareSlug, parseSlug, slugToLabel } from './scripts/semver.mjs';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const DOCS_ROOT = resolve(__dirname, 'src/content/docs');
 
 const skipAutoSitemap = {
   name: '@astrojs/sitemap',
   hooks: {},
 };
 
+// Discover the version directories laid down by scripts/build-versioned-docs.mjs.
+// Slugs look like `v0-4-0` or `v0-5-0-rc-1`; the optional `main` directory is
+// the unreleased preview written only when the script is run with `--dev`.
+function discoverVersions() {
+  let entries;
+  try {
+    entries = readdirSync(DOCS_ROOT, { withFileTypes: true });
+  } catch {
+    return { versionDirs: [], hasMain: false };
+  }
+  const versionDirs = entries
+    .filter((e) => e.isDirectory() && parseSlug(e.name) !== null)
+    .map((e) => e.name)
+    .sort(compareSlug)
+    .reverse();
+  const hasMain = entries.some((e) => e.isDirectory() && e.name === 'main');
+  return { versionDirs, hasMain };
+}
+
+const { versionDirs, hasMain } = discoverVersions();
+
+const versionsGroup = {
+  label: 'Versions',
+  items: [
+    { label: 'Latest', link: '/latest/' },
+    ...versionDirs.map((slug) => ({
+      label: slugToLabel(slug),
+      link: `/${slug}/`,
+    })),
+    ...(hasMain ? [{ label: 'main (unreleased)', link: '/main/' }] : []),
+  ],
+};
+
+const versionAutogenerates = [
+  {
+    label: 'Latest docs',
+    autogenerate: { directory: 'latest' },
+  },
+  ...versionDirs.map((slug) => ({
+    label: `${slugToLabel(slug)} archive`,
+    collapsed: true,
+    autogenerate: { directory: slug },
+  })),
+  ...(hasMain
+    ? [{
+        label: 'main (unreleased)',
+        collapsed: true,
+        autogenerate: { directory: 'main' },
+      }]
+    : []),
+];
+
 export default defineConfig({
   site: 'https://chaos-maker-dev.github.io/chaos-maker',
   base: '/chaos-maker',
   integrations: [
-    // Starlight auto-adds @astrojs/sitemap when `site` is set. The docs release
-    // plan only requires Pagefind search and GitHub Pages deployment.
     skipAutoSitemap,
     starlight({
       title: 'Chaos Maker',
@@ -20,74 +78,14 @@ export default defineConfig({
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/chaos-maker-dev/chaos-maker' },
       ],
-      editLink: {
-        baseUrl: 'https://github.com/chaos-maker-dev/chaos-maker/edit/main/docs/',
-      },
+      // Per-page `editUrl` is injected by scripts/build-versioned-docs.mjs:
+      // archived versions get `editUrl: false`, latest/main get an explicit
+      // URL pointing at `docs/content-source/<original-relative-path>`. A
+      // single `editLink.baseUrl` here cannot strip the leading version
+      // segment, so it would produce broken paths like
+      // `docs/content-source/latest/...`.
       lastUpdated: true,
-      sidebar: [
-        {
-          label: 'Getting Started',
-          items: [
-            { label: 'Install', link: '/getting-started/install/' },
-            { label: 'Playwright', link: '/getting-started/playwright/' },
-            { label: 'Cypress', link: '/getting-started/cypress/' },
-            { label: 'WebdriverIO', link: '/getting-started/webdriverio/' },
-            { label: 'Puppeteer', link: '/getting-started/puppeteer/' },
-          ],
-        },
-        {
-          label: 'Concepts',
-          items: [
-            { label: 'Chaos Types', link: '/concepts/chaos-types/' },
-            { label: 'Service Worker Chaos', link: '/concepts/service-worker-chaos/' },
-            { label: 'SSE Chaos', link: '/concepts/sse-chaos/' },
-            { label: 'Presets', link: '/concepts/presets/' },
-            { label: 'Rule Validation', link: '/concepts/validation/' },
-            { label: 'Config Builder', link: '/concepts/builder/' },
-            { label: 'Seeded Reproducibility', link: '/concepts/seeded-reproducibility/' },
-            { label: 'Nth Counting', link: '/concepts/nth-counting/' },
-            { label: 'Observability', link: '/concepts/observability/' },
-          ],
-        },
-        {
-          label: 'Adapters',
-          items: [
-            { label: 'Playwright', link: '/adapters/playwright/' },
-            { label: 'Cypress', link: '/adapters/cypress/' },
-            { label: 'WebdriverIO', link: '/adapters/webdriverio/' },
-            { label: 'Puppeteer', link: '/adapters/puppeteer/' },
-          ],
-        },
-        {
-          label: 'Recipes',
-          items: [
-            { label: 'Slow Checkout', link: '/recipes/slow-checkout/' },
-            { label: 'Flaky API with Retries', link: '/recipes/flaky-api-with-retries/' },
-            { label: 'Abort Upload Midflight', link: '/recipes/abort-upload-midflight/' },
-            { label: 'WebSocket Storm', link: '/recipes/ws-disconnect-storm/' },
-            { label: 'Degraded UI Buttons', link: '/recipes/degraded-ui-buttons/' },
-            { label: 'Nth Request Fails', link: '/recipes/nth-request-fails/' },
-            { label: 'CORS Preflight Block', link: '/recipes/cors-preflight-block/' },
-            { label: 'Corrupt JSON Response', link: '/recipes/corrupt-json-response/' },
-            { label: 'AI Chat SSE Streaming', link: '/recipes/ai-chat-streaming-sse/' },
-            { label: 'Fail GraphQL Operation', link: '/recipes/fail-graphql-operation/' },
-          ],
-        },
-        {
-          label: 'API',
-          items: [
-            { label: 'Core', link: '/api/core/' },
-            { label: 'Config Reference', link: '/api/config-reference/' },
-            { label: 'Debug Mode', link: '/api/debug/' },
-          ],
-        },
-        {
-          label: 'Rationale',
-          items: [
-            { label: 'Why Frontend Chaos?', link: '/rationale/why-frontend-chaos/' },
-          ],
-        },
-      ],
+      sidebar: [versionsGroup, ...versionAutogenerates],
     }),
   ],
 });

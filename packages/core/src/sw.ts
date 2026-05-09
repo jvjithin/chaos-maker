@@ -162,7 +162,7 @@ interface SWEngineState {
   originalWebSocket?: typeof WebSocket;
   webSocketHandle?: WebSocketPatchHandle;
   requestCounters: Map<object, number>;
-  /** Rule-group registry (RFC-001). Survives `startEngine()` swaps. */
+  /** Rule-group registry. Survives `startEngine()` swaps. */
   groups: RuleGroupRegistry;
 }
 
@@ -186,7 +186,7 @@ function startEngine(state: SWEngineState, config: ChaosConfig): number {
   });
   state.groups.ensure(DEFAULT_GROUP_NAME, { enabled: true });
 
-  // RFC-002. Only allocate the positional rule-id map and attach a Logger
+  // Only allocate the positional rule-id map and attach a Logger
   // when debug mode is enabled — matches the same gating used in
   // `ChaosMaker.ts` so the SW disabled path stays allocation-free. Both
   // bindings are also explicitly cleared on a config swap that disables

@@ -7,7 +7,7 @@ import { cloneValue } from './utils';
  *  `seed`, `debug`). */
 export type PresetConfigSlice = Omit<ChaosConfig, 'presets' | 'customPresets' | 'seed' | 'debug' | 'schemaVersion'>;
 
-/** RFC-003. A named preset packaged for registry registration. */
+/** A named preset packaged for registry registration. */
 export interface Preset {
   readonly name: string;
   readonly config: PresetConfigSlice;
@@ -83,7 +83,7 @@ function deepFreeze<T>(value: T): T {
 // ownership of their literals; the engine deep-clones them at expansion time.
 [SLOW_NETWORK, FLAKY_CONNECTION, OFFLINE_MODE, UNSTABLE_API, DEGRADED_UI, UNRELIABLE_WEBSOCKET, UNRELIABLE_EVENT_STREAM].forEach(deepFreeze);
 
-/** All built-in presets including RFC-003 kebab aliases.
+/** All built-in presets including kebab aliases.
  *  Aliases are EXTRA registry entries pointing at the SAME config object
  *  identity as the camelCase entry — so
  *  `registry.get('slow-api') === presets.slowNetwork`.
@@ -114,7 +114,7 @@ function normalizePresetName(name: string): string {
   return trimmed;
 }
 
-/** RFC-003. Per-instance registry of presets. Constructor seeds the built-ins
+/** Per-instance registry of presets. Constructor seeds the built-ins
  *  by default; pass an empty iterable to start from scratch. The slice shape
  *  is type-enforced for built-ins and Zod-validated for `customPresets`, so
  *  `register` does not re-check structure. */
@@ -246,7 +246,7 @@ export function expandPresets(config: ChaosConfig, registry: PresetRegistry): Ch
 }
 
 /** Backward-compat: the v0.4.0 frozen-record export. **CamelCase keys ONLY.**
- *  RFC-003 kebab aliases (`slow-api`, `flaky-api`, `offline-mode`,
+ *  kebab aliases (`slow-api`, `flaky-api`, `offline-mode`,
  *  `high-latency`) live exclusively on `PresetRegistry` — they are NOT keys
  *  on this record. By design:
  *

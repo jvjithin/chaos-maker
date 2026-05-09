@@ -116,7 +116,7 @@ describe('shouldEmitStep', () => {
     expect(shouldEmitStep(e, true)).toBe(true);
   });
 
-  it('never emits debug events (RFC-002), even when verbose', () => {
+  it('never emits debug events, even when verbose', () => {
     const e = mkEvent({
       type: 'debug',
       applied: false,

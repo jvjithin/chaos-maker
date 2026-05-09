@@ -58,7 +58,7 @@ function generateSeed(): number;
 const config = new ChaosConfigBuilder()
   .failRequests('/api/orders', 503, 1)
   .withSeed(42)
-  .withDebug()           // RFC-002 — toggles Debug Mode on this config.
+  .withDebug()           // toggle Debug Mode on this config
   .build();
 ```
 

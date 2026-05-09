@@ -141,7 +141,7 @@ describe('runtime group gating — network fetch', () => {
     expect(r3.status).toBe(503);
   });
 
-  it('emits a rule-skip-group debug event when group is disabled (RFC-002)', async () => {
+  it('emits a rule-skip-group debug event when group is disabled', async () => {
     vi.spyOn(console, 'debug').mockImplementation(() => {});
     const groups = new RuleGroupRegistry();
     groups.ensure('payments', { enabled: false, explicit: true });

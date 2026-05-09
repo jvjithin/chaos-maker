@@ -51,7 +51,7 @@ export interface InjectChaosOptions {
   /** Pass through to the trace reporter. */
   traceOptions?: TraceReporterOptions;
   /**
-   * RFC-004. Forwarded to `validateChaosConfig` before the config is
+   * Forwarded to `validateChaosConfig` before the config is
    * serialized for the page. Use to relax unknown-field handling, hook
    * deprecation events, or run custom per-`RuleType` validators. Malformed
    * configs throw a `ChaosConfigError` synchronously from Node.
@@ -293,10 +293,10 @@ export type {
 } from '@chaos-maker/core';
 
 export type { TraceReporterOptions, ChaosTraceAttachment } from './trace';
-// RFC-002. Runtime export so adapter consumers can construct a Logger
+// Runtime export so adapter consumers can construct a Logger
 // directly alongside the type re-exports above.
 export { Logger } from '@chaos-maker/core';
-// RFC-004. Re-export the structured validation surface so adapter consumers
+// Re-export the structured validation surface so adapter consumers
 // can validate on demand outside of injectChaos and import the error type.
 export { validateChaosConfig, ChaosConfigError } from '@chaos-maker/core';
 

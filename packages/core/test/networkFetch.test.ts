@@ -523,7 +523,7 @@ describe('patchFetch', () => {
     vi.useRealTimers();
   });
 
-  describe('debug logging (RFC-002)', () => {
+  describe('debug logging', () => {
     let debugSpy: ReturnType<typeof vi.spyOn>;
 
     beforeEach(() => {

@@ -6,8 +6,14 @@
     "node": ">=22.12.0"
   },
   "scripts": {
+    "generate:versions": "node scripts/build-versioned-docs.mjs",
+    "generate:versions:dev": "node scripts/build-versioned-docs.mjs --dev",
+    "predev": "pnpm run generate:versions:dev",
     "dev": "ASTRO_TELEMETRY_DISABLED=1 astro dev",
+    "prebuild": "pnpm run generate:versions",
     "build": "ASTRO_TELEMETRY_DISABLED=1 astro build",
+    "prebuild:dev": "pnpm run generate:versions:dev",
+    "build:dev": "ASTRO_TELEMETRY_DISABLED=1 astro build",
     "preview": "ASTRO_TELEMETRY_DISABLED=1 astro preview"
   },
   "dependencies": {

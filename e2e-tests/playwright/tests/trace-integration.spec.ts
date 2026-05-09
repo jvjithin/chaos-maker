@@ -175,7 +175,7 @@ test.describe('Playwright trace integration', () => {
       .map((e) => (e as { title?: unknown; metadata?: { title?: unknown } })?.title
         ?? (e as { metadata?: { title?: unknown } })?.metadata?.title)
       .filter((t): t is string => typeof t === 'string');
-    // RFC-002: debug events MUST NOT render as inline test.step entries.
+    // debug events MUST NOT render as inline test.step entries.
     expect(titles.some((t) => /^chaos:debug/.test(t))).toBe(false);
   });
 });

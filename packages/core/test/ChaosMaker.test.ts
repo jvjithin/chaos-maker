@@ -99,7 +99,7 @@ describe('ChaosMaker', () => {
     expect(response.status).toBe(500);
   });
 
-  describe('debug mode (RFC-002)', () => {
+  describe('debug mode', () => {
     afterEach(() => {
       vi.restoreAllMocks();
     });
@@ -143,7 +143,7 @@ describe('ChaosMaker', () => {
         expect(e.detail.groupName).toBe('payments');
         expect(e.detail.stage).toBe('lifecycle');
       }
-      // RFC-002: distinct enabled state on each toggle for debug consumers.
+      // distinct enabled state on each toggle for debug consumers.
       expect(groupToggles[0].detail.enabled).toBe(true);
       expect(groupToggles[1].detail.enabled).toBe(false);
 
@@ -176,7 +176,7 @@ describe('ChaosMaker', () => {
     });
   });
 
-  describe('presets (RFC-003)', () => {
+  describe('presets', () => {
     it('constructs cleanly with presets:[\'slow-api\'] and the latency rule fires on a matched fetch', async () => {
       vi.useFakeTimers();
       try {

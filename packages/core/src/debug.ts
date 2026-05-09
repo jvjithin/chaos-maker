@@ -1,5 +1,5 @@
 /**
- * Debug Mode (RFC-002).
+ * Debug Mode.
  *
  * Two-sink logger that fires when `ChaosConfig.debug` is `true`:
  *   1. Structured `type: 'debug'` events through `ChaosEventEmitter` —
@@ -58,7 +58,7 @@ const RULE_TYPE_BY_ARRAY: ReadonlyArray<{
  * Build a positional rule-id map for a config snapshot. IDs are
  * `<ruleType>#<index>` derived from the order rules appear in their array.
  * Reordering rules between runs changes the IDs — acceptable for in-test
- * diagnostics per RFC-002.
+ * diagnostics.
  */
 export function buildRuleIdMap(config: ChaosConfig): WeakMap<object, RuleIdEntry> {
   const map = new WeakMap<object, RuleIdEntry>();

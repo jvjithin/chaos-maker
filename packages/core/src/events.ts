@@ -15,19 +15,19 @@ export type ChaosEventType =
   | 'sse:delay'
   | 'sse:corrupt'
   | 'sse:close'
-  /** Emitted once per `enableGroup()` call. `applied: true`. (RFC-001) */
+  /** Emitted once per `enableGroup()` call. `applied: true`. */
   | 'rule-group:enabled'
-  /** Emitted once per `disableGroup()` call. `applied: true`. (RFC-001) */
+  /** Emitted once per `disableGroup()` call. `applied: true`. */
   | 'rule-group:disabled'
   /** Emitted once per group per toggle cycle when a rule is skipped because
    *  its group is disabled. Deduped — at most one event per group between
-   *  toggles to avoid log floods. `applied: false`. (RFC-001) */
+   *  toggles to avoid log floods. `applied: false`. */
   | 'rule-group:gated'
-  /** Single Debug Mode event type (RFC-002). The concrete stage of the rule
+  /** Single Debug Mode event type. The concrete stage of the rule
    *  decision pipeline lives on `detail.stage`. `applied: false`. */
   | 'debug';
 
-/** RFC-002 stage taxonomy. Stable strings used as `detail.stage` on every
+/** Stage taxonomy. Stable strings used as `detail.stage` on every
  *  `type: 'debug'` event. Defined here (not in `debug.ts`) so the event-detail
  *  union can reference it without a circular runtime import. */
 export type ChaosDebugStage =
@@ -40,7 +40,7 @@ export type ChaosDebugStage =
   | 'rule-applied'
   | 'lifecycle';
 
-/** RFC-002 lifecycle phases. Set on `detail.phase` only when
+/** Lifecycle phases. Set on `detail.phase` only when
  *  `detail.stage === 'lifecycle'`. WS/SSE direction continues to live on
  *  the existing `detail.direction` field — `phase` is intentionally
  *  lifecycle-only to avoid overloading. */
@@ -84,24 +84,24 @@ export interface ChaosEvent {
     reason?: string;
     /** Group name (for `rule-group:*` events, and on gated rule diagnostics). */
     groupName?: string;
-    /** RFC-002. New state of a group when `stage === 'lifecycle'` and
+    /** New state of a group when `stage === 'lifecycle'` and
      *  `phase === 'engine:group-toggled' | 'sw:group-toggled'`. Distinguishes
      *  enable from disable on the debug stream so consumers don't have to
      *  pivot on the parallel `rule-group:enabled` / `rule-group:disabled`
      *  emitter events. */
     enabled?: boolean;
-    /** RFC-002. Concrete stage of a rule's decision pipeline. Set on every
+    /** Concrete stage of a rule's decision pipeline. Set on every
      *  `type: 'debug'` event; unset on non-debug events. */
     stage?: ChaosDebugStage;
-    /** RFC-002. Lifecycle phase, set only when `stage === 'lifecycle'`. */
+    /** Lifecycle phase, set only when `stage === 'lifecycle'`. */
     phase?: ChaosLifecyclePhase;
-    /** RFC-002. Rule category — `'failure' | 'latency' | 'abort' | ...`. */
+    /** Rule category — `'failure' | 'latency' | 'abort' | ...`. */
     ruleType?: string;
-    /** RFC-002. Deterministic identifier for a specific rule WITHIN A SINGLE
+    /** Deterministic identifier for a specific rule WITHIN A SINGLE
      *  CONFIG SNAPSHOT. Positional: reordering rules in your config changes
      *  the IDs. Sufficient for in-test diagnostic pinpointing in v0.5.0. */
     ruleId?: string;
-    /** RFC-002. Optional human label for a rule (future builder field).
+    /** Optional human label for a rule (future builder field).
      *  Reserved so the event shape doesn't churn when the builder later
      *  gains `.failRequests({..., name: 'slow-api'})`. */
     ruleName?: string;
