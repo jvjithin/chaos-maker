@@ -3,13 +3,22 @@ title: Presets
 description: Built-in Chaos Maker presets for common resilience scenarios.
 ---
 
-Presets are reusable rule bundles. Drop them into a config by name with the `presets` field, and Chaos Maker merges them at construction time.
+Presets are the recommended quick-start path. They wrap realistic scenarios — flaky backend, mobile-3g, degraded checkout — into named bundles you drop into a config:
 
 ```typescript
 import { injectChaos } from '@chaos-maker/playwright';
 
 await injectChaos(page, {
-  presets: ['slow-api'],
+  presets: ['mobile-3g', 'checkout-degraded'],
+  seed: 1234,
+});
+```
+
+Layer presets for compound scenarios (mobile network + checkout instability), or mix a preset with explicit rules when a single endpoint needs tighter control:
+
+```typescript
+await injectChaos(page, {
+  presets: ['mobile-3g'],
   network: {
     failures: [{ urlPattern: '/api/checkout', statusCode: 500, probability: 1 }],
   },
@@ -18,21 +27,34 @@ await injectChaos(page, {
 
 ## When to use presets
 
-Use presets for smoke coverage and exploratory resilience tests. Use explicit configs for product-critical flows where the exact status code, selector, message direction, and probability matter.
+Lead with presets for onboarding, smoke coverage, and exploratory resilience tests. Drop down to explicit configs for product-critical flows where the exact status code, selector, message direction, and probability matter.
 
 ## Built-in catalog
 
-| camelCase name          | Kebab alias     | Use case                                                          |
-| ----------------------- | --------------- | ----------------------------------------------------------------- |
-| `slowNetwork`           | `slow-api`      | All requests are delayed by 2000ms.                               |
-| `flakyConnection`       | `flaky-api`     | Rare aborts and latency on every request.                         |
-| `offlineMode`           | `offline-mode`  | Requests fail like an offline browser.                            |
-| `unstableApi`           | `high-latency`  | Occasional API failures and latency on `/api/`.                   |
-| `degradedUi`            |                 | Buttons and links are disabled or hidden.                         |
-| `unreliableWebSocket`   |                 | Drops, delays, and corrupts socket messages.                      |
-| `unreliableEventStream` |                 | Drops, delays, and occasionally closes EventSource streams.       |
+Pick presets the way engineers describe scenarios — flaky backend, bad mobile network, checkout degradation, lossy realtime. Layer multiple presets when a scenario spans transports.
 
-Kebab-case aliases (`slow-api`, `flaky-api`, `offline-mode`, `high-latency`) are registry-only. They resolve via `presets: ['slow-api']` and `new PresetRegistry().get('slow-api')`. They are NOT keys on the legacy `presets` record export — `presets['slow-api']` is `undefined` by design. Use the camelCase key (`presets.slowNetwork`) when reading from the record.
+| camelCase name          | Kebab aliases                       | Transports        | Intent                                                                  |
+| ----------------------- | ----------------------------------- | ----------------- | ----------------------------------------------------------------------- |
+| `slowNetwork`           | `slow-api`                          | network           | Every request is delayed by 2000ms. Smoke-test loading states.          |
+| `flakyConnection`       | `flaky-api`, `api-flaky`            | network           | Rare aborts (5%) and latency (10% @ 3000ms) on every request.           |
+| `offlineMode`           | `offline-mode`                      | network           | Block all requests like an offline browser.                             |
+| `unstableApi`           | `high-latency`                      | network           | 10% 500s and 20% latency (1000ms) scoped to `/api/`.                    |
+| `mobileThreeG`          | `mobile-3g`                         | network           | All requests get 1500ms latency plus 2% aborts. Approximates 3G round-trip; does not throttle bytes. |
+| `checkoutDegraded`      | `checkout-degraded`                 | network           | Payment instability scoped to `/checkout` and `/api/payments` — 30% latency at 800ms, occasional 503/500. |
+| `degradedUi`            |                                     | ui                | Disable buttons (20%) and hide links (10%).                             |
+| `unreliableWebSocket`   | `websocket-instability`             | websocket         | 10% drops, 500ms inbound delays, 5% truncations.                        |
+| `unreliableEventStream` | `realtime-lag`                      | sse               | 5% drops, 200ms delays, 2% close-after-2s on every stream.              |
+
+### Suggested assertions
+
+The presets fire deterministically given a fixed `seed`. Existence-check, not rate, keeps tests stable across browsers:
+
+- `mobile-3g` — observed elapsed time on a fetch should exceed 1000ms (well below the 1500ms target).
+- `checkout-degraded` — `getChaosLog()` should contain at least one `network:failure` event matching `/checkout` or `/api/payments`.
+- `unreliableWebSocket` — chaos log should contain at least one `websocket:delay` event with `applied: true`.
+- `unreliableEventStream` — chaos log should contain at least one `sse:delay` or `sse:close` event.
+
+Kebab-case aliases (`slow-api`, `flaky-api`, `api-flaky`, `offline-mode`, `high-latency`, `mobile-3g`, `checkout-degraded`, `websocket-instability`, `realtime-lag`) are registry-only. They resolve via `presets: ['mobile-3g']` and `new PresetRegistry().get('mobile-3g')`. They are NOT keys on the legacy `presets` record export — `presets['mobile-3g']` is `undefined` by design. Use the camelCase key (`presets.mobileThreeG`) when reading from the record.
 
 ## Custom presets
 
