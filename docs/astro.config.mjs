@@ -26,14 +26,6 @@ export default defineConfig({
       lastUpdated: true,
       sidebar: [
         {
-          label: 'Versions',
-          items: [
-            { label: 'Latest (v0.5.0)', link: '/' },
-            { label: 'v0.5.0 archive', link: '/v0-5-0/' },
-            { label: 'v0.4.0 archive', link: '/v0-4-0/' },
-          ],
-        },
-        {
           label: 'Getting Started',
           items: [
             { label: 'Install', link: '/getting-started/install/' },
@@ -94,16 +86,6 @@ export default defineConfig({
           items: [
             { label: 'Why Frontend Chaos?', link: '/rationale/why-frontend-chaos/' },
           ],
-        },
-        {
-          label: 'v0.5.0 Archive',
-          collapsed: true,
-          autogenerate: { directory: 'v0-5-0' },
-        },
-        {
-          label: 'v0.4.0 Archive',
-          collapsed: true,
-          autogenerate: { directory: 'v0-4-0' },
         },
       ],
     }),
