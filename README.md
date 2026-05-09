@@ -15,7 +15,26 @@ npm install @chaos-maker/core @chaos-maker/webdriverio
 npm install @chaos-maker/core @chaos-maker/puppeteer
 ```
 
+## Quick start with presets
+
+Drop a named scenario into the config — flaky backend, mobile network, checkout instability — and run. Layer multiple presets for compound scenarios.
+
+```typescript
+import { test, expect } from '@playwright/test';
+import { injectChaos } from '@chaos-maker/playwright';
+
+test('checkout works under degraded mobile network', async ({ page }) => {
+  await injectChaos(page, { presets: ['mobile-3g', 'checkout-degraded'], seed: 42 });
+  await page.goto('/checkout');
+  await expect(page.locator('[data-testid="checkout-form"]')).toBeVisible();
+});
+```
+
+See the full catalog in the [Presets docs](https://chaos-maker-dev.github.io/chaos-maker/concepts/presets/).
+
 ## 30-second Playwright quickstart
+
+When a preset is too coarse, drop down to explicit rules:
 
 ```bash
 npm install @chaos-maker/core @chaos-maker/playwright
