@@ -35,6 +35,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { compareTag, isStable, parseTag } from './semver.mjs';
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '../..');
 const DOCS_OUT = resolve(__dirname, '../src/content/docs');
@@ -75,26 +77,7 @@ function listVersionTags() {
   if (!out) return [];
   return out
     .split('\n')
-    .filter((t) => /^v\d+\.\d+\.\d+(?:-[\w.]+)?$/.test(t));
-}
-
-function semverKey(tag) {
-  const m = /^v(\d+)\.(\d+)\.(\d+)(?:-([\w.]+))?$/.exec(tag);
-  if (!m) return [0, 0, 0, ''];
-  const [, ma, mi, pa, pre] = m;
-  return [Number(ma), Number(mi), Number(pa), pre ?? '~'];
-}
-
-function compareSemver(a, b) {
-  const A = semverKey(a);
-  const B = semverKey(b);
-  for (let i = 0; i < 3; i++) {
-    if (A[i] !== B[i]) return A[i] - B[i];
-  }
-  if (A[3] === B[3]) return 0;
-  if (A[3] === '~') return 1;
-  if (B[3] === '~') return -1;
-  return A[3] < B[3] ? -1 : 1;
+    .filter((t) => parseTag(t) !== null);
 }
 
 function tagHasPath(tag, path) {
@@ -158,12 +141,12 @@ function rewriteVersionLinks(dir, slug) {
   walk(dir);
 }
 
-function injectBanner(dir, bannerContent) {
+function injectFrontmatter(dir, lineFn) {
   for (const entry of readdirSync(dir)) {
     const p = join(dir, entry);
     const st = statSync(p);
     if (st.isDirectory()) {
-      injectBanner(p, bannerContent);
+      injectFrontmatter(p, lineFn);
       continue;
     }
     if (!entry.endsWith('.mdx') && !entry.endsWith('.md')) continue;
@@ -175,14 +158,40 @@ function injectBanner(dir, bannerContent) {
       if (lines[i] === '---') { end = i; break; }
     }
     if (end < 0) continue;
+    const inserted = lineFn(p);
+    if (!inserted || inserted.length === 0) continue;
     const next = [
       ...lines.slice(0, end),
-      'banner:',
-      `  content: '${bannerContent.replace(/'/g, "\\'")}'`,
+      ...inserted,
       ...lines.slice(end),
     ];
     writeFileSync(p, next.join('\n'));
   }
+}
+
+function injectBanner(dir, bannerContent) {
+  injectFrontmatter(dir, () => [
+    'banner:',
+    `  content: '${bannerContent.replace(/'/g, "\\'")}'`,
+  ]);
+}
+
+// Starlight builds editLink URLs as `${baseUrl}${page-source-path}`. Pages
+// land under `<slug>/...` in the content collection, but the corresponding
+// authoring source on `main` lives at `docs/content-source/...` without any
+// version segment. Inject an explicit `editUrl` per page so links point at
+// the right source — or `false` for archived versions, which should not be
+// edited through the live site.
+function injectEditUrl(dir, slug, mode) {
+  injectFrontmatter(dir, (filePath) => {
+    if (mode === 'disabled') {
+      return ['editUrl: false'];
+    }
+    const rel = filePath.slice(dir.length + 1).replace(/\\/g, '/');
+    return [
+      `editUrl: 'https://github.com/chaos-maker-dev/chaos-maker/edit/main/docs/content-source/${rel}'`,
+    ];
+  });
 }
 
 function tagToSlug(tag) {
@@ -234,13 +243,22 @@ function clean() {
 }
 
 function main() {
-  const tags = listVersionTags().sort(compareSemver);
+  const tags = listVersionTags().sort(compareTag);
   if (tags.length === 0) {
     throw new Error(
       '[docs-versions] no v*.*.* tags found — fetch tags before building',
     );
   }
-  const latestTag = tags[tags.length - 1];
+  // `/latest/` mirrors a published npm release, so it must track the newest
+  // stable tag and never a release candidate. Prerelease tags are still laid
+  // down under their own slug for users following a v0.X.Y-rc.N preview.
+  const stableTags = tags.filter((t) => isStable(parseTag(t)));
+  if (stableTags.length === 0) {
+    throw new Error(
+      '[docs-versions] no stable v*.*.* tags found — /latest/ requires one',
+    );
+  }
+  const latestTag = stableTags[stableTags.length - 1];
 
   console.log(`[docs-versions] tags=[${tags.join(', ')}] latest=${latestTag}`);
 
@@ -259,6 +277,7 @@ function main() {
       : `Archived <strong>${tag}</strong> docs. <a href="${PAGES_BASE}/latest/">Latest</a>.`;
     rewriteVersionLinks(dest, slug);
     injectBanner(dest, banner);
+    injectEditUrl(dest, slug, 'disabled');
     console.log(`[docs-versions]   ${tag} → ${slug}/`);
   }
 
@@ -273,6 +292,7 @@ function main() {
     latestDest,
     `Latest stable: <strong>${latestTag}</strong>.`,
   );
+  injectEditUrl(latestDest, 'latest', 'enabled');
   console.log(`[docs-versions]   ${latestTag} → latest/`);
 
   if (isDev) {
@@ -284,6 +304,7 @@ function main() {
         mainDest,
         `Unreleased <strong>main</strong> preview. <a href="${PAGES_BASE}/latest/">View latest</a>.`,
       );
+      injectEditUrl(mainDest, 'main', 'enabled');
       console.log('[docs-versions]   docs/content-source/ → main/ (dev)');
     } else {
       console.warn(

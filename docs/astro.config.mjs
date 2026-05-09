@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 
+import { compareSlug, parseSlug, slugToLabel } from './scripts/semver.mjs';
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DOCS_ROOT = resolve(__dirname, 'src/content/docs');
 
@@ -13,8 +15,8 @@ const skipAutoSitemap = {
 };
 
 // Discover the version directories laid down by scripts/build-versioned-docs.mjs.
-// Slugs look like `v0-4-0`; the optional `main` directory is the unreleased
-// preview written only when the script is run with `--dev`.
+// Slugs look like `v0-4-0` or `v0-5-0-rc-1`; the optional `main` directory is
+// the unreleased preview written only when the script is run with `--dev`.
 function discoverVersions() {
   let entries;
   try {
@@ -23,23 +25,12 @@ function discoverVersions() {
     return { versionDirs: [], hasMain: false };
   }
   const versionDirs = entries
-    .filter((e) => e.isDirectory() && /^v\d+-\d+-\d+/.test(e.name))
+    .filter((e) => e.isDirectory() && parseSlug(e.name) !== null)
     .map((e) => e.name)
-    .sort((a, b) => {
-      const ka = a.split('-').slice(0, 3).map(Number);
-      const kb = b.split('-').slice(0, 3).map(Number);
-      for (let i = 0; i < 3; i++) {
-        if (ka[i] !== kb[i]) return ka[i] - kb[i];
-      }
-      return 0;
-    })
+    .sort(compareSlug)
     .reverse();
   const hasMain = entries.some((e) => e.isDirectory() && e.name === 'main');
   return { versionDirs, hasMain };
-}
-
-function slugToTag(slug) {
-  return slug.replace(/-/g, '.');
 }
 
 const { versionDirs, hasMain } = discoverVersions();
@@ -49,7 +40,7 @@ const versionsGroup = {
   items: [
     { label: 'Latest', link: '/latest/' },
     ...versionDirs.map((slug) => ({
-      label: slugToTag(slug),
+      label: slugToLabel(slug),
       link: `/${slug}/`,
     })),
     ...(hasMain ? [{ label: 'main (unreleased)', link: '/main/' }] : []),
@@ -62,7 +53,7 @@ const versionAutogenerates = [
     autogenerate: { directory: 'latest' },
   },
   ...versionDirs.map((slug) => ({
-    label: `${slugToTag(slug)} archive`,
+    label: `${slugToLabel(slug)} archive`,
     collapsed: true,
     autogenerate: { directory: slug },
   })),
@@ -87,9 +78,12 @@ export default defineConfig({
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/chaos-maker-dev/chaos-maker' },
       ],
-      editLink: {
-        baseUrl: 'https://github.com/chaos-maker-dev/chaos-maker/edit/main/docs/content-source/',
-      },
+      // Per-page `editUrl` is injected by scripts/build-versioned-docs.mjs:
+      // archived versions get `editUrl: false`, latest/main get an explicit
+      // URL pointing at `docs/content-source/<original-relative-path>`. A
+      // single `editLink.baseUrl` here cannot strip the leading version
+      // segment, so it would produce broken paths like
+      // `docs/content-source/latest/...`.
       lastUpdated: true,
       sidebar: [versionsGroup, ...versionAutogenerates],
     }),
