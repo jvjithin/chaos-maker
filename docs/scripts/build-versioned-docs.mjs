@@ -46,6 +46,19 @@ const HISTORICAL_SOURCE_PATHS = [
   'docs/src/content/docs',
 ];
 
+// Top-level docs sections. Any `/chaos-maker/<section>/...` or `/<section>/...`
+// link inside an extracted snapshot must be rewritten to live under the
+// snapshot's own version slug, otherwise an archived page would jump out of
+// its own version namespace into latest.
+const KNOWN_SECTIONS = [
+  'adapters',
+  'api',
+  'concepts',
+  'getting-started',
+  'rationale',
+  'recipes',
+];
+
 const isDev = process.argv.includes('--dev');
 
 function git(args, opts = {}) {
@@ -116,6 +129,33 @@ function extractTagToDir(tag, destDir) {
     }
   }
   return false;
+}
+
+function rewriteVersionLinks(dir, slug) {
+  const sectionsAlt = KNOWN_SECTIONS.join('|');
+  // Capture the syntactic prefix that introduces a URL — markdown link target,
+  // jsx href / to attribute, or yaml `link:` value (quoted or bare) — so the
+  // rewrite only fires on actual link positions and not on prose that happens
+  // to mention a path. The `(?:/chaos-maker)?` group makes the rewrite
+  // idempotent against both prefixed and base-relative source authors.
+  const re = new RegExp(
+    `(\\]\\(|href="|href='|to="|to='|link:\\s*"|link:\\s*'|link:\\s+)(/chaos-maker)?/(${sectionsAlt})/`,
+    'g',
+  );
+  const walk = (d) => {
+    for (const entry of readdirSync(d)) {
+      const p = join(d, entry);
+      const st = statSync(p);
+      if (st.isDirectory()) { walk(p); continue; }
+      if (!entry.endsWith('.mdx') && !entry.endsWith('.md')) continue;
+      const text = readFileSync(p, 'utf8');
+      const next = text.replace(re, (_m, prefix, _base, section) =>
+        `${prefix}${PAGES_BASE}/${slug}/${section}/`,
+      );
+      if (next !== text) writeFileSync(p, next);
+    }
+  };
+  walk(dir);
 }
 
 function injectBanner(dir, bannerContent) {
@@ -217,6 +257,7 @@ function main() {
     const banner = isLatest
       ? `Latest stable: <strong>${tag}</strong>.`
       : `Archived <strong>${tag}</strong> docs. <a href="${PAGES_BASE}/latest/">Latest</a>.`;
+    rewriteVersionLinks(dest, slug);
     injectBanner(dest, banner);
     console.log(`[docs-versions]   ${tag} → ${slug}/`);
   }
@@ -227,6 +268,7 @@ function main() {
       `[docs-versions] failed to extract latest tag ${latestTag}`,
     );
   }
+  rewriteVersionLinks(latestDest, 'latest');
   injectBanner(
     latestDest,
     `Latest stable: <strong>${latestTag}</strong>.`,
@@ -237,6 +279,7 @@ function main() {
     if (existsSync(DEV_SOURCE)) {
       const mainDest = join(DOCS_OUT, 'main');
       cpSync(DEV_SOURCE, mainDest, { recursive: true });
+      rewriteVersionLinks(mainDest, 'main');
       injectBanner(
         mainDest,
         `Unreleased <strong>main</strong> preview. <a href="${PAGES_BASE}/latest/">View latest</a>.`,
