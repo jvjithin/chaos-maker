@@ -1,8 +1,13 @@
 name: Docs
 
 on:
+  # Production deploys only fire on release tag pushes. Main pushes used to
+  # trigger a redeploy too, but that collided with tag-triggered deploys at
+  # the same SHA: GitHub Pages dedupes by `pages_build_version` (= commit
+  # SHA), so the second deploy was reported successful but never published.
+  # `workflow_dispatch` covers ad-hoc redeploys for infra/theme/script
+  # changes that ship between tags.
   push:
-    branches: [main]
     tags: ['v*.*.*']
   pull_request:
     branches: [main]
@@ -46,7 +51,7 @@ jobs:
 
       # PRs validate the branch's working-tree docs alongside tag archives so
       # that broken mdx/frontmatter/imports fail review. The published site is
-      # tag-only, so non-PR builds (push to main / tag) skip the `--dev`
+      # tag-only, so tag-push and workflow_dispatch builds skip the `--dev`
       # overlay and never include `/main/` in the deployable artifact.
       - name: Build Docs (PR preview, working tree + tags)
         if: github.event_name == 'pull_request'
@@ -64,14 +69,14 @@ jobs:
           path: docs/dist
 
       - name: Upload Pages Artifact
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || github.event_name == 'workflow_dispatch'
         uses: actions/upload-pages-artifact@v3
         with:
           path: docs/dist
 
   deploy:
     name: Docs Deploy
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || github.event_name == 'workflow_dispatch'
     needs: build
     runs-on: ubuntu-latest
     permissions:
