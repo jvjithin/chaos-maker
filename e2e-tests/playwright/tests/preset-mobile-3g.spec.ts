@@ -3,7 +3,7 @@ import { injectChaos, getChaosLog } from '@chaos-maker/playwright';
 
 const BASE_URL = 'http://127.0.0.1:8080';
 
-test.describe('RFC-005 Preset: mobile-3g', () => {
+test.describe('Preset: mobile-3g', () => {
   test('declarative preset name resolves and applies network latency', async ({ page }) => {
     await injectChaos(page, { presets: ['mobile-3g'], seed: 1234 });
     await page.goto(BASE_URL);

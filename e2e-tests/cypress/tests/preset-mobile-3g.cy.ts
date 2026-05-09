@@ -1,4 +1,4 @@
-describe('RFC-005 Preset: mobile-3g', () => {
+describe('Preset: mobile-3g', () => {
   it('declarative preset name resolves and applies network latency', () => {
     cy.injectChaos({ presets: ['mobile-3g'], seed: 1234 });
     cy.visit('/');

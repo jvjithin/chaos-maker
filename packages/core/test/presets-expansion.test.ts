@@ -154,7 +154,7 @@ describe('expandPresets', () => {
     expect(out.network!.aborts).toHaveLength(1);
   });
 
-  it('RFC-005 alias dedup: websocket-instability and unreliableWebSocket collapse to one expansion', () => {
+  it('alias dedup: websocket-instability and unreliableWebSocket collapse to one expansion', () => {
     const out = expandPresets(
       { presets: ['websocket-instability', 'unreliableWebSocket'] },
       new PresetRegistry(),
@@ -164,7 +164,7 @@ describe('expandPresets', () => {
     expect(out.websocket!.corruptions).toHaveLength(1);
   });
 
-  it('RFC-005 alias dedup: realtime-lag and unreliableEventStream collapse to one expansion', () => {
+  it('alias dedup: realtime-lag and unreliableEventStream collapse to one expansion', () => {
     const out = expandPresets(
       { presets: ['realtime-lag', 'unreliableEventStream'] },
       new PresetRegistry(),
@@ -174,7 +174,7 @@ describe('expandPresets', () => {
     expect(out.sse!.closes).toHaveLength(1);
   });
 
-  it('RFC-005 alias dedup: api-flaky and flakyConnection collapse to one expansion', () => {
+  it('alias dedup: api-flaky and flakyConnection collapse to one expansion', () => {
     const out = expandPresets(
       { presets: ['api-flaky', 'flakyConnection'] },
       new PresetRegistry(),

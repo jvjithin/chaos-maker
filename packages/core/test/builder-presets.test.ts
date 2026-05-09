@@ -310,7 +310,7 @@ describe('ChaosConfigBuilder.usePreset', () => {
     expect(config.presets).toEqual(['flaky-api']);
   });
 
-  it('queues RFC-005 presets together and round-trips through validation', () => {
+  it('queues mobile-3g and checkout-degraded together and round-trips through validation', () => {
     const config = new ChaosConfigBuilder()
       .usePreset('mobile-3g')
       .usePreset('checkout-degraded')

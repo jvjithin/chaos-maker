@@ -1,7 +1,7 @@
 import { browser, $ } from '@wdio/globals';
 import type { ChaosEvent } from '@chaos-maker/core';
 
-describe('RFC-005 Preset: mobile-3g', () => {
+describe('Preset: mobile-3g', () => {
   it('declarative preset name resolves and applies network latency', async () => {
     await browser.url('/');
     await browser.injectChaos({ presets: ['mobile-3g'], seed: 1234 });

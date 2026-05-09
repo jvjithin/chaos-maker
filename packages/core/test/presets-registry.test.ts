@@ -28,7 +28,7 @@ describe('PresetRegistry', () => {
     expect(registry.get('checkout-degraded')).toBe(registry.get('checkoutDegraded'));
   });
 
-  it('RFC-005 aliases for existing slices share identity with their camelCase entry', () => {
+  it('aliases for existing slices share identity with their camelCase entry', () => {
     const registry = new PresetRegistry();
     expect(registry.get('api-flaky')).toBe(registry.get('flakyConnection'));
     expect(registry.get('api-flaky')).toBe(registry.get('flaky-api'));
