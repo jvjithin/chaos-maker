@@ -101,8 +101,12 @@ jobs:
         with:
           frozen-lockfile: 'true'
 
-      - name: Build Docs
-        run: pnpm --filter chaos-maker-docs build
+      # Validates the branch's `docs/content-source/**` edits in addition to
+      # the tag-driven archives. The published site is still tag-only — this
+      # job's artifact is never deployed; it exists to fail PRs that break
+      # docs syntax, frontmatter, or imports.
+      - name: Build Docs (working tree + tags)
+        run: pnpm --filter chaos-maker-docs run build:dev
 
       - name: Upload Docs Artifact
         uses: actions/upload-artifact@v4

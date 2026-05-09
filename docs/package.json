@@ -12,6 +12,8 @@
     "dev": "ASTRO_TELEMETRY_DISABLED=1 astro dev",
     "prebuild": "pnpm run generate:versions",
     "build": "ASTRO_TELEMETRY_DISABLED=1 astro build",
+    "prebuild:dev": "pnpm run generate:versions:dev",
+    "build:dev": "ASTRO_TELEMETRY_DISABLED=1 astro build",
     "preview": "ASTRO_TELEMETRY_DISABLED=1 astro preview"
   },
   "dependencies": {

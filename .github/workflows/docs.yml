@@ -44,7 +44,16 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build Docs
+      # PRs validate the branch's working-tree docs alongside tag archives so
+      # that broken mdx/frontmatter/imports fail review. The published site is
+      # tag-only, so non-PR builds (push to main / tag) skip the `--dev`
+      # overlay and never include `/main/` in the deployable artifact.
+      - name: Build Docs (PR preview, working tree + tags)
+        if: github.event_name == 'pull_request'
+        run: pnpm --filter chaos-maker-docs run build:dev
+
+      - name: Build Docs (production, tag-only)
+        if: github.event_name != 'pull_request'
         run: pnpm --filter chaos-maker-docs build
 
       - name: Upload PR Preview Artifact
