@@ -43,7 +43,7 @@ describe('Logger', () => {
     expect(evt!.detail.stage).toBe('rule-applied');
     expect(evt!.detail.url).toBe('/api');
     expect(evt!.detail.statusCode).toBe(503);
-    // RFC-002: formatted message must not be stored on the event payload.
+    // formatted message must not be stored on the event payload.
     expect((evt!.detail as Record<string, unknown>).message).toBeUndefined();
     expect(debugSpy).toHaveBeenCalledTimes(1);
 

@@ -13,7 +13,7 @@ afterAll(async () => { await browser.close(); });
 beforeEach(async () => { page = await browser.newPage(); });
 afterEach(async () => { await page.close(); });
 
-describe('Debug Mode (RFC-002)', () => {
+describe('Debug Mode', () => {
   it('mirrors a [Chaos] line to console.debug when debug:true', async () => {
     const debugLines: string[] = [];
     page.on('console', (msg) => {

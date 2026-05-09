@@ -12,7 +12,7 @@ export interface SWChaosOptions {
    */
   timeoutMs?: number;
   /**
-   * RFC-004. Forwarded to `validateChaosConfig` before the config is posted
+   * Forwarded to `validateChaosConfig` before the config is posted
    * to the SW. Malformed configs throw a `ChaosConfigError` synchronously
    * inside the Cypress command body.
    */

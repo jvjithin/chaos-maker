@@ -6,10 +6,10 @@ import type { SWChaosOptions } from './sw';
 export { registerChaosCommands, isChaosActive } from './commands';
 export { registerChaosTasks } from './tasks';
 export { registerSWChaosCommands } from './sw';
-// RFC-002. Re-export the Logger runtime so adapter consumers can construct it
+// Re-export the Logger runtime so adapter consumers can construct it
 // directly (e.g. for off-engine debug emission, custom sinks, tests).
 export { Logger } from '@chaos-maker/core';
-// RFC-004. Re-export validation surface so adapter consumers can validate on
+// Re-export validation surface so adapter consumers can validate on
 // demand and import the error type.
 export { validateChaosConfig, ChaosConfigError } from '@chaos-maker/core';
 export type {

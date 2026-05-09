@@ -1,4 +1,4 @@
-/** Public types for the structured validation surface (RFC-004).
+/** Public types for the structured validation surface.
  *  Pure types — no runtime. Imported by `errors.ts`, `validation.ts`, and the
  *  format / strip / deprecation helpers. */
 

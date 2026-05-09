@@ -62,7 +62,7 @@ function loadCoreUmdSource(): string {
 /** Options accepted by {@link injectChaos}. */
 export interface InjectChaosOptions {
   /**
-   * RFC-004. Forwarded to `validateChaosConfig` before the config is
+   * Forwarded to `validateChaosConfig` before the config is
    * serialized for the page. Malformed configs throw a `ChaosConfigError`
    * synchronously from Node before any page touch.
    */
@@ -303,10 +303,10 @@ export type {
   DebugOptions,
 } from '@chaos-maker/core';
 
-// RFC-002. Runtime export so adapter consumers can construct a Logger
+// Runtime export so adapter consumers can construct a Logger
 // directly alongside the type re-exports above.
 export { Logger } from '@chaos-maker/core';
-// RFC-004. Validation surface re-exported for adapter consumers.
+// Validation surface re-exported for adapter consumers.
 export { validateChaosConfig, ChaosConfigError } from '@chaos-maker/core';
 export type {
   ValidateChaosConfigOptions,

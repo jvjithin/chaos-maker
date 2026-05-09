@@ -4,7 +4,7 @@ import { injectChaos, getChaosLog } from '@chaos-maker/playwright';
 const BASE_URL = 'http://127.0.0.1:8080';
 const API_PATTERN = '/api/data.json';
 
-test.describe('Debug Mode (RFC-002)', () => {
+test.describe('Debug Mode', () => {
   test('mirrors a [Chaos] line to console.debug when debug:true', async ({ page }) => {
     const debugLines: string[] = [];
     page.on('console', (msg) => {

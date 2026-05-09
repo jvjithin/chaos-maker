@@ -1,5 +1,5 @@
 /**
- * Rule Groups (RFC-001) — bulk runtime enable/disable for chaos rules.
+ * Rule Groups — bulk runtime enable/disable for chaos rules.
  *
  * A `RuleGroupRegistry` tracks named groups (default-on) and answers
  * `isActive(name)` from interceptors before they apply chaos. Groups not

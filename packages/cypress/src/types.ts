@@ -12,7 +12,7 @@ export interface InjectChaosOptions {
    */
   persistAcrossNavigations?: boolean;
   /**
-   * RFC-004. Forwarded to `validateChaosConfig` before the config is
+   * Forwarded to `validateChaosConfig` before the config is
    * serialized for the AUT window. Malformed configs throw a
    * `ChaosConfigError` synchronously inside the Cypress command body so the
    * step fails before `cy.visit()` runs.

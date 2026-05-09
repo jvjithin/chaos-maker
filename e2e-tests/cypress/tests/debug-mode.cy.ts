@@ -1,6 +1,6 @@
 const API_PATTERN = '/api/data.json';
 
-describe('Debug Mode (RFC-002)', () => {
+describe('Debug Mode', () => {
   it('mirrors a [Chaos] line to console.debug when debug:true', () => {
     cy.injectChaos({
       debug: true,

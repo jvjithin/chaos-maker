@@ -15,7 +15,7 @@ export interface RequestCountingOptions {
   afterN?: number;
 }
 
-/** Optional group membership shared by every rule type (RFC-001).
+/** Optional group membership shared by every rule type.
  *  Rules without a `group` belong to the implicit `'default'` group, which is
  *  always enabled. Toggling a group at runtime via `enableGroup` /
  *  `disableGroup` skips its rules without restarting the engine — counters
@@ -211,7 +211,7 @@ export interface ChaosConfig {
   websocket?: WebSocketConfig;
   sse?: SSEConfig;
   /**
-   * Pre-register rule groups (RFC-001) with an explicit initial enabled state.
+   * Pre-register rule groups with an explicit initial enabled state.
    *
    * Rules opt into a group by setting `group: 'name'`; groups referenced from
    * rules but not listed here are auto-registered as enabled. Use this field
@@ -220,7 +220,7 @@ export interface ChaosConfig {
    */
   groups?: RuleGroupConfig[];
   /**
-   * RFC-002. Enable Chaos Maker's structured Debug Mode. When `true`, every
+   * Enable Chaos Maker's structured Debug Mode. When `true`, every
    * rule decision emits a `type: 'debug'` event (with `detail.stage`)
    * through the emitter AND mirrors a `[Chaos] <stage> ...` line to
    * `console.debug`. Framework-agnostic — does not touch
@@ -234,7 +234,7 @@ export interface ChaosConfig {
    */
   debug?: boolean | { enabled: boolean };
   /**
-   * RFC-003. Names of presets to expand into this config at engine init.
+   * Names of presets to expand into this config at engine init.
    * Resolved against the per-instance `PresetRegistry` seeded with built-ins
    * (camelCase names plus the four kebab-case aliases) and any
    * `customPresets` provided alongside this field.
@@ -249,7 +249,7 @@ export interface ChaosConfig {
    */
   presets?: string[];
   /**
-   * RFC-003. Per-instance custom presets registered alongside the built-ins.
+   * Per-instance custom presets registered alongside the built-ins.
    * Each value is a `PresetConfigSlice` (a `ChaosConfig` minus `presets`,
    * `customPresets`, `seed`, and `debug`). Names collide fail-fast against
    * built-ins and against each other — pick a unique label.
@@ -260,7 +260,7 @@ export interface ChaosConfig {
    */
   customPresets?: Record<string, PresetConfigSlice>;
   /**
-   * RFC-004. Reserved for forward-compatibility with future shape changes.
+   * Reserved for forward-compatibility with future shape changes.
    * Defaults to `1`. Unknown values are rejected at validation time with
    * `code: 'unknown_schema_version'`. Omit this field unless a future major
    * release explicitly bumps the supported version.

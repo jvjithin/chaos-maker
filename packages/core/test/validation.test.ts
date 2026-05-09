@@ -535,7 +535,7 @@ describe('validateConfig', () => {
     });
   });
 
-  describe('rule groups (RFC-001)', () => {
+  describe('rule groups', () => {
     it('accepts group: "x" on every rule type', () => {
       const config = {
         network: {
@@ -617,7 +617,7 @@ describe('validateConfig', () => {
     });
   });
 
-  describe('debug option (RFC-002)', () => {
+  describe('debug option', () => {
     it('accepts debug:true', () => {
       expect(() => validateConfig({ debug: true })).not.toThrow();
     });
@@ -649,7 +649,7 @@ describe('validateConfig', () => {
     });
   });
 
-  describe('presets / customPresets (RFC-003)', () => {
+  describe('presets / customPresets', () => {
     it('accepts a presets array of known names', () => {
       const parsed = validateConfig({ presets: ['slow-api', 'unstableApi'] });
       expect(parsed.presets).toEqual(['slow-api', 'unstableApi']);
@@ -731,7 +731,7 @@ function captureValidateConfigThrow(fn: () => unknown): ChaosConfigError {
   throw new Error('expected validateConfig to throw ChaosConfigError');
 }
 
-describe('ValidationIssue shape (RFC-004)', () => {
+describe('ValidationIssue shape', () => {
   it('every issue carries a structured ValidationIssue', () => {
     const err = captureValidateConfigThrow(() =>
       validateConfig({

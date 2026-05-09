@@ -317,7 +317,7 @@ describe('installChaosSW', () => {
     handle.uninstall();
   });
 
-  describe('debug mode (RFC-002)', () => {
+  describe('debug mode', () => {
     // Restore console.debug spies in one place so a failed assertion in any
     // test below does not leak the spy into the next test.
     afterEach(() => {
@@ -379,7 +379,7 @@ describe('installChaosSW', () => {
         (m) => m.event.type === 'debug' && m.event.detail.phase === 'sw:group-toggled',
       );
       expect(toggleDbg?.event.detail.groupName).toBe('payments');
-      // RFC-002: the toggle debug payload must carry the new state so
+      // the toggle debug payload must carry the new state so
       // consumers can pivot enable vs disable on the debug stream alone.
       expect(toggleDbg?.event.detail.enabled).toBe(false);
     });

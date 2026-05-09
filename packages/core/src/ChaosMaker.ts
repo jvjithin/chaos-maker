@@ -27,7 +27,7 @@ export interface ChaosMakerOptions {
    */
   target?: ChaosTarget;
   /**
-   * RFC-004. Forwarded to `validateChaosConfig` during construction. Use to
+   * Forwarded to `validateChaosConfig` during construction. Use to
    * relax unknown-field handling, hook deprecation events, or run custom
    * per-`RuleType` validators.
    */
@@ -59,14 +59,14 @@ export class ChaosMaker {
   private eventSourceHandle?: EventSourcePatchHandle;
   /** Shared counters keyed by config rule object reference. Shared across fetch + XHR + WS. */
   private requestCounters: Map<object, number> = new Map();
-  /** Rule-group registry (RFC-001). Default-on; default group always exists. */
+  /** Rule-group registry. Default-on; default group always exists. */
   private groups: RuleGroupRegistry;
-  /** RFC-002. Positional rule-id map shared across interceptors via emitter.
+  /** Positional rule-id map shared across interceptors via emitter.
    *  Built lazily — only when debug mode is enabled — so disabled instances
    *  pay zero allocation cost. The emitter handles `undefined` ruleIds
    *  internally via `?.get(rule)`. */
   private ruleIds?: WeakMap<object, RuleIdEntry>;
-  /** RFC-002. Logger fed into the emitter; absent ⇒ debug fast-path no-op. */
+  /** Logger fed into the emitter; absent ⇒ debug fast-path no-op. */
   private logger?: Logger;
 
   constructor(config: ChaosConfig, options: ChaosMakerOptions = {}) {
@@ -87,7 +87,7 @@ export class ChaosMaker {
     this.seedGroupsFromRules();
     // Default group is always present; ensures `getGroupsSnapshot()` includes it.
     this.groups.ensure(DEFAULT_GROUP_NAME, { enabled: true });
-    // RFC-002. Only allocate the positional rule-id map and attach a Logger
+    // Only allocate the positional rule-id map and attach a Logger
     // when debug mode is enabled. The interceptor hot path goes through
     // `emitter.debug(...)`, which fast-paths off the absence of a Logger
     // before any rule-id lookup, so a disabled instance does no debug work.
@@ -137,7 +137,7 @@ export class ChaosMaker {
     this.emitter.clearLog();
   }
 
-  /** Enable a rule group at runtime (RFC-001). Auto-creates the group if unknown.
+  /** Enable a rule group at runtime. Auto-creates the group if unknown.
    *  Engine state and per-rule counters are preserved — no restart. */
   public enableGroup(name: string): void {
     const nameNorm = normalizeGroupName(name);
@@ -151,7 +151,7 @@ export class ChaosMaker {
     this.emitter.debug('lifecycle', { phase: 'engine:group-toggled', groupName: nameNorm, enabled: true });
   }
 
-  /** Disable a rule group at runtime (RFC-001). Subsequent matches are skipped
+  /** Disable a rule group at runtime. Subsequent matches are skipped
    *  and a single `rule-group:gated` event is emitted per cycle. */
   public disableGroup(name: string): void {
     const nameNorm = normalizeGroupName(name);
