@@ -14,9 +14,39 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Detects whether the diff touches anything outside the docs site so the
+  # build / test / e2e jobs can short-circuit on docs-only PRs. The aggregator
+  # `ci-success` job at the bottom accepts skipped results, so the required
+  # status check is still satisfied without spinning up matrix browsers.
+  changes:
+    name: Detect Changed Paths
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Filter Paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            code:
+              - '**'
+              - '!docs/**'
+              - '!.github/workflows/docs.yml'
+            docs:
+              - 'docs/**'
+              - '.github/workflows/docs.yml'
+
   lint:
     name: Lint JS
     runs-on: ubuntu-latest
+    # Lint always runs: catches docs/eslint config regressions and is
+    # cheap (< 30s on this repo). Skipping it would let typo-level
+    # regressions slip through on docs-only PRs that touch eslint config.
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
@@ -30,6 +60,8 @@ jobs:
   test:
     name: Unit Tests
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     # Runs in parallel with `lint` and `build` — none of the three reads
     # another's output. E2E jobs still gate on `build` for the dist artifact.
     steps:
@@ -45,6 +77,8 @@ jobs:
   build:
     name: Build Core
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     # Runs in parallel with `lint` and `test`. E2E jobs below consume the
     # dist artifact this produces.
     steps:
@@ -86,6 +120,8 @@ jobs:
   docs-build:
     name: Docs Build
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.docs == 'true'
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
@@ -117,7 +153,8 @@ jobs:
   e2e-playwright:
     name: E2E Playwright (${{ matrix.project }})
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, changes]
+    if: needs.changes.outputs.code == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -171,7 +208,8 @@ jobs:
   e2e-cypress:
     name: E2E Cypress (${{ matrix.browser }})
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, changes]
+    if: needs.changes.outputs.code == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -232,7 +270,8 @@ jobs:
   e2e-webdriverio:
     name: E2E WebdriverIO (${{ matrix.browser }})
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, changes]
+    if: needs.changes.outputs.code == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -261,7 +300,8 @@ jobs:
   e2e-puppeteer:
     name: E2E Puppeteer (headless-new)
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, changes]
+    if: needs.changes.outputs.code == 'true'
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
@@ -293,3 +333,35 @@ jobs:
 
       - name: Run Puppeteer E2E Tests
         run: pnpm --filter e2e-tests-puppeteer test
+
+  # Single status check that branch protection should require. Aggregates the
+  # results of every gating job above so docs-only PRs can skip the e2e
+  # matrix without leaving a required check pending. Skipped jobs count as
+  # passing — only failure or cancellation marks this red.
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
+    needs:
+      - changes
+      - lint
+      - test
+      - build
+      - docs-build
+      - e2e-playwright
+      - e2e-cypress
+      - e2e-webdriverio
+      - e2e-puppeteer
+    steps:
+      - name: Verify gating jobs succeeded or were skipped
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          echo "$NEEDS" | jq .
+          bad=$(echo "$NEEDS" | jq -r 'to_entries[] | select(.value.result != "success" and .value.result != "skipped") | .key')
+          if [ -n "$bad" ]; then
+            echo "Failing jobs:"
+            echo "$bad"
+            exit 1
+          fi
+          echo "All gating jobs passed or were skipped."
