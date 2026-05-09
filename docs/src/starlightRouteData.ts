@@ -33,9 +33,13 @@ function stripTrailing(p: string): string {
 }
 
 // Strip the configured Astro `base` from a pathname. Browsers send
-// `/chaos-maker/v0-4-0/...`; with no base we want `/v0-4-0/...`.
+// `/chaos-maker/v0-4-0/...`; with no base we want `/v0-4-0/...`. Only matches
+// on a segment boundary so an unrelated prefix like `/chaos-maker-v2` is
+// returned untouched.
 function stripBase(pathname: string): string {
-  if (BASE && pathname.startsWith(BASE)) return pathname.slice(BASE.length) || '/';
+  if (!BASE) return pathname;
+  if (pathname === BASE) return '/';
+  if (pathname.startsWith(BASE + '/')) return pathname.slice(BASE.length);
   return pathname;
 }
 
