@@ -2,15 +2,17 @@ import { describe, it, expect } from 'vitest';
 import { BUILT_IN_PRESETS, PresetRegistry, presets } from '../src/presets';
 
 describe('PresetRegistry', () => {
-  it('seeds 11 keys (7 camelCase + 4 kebab) in BUILT_IN_PRESETS order', () => {
+  it('seeds 15 keys (9 camelCase + 6 kebab) in BUILT_IN_PRESETS order', () => {
     const registry = new PresetRegistry();
     const keys = registry.list();
-    expect(keys).toHaveLength(11);
+    expect(keys).toHaveLength(15);
     expect(keys).toEqual(BUILT_IN_PRESETS.map((p) => p.name));
     expect(keys).toContain('slow-api');
     expect(keys).toContain('flaky-api');
     expect(keys).toContain('offline-mode');
     expect(keys).toContain('high-latency');
+    expect(keys).toContain('mobile-3g');
+    expect(keys).toContain('checkout-degraded');
   });
 
   it('aliases share object identity with their camelCase entry', () => {
@@ -29,7 +31,7 @@ describe('PresetRegistry', () => {
     expect(presets.offlineMode).toBe(registry.get('offline-mode'));
   });
 
-  it('legacy presets record exposes only the 7 camelCase keys', () => {
+  it('legacy presets record exposes only the 9 camelCase keys', () => {
     expect(Object.keys(presets)).toEqual([
       'unstableApi',
       'slowNetwork',
@@ -38,11 +40,15 @@ describe('PresetRegistry', () => {
       'degradedUi',
       'unreliableWebSocket',
       'unreliableEventStream',
+      'mobileThreeG',
+      'checkoutDegraded',
     ]);
     expect((presets as Record<string, unknown>)['slow-api']).toBeUndefined();
     expect((presets as Record<string, unknown>)['flaky-api']).toBeUndefined();
     expect((presets as Record<string, unknown>)['offline-mode']).toBeUndefined();
     expect((presets as Record<string, unknown>)['high-latency']).toBeUndefined();
+    expect((presets as Record<string, unknown>)['mobile-3g']).toBeUndefined();
+    expect((presets as Record<string, unknown>)['checkout-degraded']).toBeUndefined();
   });
 
   it('register rejects empty / whitespace-only names', () => {
