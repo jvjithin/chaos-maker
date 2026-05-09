@@ -22,10 +22,10 @@ const route = Astro.locals.starlightRoute as
   | undefined;
 const active = route?.activeVersion ?? null;
 
-// Hide the dropdown only on routes that aren't a docs version (e.g. the root
-// redirect index). On the splash homepage of latest the active version is
-// still set, so the dropdown shows there too.
-const show = manifest.versions.length > 0;
+// Render the dropdown only on routes whose URL maps to a known docs version.
+// The root redirect index (`/chaos-maker/`) has no active version, so the
+// selector would offer no meaningful preselection — hide it there.
+const show = manifest.versions.length > 0 && active !== null;
 
 // Embed the manifest into the page as JSON for the client-side switcher.
 // Cross-version mapping needs every version's full page list, but the entire
