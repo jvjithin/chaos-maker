@@ -95,11 +95,16 @@ export async function removeSWChaos(page: ChaosPage, opts: SWChaosOptions = {}):
           __chaosMakerSWBridge?: {
             stop: (t: number) => Promise<unknown>;
             clearLocalLog: () => void;
+            clearRemoteLog?: (t: number) => Promise<void>;
           };
         }).__chaosMakerSWBridge;
         if (!bridge) return;
-        await bridge.stop(t as number);
-        bridge.clearLocalLog();
+        try {
+          await bridge.stop(t as number);
+        } finally {
+          bridge.clearLocalLog();
+          await bridge.clearRemoteLog?.(t as number).catch(() => undefined);
+        }
       },
       timeoutMs as unknown,
     );

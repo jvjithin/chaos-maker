@@ -109,6 +109,32 @@ test.describe('Chaos Lifecycle', () => {
   });
 });
 
+test.describe.parallel('Playwright page isolation', () => {
+  test('failure chaos on one page does not affect another parallel page', async ({ browser }) => {
+    const context = await browser.newContext();
+    const chaosPage = await context.newPage();
+    const cleanPage = await context.newPage();
+    try {
+      await injectChaos(chaosPage, {
+        network: {
+          failures: [{ urlPattern: API_PATTERN, statusCode: 502, probability: 1.0 }],
+        },
+      });
+      await chaosPage.goto(BASE_URL);
+      await cleanPage.goto(BASE_URL);
+
+      await chaosPage.click('#fetch-data');
+      await cleanPage.click('#fetch-data');
+
+      await expect(chaosPage.locator('#status')).toHaveText('Error!');
+      await expect(cleanPage.locator('#status')).toHaveText('Success!');
+    } finally {
+      await removeChaos(chaosPage).catch(() => undefined);
+      await context.close();
+    }
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Presets
 // ---------------------------------------------------------------------------

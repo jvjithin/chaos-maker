@@ -44,6 +44,8 @@ Injects chaos into a Puppeteer page via `evaluateOnNewDocument`. Must be called 
 
 Stops chaos and restores original `fetch`, `XMLHttpRequest`, `WebSocket`, and DOM behaviour. Safe to call after page close.
 
+When Puppeteer exposes init-script identifiers, cleanup also removes registered `evaluateOnNewDocument` scripts so a later reload on a reused page does not re-inject old chaos. Fresh pages per test are still the simplest isolation pattern.
+
 ### `getChaosLog(page)`
 
 Returns the full event log (applied + skipped decisions) since `injectChaos` was called.
@@ -83,6 +85,18 @@ beforeEach(async () => {
   teardown = await useChaos(page, { network: { failures: [...] } });
 });
 afterEach(() => teardown());
+```
+
+Use `try` / `finally` around direct calls when a test may fail before cleanup:
+
+```ts
+try {
+  await injectChaos(page, config);
+  await page.goto('http://localhost:3000');
+  // assertions
+} finally {
+  await removeChaos(page);
+}
 ```
 
 ## Validation
@@ -147,6 +161,8 @@ await removeSWChaos(page);
 ```
 
 Use `getSWChaosLog(page)` for the page-buffered event log. This is the default assertion surface because it reflects events broadcast from the Service Worker to the page. Use `getSWChaosLogFromSW(page)` when you need a direct pull from the Service Worker's in-memory log, such as debugging a missed page-side broadcast.
+
+`removeSWChaos(page)` stops the worker engine and clears both the page-buffered and worker-side logs. Unregister the app's Service Worker when you need a completely fresh registration between tests.
 
 User's SW must `importScripts('/chaos-maker-sw.js')` (classic) or `import { installChaosSW } from '@chaos-maker/core/sw'` (module).
 

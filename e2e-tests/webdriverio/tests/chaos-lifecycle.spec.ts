@@ -80,6 +80,29 @@ describe('Chaos Lifecycle', () => {
     expect(seed).not.toBeNull();
     expect(Number.isFinite(seed)).toBe(true);
   });
+
+  it('supports repeated inject and remove cycles on a reused page', async () => {
+    await browser.url('/');
+    await browser.injectChaos({
+      network: { failures: [{ urlPattern: API_PATTERN, statusCode: 500, probability: 1.0 }] },
+    });
+    await $('#fetch-data').click();
+    await expect($('#status')).toHaveText('Error!');
+
+    await browser.removeChaos();
+    await $('#fetch-data').click();
+    await expect($('#status')).toHaveText('Success!');
+
+    await browser.injectChaos({
+      network: { failures: [{ urlPattern: API_PATTERN, statusCode: 503, probability: 1.0 }] },
+    });
+    await $('#fetch-data').click();
+    await expect($('#status')).toHaveText('Error!');
+
+    await browser.removeChaos();
+    await $('#fetch-data').click();
+    await expect($('#status')).toHaveText('Success!');
+  });
 });
 
 describe('Presets', () => {

@@ -189,6 +189,8 @@ Inject chaos into the next `cy.visit()`. **Call before `cy.visit()`** so the bro
 
 Stop chaos and restore original `fetch` / `XHR` / `WebSocket` / DOM behaviour. Called automatically in an `afterEach` hook by `@chaos-maker/cypress/support`.
 
+The support hook runs only when chaos is active. Direct users should still call `cy.removeChaos()` in their own cleanup flow before the next `cy.visit()`. The command detaches the `window:before:load` listener so future visits are clean unless you call `cy.injectChaos()` again.
+
 ### `cy.getChaosLog()`
 
 Resolve to the chaos event log — every chaos check since injection, with `applied: true | false` and full detail for each type.
@@ -273,6 +275,8 @@ it('SW fetch fails', () => {
 ```
 
 Use `cy.getSWChaosLog()` for the page-buffered event log. This is the default assertion surface because it reflects events broadcast from the Service Worker to the page. Use `cy.getSWChaosLogFromSW()` when you need a direct pull from the Service Worker's in-memory log, such as debugging a missed page-side broadcast.
+
+`cy.removeSWChaos()` stops the worker engine and clears both the page-buffered and worker-side logs. Unregister the app's Service Worker when a spec needs a completely fresh registration.
 
 Serve `node_modules/@chaos-maker/core/dist/sw.js` at a URL your SW can reach.
 

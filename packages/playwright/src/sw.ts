@@ -100,11 +100,16 @@ export async function removeSWChaos(page: Page, opts: SWChaosOptions = {}): Prom
         __chaosMakerSWBridge?: {
           stop: (t: number) => Promise<unknown>;
           clearLocalLog: () => void;
+          clearRemoteLog?: (t: number) => Promise<void>;
         };
       }).__chaosMakerSWBridge;
       if (!bridge) return;
-      await bridge.stop(timeoutMs);
-      bridge.clearLocalLog();
+      try {
+        await bridge.stop(timeoutMs);
+      } finally {
+        bridge.clearLocalLog();
+        await bridge.clearRemoteLog?.(timeoutMs).catch(() => undefined);
+      }
     },
     { timeoutMs },
   ).catch(() => {

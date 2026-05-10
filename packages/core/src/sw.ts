@@ -24,6 +24,13 @@ import { patchWebSocket, WebSocketPatchHandle } from './interceptors/websocket';
 import { DEFAULT_GROUP_NAME, RuleGroupRegistry } from './groups';
 import { forEachRule } from './utils';
 import { Logger, buildRuleIdMap, normalizeDebugOption } from './debug';
+import {
+  clearActiveRuntimeInstance,
+  getActiveRuntimeInstance,
+  getRuntimePatchKind,
+  markRuntimePatch,
+  setActiveRuntimeInstance,
+} from './runtime-state';
 
 /**
  * Service-Worker global scope. Typed manually so this file compiles under the
@@ -199,20 +206,42 @@ function startEngine(state: SWEngineState, config: ChaosConfig): number {
     state.emitter.setRuleIds(undefined);
     state.emitter.setLogger(undefined);
   }
+  const active = getActiveRuntimeInstance(state.target);
+  if (active && active !== state) {
+    state.emitter.debug('lifecycle', {
+      phase: 'sw:config-applied',
+      reason: 'active-instance-conflict',
+    });
+  }
+  if (getRuntimePatchKind(state.target.fetch) === 'fetch') {
+    state.emitter.debug('lifecycle', {
+      phase: 'sw:config-applied',
+      reason: 'target-fetch-already-patched',
+    });
+  }
+  if (typeof state.target.WebSocket !== 'undefined' && getRuntimePatchKind(state.target.WebSocket) === 'websocket') {
+    state.emitter.debug('lifecycle', {
+      phase: 'sw:config-applied',
+      reason: 'target-websocket-already-patched',
+    });
+  }
   state.emitter.debug('lifecycle', { phase: 'sw:config-applied' });
 
   if (config.network) {
     const target = state.target;
     if (typeof target.fetch === 'function') {
       state.originalFetch = target.fetch;
-      target.fetch = patchFetch(
-        state.originalFetch.bind(target as unknown as typeof globalThis),
-        config.network,
-        state.random,
-        state.emitter,
-        state.requestCounters,
-        state.groups,
-      ) as typeof globalThis.fetch;
+      target.fetch = markRuntimePatch(
+        patchFetch(
+          state.originalFetch.bind(target as unknown as typeof globalThis),
+          config.network,
+          state.random,
+          state.emitter,
+          state.requestCounters,
+          state.groups,
+        ) as typeof globalThis.fetch,
+        'fetch',
+      );
     }
   }
 
@@ -226,10 +255,11 @@ function startEngine(state: SWEngineState, config: ChaosConfig): number {
       state.requestCounters,
       state.groups,
     );
-    state.target.WebSocket = state.webSocketHandle.Wrapped;
+    state.target.WebSocket = markRuntimePatch(state.webSocketHandle.Wrapped, 'websocket');
   }
 
   state.running = true;
+  setActiveRuntimeInstance(state.target, state);
   return state.seed;
 }
 
@@ -255,6 +285,9 @@ function stopEngine(state: SWEngineState): void {
   // `type: 'debug'` events or call `console.debug`.
   state.emitter.setLogger(undefined);
   state.emitter.setRuleIds(undefined);
+  state.seed = null;
+  state.requestCounters.clear();
+  clearActiveRuntimeInstance(state.target, state);
   state.running = false;
 }
 

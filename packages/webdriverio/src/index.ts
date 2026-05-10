@@ -30,6 +30,21 @@ export interface ChaosBrowser {
   addCommand?: (name: string, fn: (...args: unknown[]) => unknown) => void;
 }
 
+function isSessionTeardownError(err: unknown): boolean {
+  const text = err instanceof Error ? `${err.name} ${err.message}` : String(err);
+  return [
+    /invalid session id/i,
+    /no such window/i,
+    /session closed/i,
+    /session not created/i,
+    /browser has disconnected/i,
+    /browser is closed/i,
+    /target closed/i,
+    /connection closed/i,
+    /browsing context has been discarded/i,
+  ].some((pattern) => pattern.test(text));
+}
+
 let cachedUmdSource: string | null = null;
 let cachedUmdPath: string | null = null;
 
@@ -122,12 +137,17 @@ export async function removeChaos(browser: ChaosBrowser): Promise<void> {
   // Read state off `window` (the page realm), not `globalThis` — in Firefox
   // geckodriver's executeScript sandbox `globalThis` is the sandbox global,
   // which never sees `chaosUtils` because the UMD attaches it to `window`.
-  await browser.execute(() => {
-    const w = window as unknown as { chaosUtils?: { stop: () => void } };
-    if (w.chaosUtils && typeof w.chaosUtils.stop === 'function') {
-      w.chaosUtils.stop();
-    }
-  });
+  try {
+    await browser.execute(() => {
+      const w = window as unknown as { chaosUtils?: { stop: () => void } };
+      if (w.chaosUtils && typeof w.chaosUtils.stop === 'function') {
+        w.chaosUtils.stop();
+      }
+    });
+  } catch (err) {
+    if (!isSessionTeardownError(err)) throw err;
+    // Session may already be torn down during framework cleanup.
+  }
 }
 
 /**

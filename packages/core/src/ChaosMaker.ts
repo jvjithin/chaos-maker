@@ -10,6 +10,14 @@ import { patchEventSource, EventSourceLikeStatic, EventSourcePatchHandle } from 
 import { DEFAULT_GROUP_NAME, RuleGroup, RuleGroupRegistry } from './groups';
 import { forEachRule } from './utils';
 import { Logger, buildRuleIdMap, normalizeDebugOption, RuleIdEntry } from './debug';
+import {
+  clearActiveRuntimeInstance,
+  getActiveRuntimeInstance,
+  getRuntimePatchKind,
+  markRuntimePatch,
+  RuntimePatchKind,
+  setActiveRuntimeInstance,
+} from './runtime-state';
 
 /**
  * Global context ChaosMaker patches against. Must expose at minimum `fetch`
@@ -40,6 +48,15 @@ function normalizeGroupName(name: string): string {
     throw new Error('[chaos-maker] Group name cannot be empty');
   }
   return nameNorm;
+}
+
+function emitCleanupWarning(reason: string, err: unknown): void {
+  if (typeof console === 'undefined' || typeof console.warn !== 'function') return;
+  try {
+    console.warn(`[chaos-maker] cleanup step failed: ${reason}`, err);
+  } catch {
+    // Console sinks are best-effort only.
+  }
 }
 
 export class ChaosMaker {
@@ -105,6 +122,96 @@ export class ChaosMaker {
     forEachRule(this.config, (rule) => {
       if (rule.group) this.groups.ensure(rule.group);
     });
+  }
+
+  private emitInvariant(reason: string, extra: ChaosEvent['detail'] = {}): void {
+    this.emitter.debug('lifecycle', {
+      phase: 'engine:stop',
+      reason,
+      ...extra,
+    });
+  }
+
+  private emitStartInvariantDiagnostics(target: ChaosTarget): void {
+    const active = getActiveRuntimeInstance(target);
+    if (active && active !== this) {
+      this.emitInvariant('active-instance-conflict', { phase: 'engine:start' });
+    }
+
+    this.emitPatchDiagnostic(target.fetch, 'fetch', 'target-fetch-already-patched', 'engine:start');
+    if (typeof target.XMLHttpRequest === 'function') {
+      this.emitPatchDiagnostic(
+        target.XMLHttpRequest.prototype.open,
+        'xhr-open',
+        'target-xhr-open-already-patched',
+        'engine:start',
+      );
+      this.emitPatchDiagnostic(
+        target.XMLHttpRequest.prototype.send,
+        'xhr-send',
+        'target-xhr-send-already-patched',
+        'engine:start',
+      );
+    }
+    if (typeof target.WebSocket !== 'undefined') {
+      this.emitPatchDiagnostic(target.WebSocket, 'websocket', 'target-websocket-already-patched', 'engine:start');
+    }
+    if (typeof target.EventSource !== 'undefined') {
+      this.emitPatchDiagnostic(target.EventSource, 'eventsource', 'target-eventsource-already-patched', 'engine:start');
+    }
+    if (this.domObserver) {
+      this.emitInvariant('orphaned-dom-observer', { phase: 'engine:start' });
+    }
+    if (this.webSocketHandle) {
+      this.emitInvariant('stale-websocket-handle', { phase: 'engine:start' });
+    }
+    if (this.eventSourceHandle) {
+      this.emitInvariant('stale-eventsource-handle', { phase: 'engine:start' });
+    }
+  }
+
+  private emitStopInvariantDiagnostics(target: ChaosTarget): void {
+    this.emitPatchDiagnostic(target.fetch, 'fetch', 'target-fetch-still-patched', 'engine:stop');
+    if (typeof target.XMLHttpRequest === 'function') {
+      this.emitPatchDiagnostic(
+        target.XMLHttpRequest.prototype.open,
+        'xhr-open',
+        'target-xhr-open-still-patched',
+        'engine:stop',
+      );
+      this.emitPatchDiagnostic(
+        target.XMLHttpRequest.prototype.send,
+        'xhr-send',
+        'target-xhr-send-still-patched',
+        'engine:stop',
+      );
+    }
+    if (typeof target.WebSocket !== 'undefined') {
+      this.emitPatchDiagnostic(target.WebSocket, 'websocket', 'target-websocket-still-patched', 'engine:stop');
+    }
+    if (typeof target.EventSource !== 'undefined') {
+      this.emitPatchDiagnostic(target.EventSource, 'eventsource', 'target-eventsource-still-patched', 'engine:stop');
+    }
+  }
+
+  private emitPatchDiagnostic(
+    value: unknown,
+    expected: RuntimePatchKind,
+    reason: string,
+    phase: 'engine:start' | 'engine:stop',
+  ): void {
+    if (getRuntimePatchKind(value) === expected) {
+      this.emitInvariant(reason, { phase });
+    }
+  }
+
+  private runCleanupStep(reason: string, fn: () => void): void {
+    try {
+      fn();
+    } catch (err) {
+      this.emitInvariant(`cleanup-step-failed:${reason}`);
+      emitCleanupWarning(reason, err);
+    }
   }
 
   /** Compute the set of group names currently referenced by any rule. Used by `removeGroup`. */
@@ -203,6 +310,13 @@ export class ChaosMaker {
       console.warn('Chaos Maker is already running. Call stop() first.');
       return;
     }
+    const target = this.target;
+    const activeInstance = getActiveRuntimeInstance(target);
+    if (activeInstance && activeInstance !== this) {
+      this.emitInvariant('active-instance-conflict', { phase: 'engine:start' });
+      throw new Error('[chaos-maker] target already has an active runtime instance');
+    }
+    this.emitStartInvariantDiagnostics(target);
     // Reset per-run state so counting rules (onNth / everyNth / afterN)
     // restart from request 1 on every start() — not just on first construction.
     this.requestCounters.clear();
@@ -210,60 +324,74 @@ export class ChaosMaker {
     console.log('🛠️ Chaos Maker ENGAGED 🛠️');
     this.emitter.debug('lifecycle', { phase: 'engine:start' });
 
-    const target = this.target;
+    try {
+      if (this.config.network) {
+        if (typeof target.fetch === 'function') {
+          this.originalFetch = target.fetch;
+          target.fetch = markRuntimePatch(
+            patchFetch(this.originalFetch.bind(target), this.config.network, this.random, this.emitter, this.requestCounters, this.groups),
+            'fetch',
+          );
+        }
 
-    if (this.config.network) {
-      if (typeof target.fetch === 'function') {
-        this.originalFetch = target.fetch;
-        target.fetch = patchFetch(this.originalFetch.bind(target), this.config.network, this.random, this.emitter, this.requestCounters, this.groups);
+        if (typeof target.XMLHttpRequest === 'function') {
+          this.originalXhrOpen = target.XMLHttpRequest.prototype.open;
+          target.XMLHttpRequest.prototype.open = markRuntimePatch(
+            patchXHROpen(this.originalXhrOpen),
+            'xhr-open',
+          );
+
+          this.originalXhrSend = target.XMLHttpRequest.prototype.send;
+          target.XMLHttpRequest.prototype.send = markRuntimePatch(
+            patchXHR(this.originalXhrSend, this.config.network, this.random, this.emitter, this.requestCounters, this.groups),
+            'xhr-send',
+          );
+        }
       }
 
-      if (typeof target.XMLHttpRequest === 'function') {
-        this.originalXhrOpen = target.XMLHttpRequest.prototype.open;
-        target.XMLHttpRequest.prototype.open = patchXHROpen(this.originalXhrOpen);
-
-        this.originalXhrSend = target.XMLHttpRequest.prototype.send;
-        target.XMLHttpRequest.prototype.send = patchXHR(this.originalXhrSend, this.config.network, this.random, this.emitter, this.requestCounters, this.groups);
+      if (this.config.ui) {
+        if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') {
+          console.warn('Chaos Maker: UI config ignored - no DOM available in current context.');
+        } else {
+          this.domObserver = attachDomAssailant(this.config.ui, this.random, this.emitter, this.groups);
+          this.domObserver.observe(document.body, {
+            childList: true,
+            subtree: true,
+          });
+          console.log('UI Assailant is now observing the DOM.');
+        }
       }
-    }
 
-    if (this.config.ui) {
-      if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') {
-        console.warn('Chaos Maker: UI config ignored — no DOM available in current context.');
-      } else {
-        this.domObserver = attachDomAssailant(this.config.ui, this.random, this.emitter, this.groups);
-        this.domObserver.observe(document.body, {
-          childList: true,
-          subtree: true,
-        });
-        console.log('UI Assailant is now observing the DOM.');
+      if (this.config.websocket && typeof target.WebSocket !== 'undefined') {
+        this.originalWebSocket = target.WebSocket;
+        this.webSocketHandle = patchWebSocket(
+          this.originalWebSocket,
+          this.config.websocket,
+          this.emitter,
+          this.random,
+          this.requestCounters,
+          this.groups,
+        );
+        target.WebSocket = markRuntimePatch(this.webSocketHandle.Wrapped, 'websocket');
       }
-    }
 
-    if (this.config.websocket && typeof target.WebSocket !== 'undefined') {
-      this.originalWebSocket = target.WebSocket;
-      this.webSocketHandle = patchWebSocket(
-        this.originalWebSocket,
-        this.config.websocket,
-        this.emitter,
-        this.random,
-        this.requestCounters,
-        this.groups,
-      );
-      target.WebSocket = this.webSocketHandle.Wrapped;
-    }
+      if (this.config.sse && typeof target.EventSource !== 'undefined') {
+        this.originalEventSource = target.EventSource;
+        this.eventSourceHandle = patchEventSource(
+          this.originalEventSource as unknown as EventSourceLikeStatic,
+          this.config.sse,
+          this.emitter,
+          this.random,
+          this.requestCounters,
+          this.groups,
+        );
+        target.EventSource = markRuntimePatch(this.eventSourceHandle.Wrapped, 'eventsource');
+      }
 
-    if (this.config.sse && typeof target.EventSource !== 'undefined') {
-      this.originalEventSource = target.EventSource;
-      this.eventSourceHandle = patchEventSource(
-        this.originalEventSource as unknown as EventSourceLikeStatic,
-        this.config.sse,
-        this.emitter,
-        this.random,
-        this.requestCounters,
-        this.groups,
-      );
-      target.EventSource = this.eventSourceHandle.Wrapped;
+      setActiveRuntimeInstance(target, this);
+    } catch (err) {
+      this.stop();
+      throw err;
     }
   }
 
@@ -274,34 +402,67 @@ export class ChaosMaker {
 
     const target = this.target;
 
-    if (this.originalFetch) {
-      target.fetch = this.originalFetch;
+    const originalFetch = this.originalFetch;
+    const originalXhrOpen = this.originalXhrOpen;
+    const originalXhrSend = this.originalXhrSend;
+    const domObserver = this.domObserver;
+    const originalWebSocket = this.originalWebSocket;
+    const webSocketHandle = this.webSocketHandle;
+    const originalEventSource = this.originalEventSource;
+    const eventSourceHandle = this.eventSourceHandle;
+
+    this.originalFetch = undefined;
+    this.originalXhrOpen = undefined;
+    this.originalXhrSend = undefined;
+    this.domObserver = undefined;
+    this.originalWebSocket = undefined;
+    this.webSocketHandle = undefined;
+    this.originalEventSource = undefined;
+    this.eventSourceHandle = undefined;
+
+    if (originalFetch) {
+      this.runCleanupStep('restore-fetch', () => {
+        target.fetch = originalFetch;
+      });
     }
-    if (this.originalXhrSend && typeof target.XMLHttpRequest === 'function') {
-      target.XMLHttpRequest.prototype.send = this.originalXhrSend;
+    if (originalXhrSend && typeof target.XMLHttpRequest === 'function') {
+      this.runCleanupStep('restore-xhr-send', () => {
+        target.XMLHttpRequest.prototype.send = originalXhrSend;
+      });
     }
-    if (this.originalXhrOpen && typeof target.XMLHttpRequest === 'function') {
-      target.XMLHttpRequest.prototype.open = this.originalXhrOpen;
+    if (originalXhrOpen && typeof target.XMLHttpRequest === 'function') {
+      this.runCleanupStep('restore-xhr-open', () => {
+        target.XMLHttpRequest.prototype.open = originalXhrOpen;
+      });
     }
-    if (this.domObserver) {
-      this.domObserver.disconnect();
-      console.log('UI Assailant has stopped observing.');
+    if (domObserver) {
+      this.runCleanupStep('disconnect-dom-observer', () => {
+        domObserver.disconnect();
+        console.log('UI Assailant has stopped observing.');
+      });
     }
-    if (this.originalWebSocket) {
-      target.WebSocket = this.originalWebSocket;
-      this.originalWebSocket = undefined;
+    if (webSocketHandle) {
+      this.runCleanupStep('uninstall-websocket', () => {
+        webSocketHandle.uninstall();
+      });
     }
-    if (this.webSocketHandle) {
-      this.webSocketHandle.uninstall();
-      this.webSocketHandle = undefined;
+    if (originalWebSocket) {
+      this.runCleanupStep('restore-websocket', () => {
+        target.WebSocket = originalWebSocket;
+      });
     }
-    if (this.originalEventSource) {
-      target.EventSource = this.originalEventSource;
-      this.originalEventSource = undefined;
+    if (eventSourceHandle) {
+      this.runCleanupStep('uninstall-eventsource', () => {
+        eventSourceHandle.uninstall();
+      });
     }
-    if (this.eventSourceHandle) {
-      this.eventSourceHandle.uninstall();
-      this.eventSourceHandle = undefined;
+    if (originalEventSource) {
+      this.runCleanupStep('restore-eventsource', () => {
+        target.EventSource = originalEventSource;
+      });
     }
+    this.requestCounters.clear();
+    clearActiveRuntimeInstance(target, this);
+    this.emitStopInvariantDiagnostics(target);
   }
 }
