@@ -44,6 +44,11 @@ export interface TraceReporterOptions {
 }
 
 const TRACE_HANDLE_KEY = Symbol.for('chaos-maker.playwright.traceHandle');
+const TRACE_BINDING_KEY = Symbol.for('chaos-maker.playwright.traceBinding');
+
+interface TraceBindingState {
+  handler: (source: unknown, event: ChaosEvent) => void;
+}
 
 /**
  * Wire the Playwright page ↔ Node bridge that ships chaos events from the
@@ -60,6 +65,11 @@ const TRACE_HANDLE_KEY = Symbol.for('chaos-maker.playwright.traceHandle');
  *
  * On `dispose()`, the full event log (including skipped/diagnostic events) is
  * attached to `testInfo` as JSON for programmatic post-mortem.
+ *
+ * The binding (and matching init script) is registered exactly once per
+ * page — `exposeBinding` throws on re-register and Playwright has no remove
+ * API. A per-page indirection slot keeps the active reporter swappable so
+ * inject → remove → re-inject on the same page works without re-binding.
  */
 export async function createTraceReporter(
   page: Page,
@@ -81,50 +91,58 @@ export async function createTraceReporter(
     // `test.step` captures the current test async context; the promise is
     // resolved on the Node side once the reporter records it.
     const title = formatStepTitle(event);
-    try {
-      test.step(title, async () => {
-        // No-op body. The step's existence is the signal; its details live on
-        // the final attachment.
-      }).catch(() => {
-        // Swallow late step rejections after the test body has finished.
-      });
-    } catch {
-      // Swallow late synchronous throws after the test body has finished.
-    }
+    test.step(title, async () => {
+      // No-op body. The step's existence is the signal; its details live on
+      // the final attachment.
+    }).catch(() => {
+      // Swallow late step rejections after the test body has finished.
+    });
   };
 
-  // exposeBinding is per-page and persists across navigations.
-  await page.exposeBinding(CHAOS_BINDING, handler);
+  let state = (page as any)[TRACE_BINDING_KEY] as TraceBindingState | undefined;
+  if (!state) {
+    state = { handler };
+    (page as any)[TRACE_BINDING_KEY] = state;
+    // exposeBinding is per-page and persists across navigations.
+    await page.exposeBinding(CHAOS_BINDING, (source: unknown, event: ChaosEvent) => {
+      state!.handler(source, event);
+    });
 
-  // Install the in-page subscriber. Runs on every navigation, after the UMD
-  // init script has auto-started chaosUtils.
-  await page.addInitScript((bindingName: string) => {
-    const win = globalThis as any;
-    const attach = (): boolean => {
-      const utils = win.chaosUtils;
-      if (!utils || !utils.instance) return false;
-      // Guard: don't double-subscribe if init script runs twice on same
-      // context (shouldn't, but defensive).
-      if (utils.__chaosMakerTraceBound === utils.instance) return true;
-      utils.__chaosMakerTraceBound = utils.instance;
-      utils.instance.on('*', (event: unknown) => {
-        try {
-          if (typeof win[bindingName] === 'function') {
-            win[bindingName](event);
+    // Install the in-page subscriber. Runs on every navigation, after the UMD
+    // init script has auto-started chaosUtils.
+    await page.addInitScript((bindingName: string) => {
+      const win = globalThis as any;
+      const attach = (): boolean => {
+        const utils = win.chaosUtils;
+        if (!utils || !utils.instance) return false;
+        // Guard: don't double-subscribe if init script runs twice on same
+        // context (shouldn't, but defensive).
+        if (utils.__chaosMakerTraceBound === utils.instance) return true;
+        utils.__chaosMakerTraceBound = utils.instance;
+        utils.instance.on('*', (event: unknown) => {
+          try {
+            if (typeof win[bindingName] === 'function') {
+              win[bindingName](event);
+            }
+          } catch {
+            // Binding not yet ready or page closing — drop the event.
           }
-        } catch {
-          // Binding not yet ready or page closing — drop the event.
-        }
-      });
-      return true;
-    };
-    if (attach()) return;
-    // Instance not yet created — poll briefly until the UMD auto-start runs.
-    const intervalId = setInterval(() => {
-      if (attach()) clearInterval(intervalId);
-    }, 10);
-    setTimeout(() => clearInterval(intervalId), 5000);
-  }, CHAOS_BINDING);
+        });
+        return true;
+      };
+      if (attach()) return;
+      // Instance not yet created — poll briefly until the UMD auto-start runs.
+      const intervalId = setInterval(() => {
+        if (attach()) clearInterval(intervalId);
+      }, 10);
+      setTimeout(() => clearInterval(intervalId), 5000);
+    }, CHAOS_BINDING);
+  } else {
+    // Re-create on same page: route subsequent events to the new handler.
+    // The old handler stays referenced only by closures inside an already-
+    // disposed reporter, so no leak.
+    state.handler = handler;
+  }
 
   const handle: TraceReporterHandle = {
     events,
@@ -142,6 +160,10 @@ export async function createTraceReporter(
       } catch {
         // Test already finished / attachment not accepted — ignore.
       }
+      // Leave state.handler pointing at this reporter so any in-flight late
+      // events keep populating its events array (they no longer trigger
+      // test.step rendering — the test body has ended). A subsequent
+      // createTraceReporter overwrites the slot to route fresh events.
       if ((page as any)[TRACE_HANDLE_KEY] === handle) {
         delete (page as any)[TRACE_HANDLE_KEY];
       }

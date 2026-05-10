@@ -111,7 +111,7 @@ describe('createTraceReporter', () => {
     let disposed = false;
     const handle = await createTraceReporter(page.asPage(), testInfo);
     mocks.step.mockImplementation(() => {
-      if (disposed) throw new Error('test already finished');
+      if (disposed) return Promise.reject(new Error('test already finished'));
       return Promise.resolve();
     });
 
@@ -120,6 +120,42 @@ describe('createTraceReporter', () => {
 
     expect(() => page.emit(mkEvent())).not.toThrow();
     expect(handle.events).toHaveLength(1);
+  });
+
+  it('reuses the page binding across inject → remove → re-inject', async () => {
+    const page = new FakePage();
+    const first = createTestInfo();
+    const second = createTestInfo();
+
+    const firstHandle = await createTraceReporter(page.asPage(), first.testInfo);
+    page.emit(mkEvent({ detail: { url: '/api/first', statusCode: 503 } }));
+    await firstHandle.dispose(1);
+
+    // Simulate removeChaos clearing the cached handle on the page.
+    delete (page as unknown as Record<symbol, unknown>)[
+      Symbol.for('chaos-maker.playwright.traceHandle')
+    ];
+
+    const secondHandle = await createTraceReporter(page.asPage(), second.testInfo);
+    expect(secondHandle).not.toBe(firstHandle);
+    // Critical: the page binding is registered exactly once across both
+    // cycles. A second exposeBinding call would have thrown.
+    expect(page.exposeBinding).toHaveBeenCalledTimes(1);
+    expect(page.addInitScript).toHaveBeenCalledTimes(1);
+
+    page.emit(mkEvent({ detail: { url: '/api/second', statusCode: 503 } }));
+    await secondHandle.dispose(2);
+
+    expect(secondHandle.events).toHaveLength(1);
+    expect((secondHandle.events[0].detail as { url: string }).url).toBe('/api/second');
+    expect(parseAttachment(second.attachments[0])).toMatchObject({
+      seed: 2,
+      eventCount: 1,
+      events: [{ detail: { url: '/api/second', statusCode: 503 } }],
+    });
+    // The first reporter's events array is untouched by the second cycle.
+    expect(firstHandle.events).toHaveLength(1);
+    expect((firstHandle.events[0].detail as { url: string }).url).toBe('/api/first');
   });
 
   it('keeps unapplied events in JSON and emits steps only when verbose', async () => {
