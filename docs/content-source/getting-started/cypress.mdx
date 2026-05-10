@@ -64,6 +64,20 @@ describe('orders', () => {
 });
 ```
 
+Log the replay seed only when a test fails:
+
+```typescript
+import { formatSeedReproduction } from '@chaos-maker/cypress';
+
+afterEach(function () {
+  if (this.currentTest?.state === 'failed') {
+    cy.getChaosSeed().then((seed) => {
+      console.error(formatSeedReproduction(seed));
+    });
+  }
+});
+```
+
 ## Command log
 
 Cypress command log entries include the same event types returned by `cy.getChaosLog()`, so test output and assertions stay aligned.

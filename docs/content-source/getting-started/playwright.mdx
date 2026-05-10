@@ -45,6 +45,18 @@ test('shows error state when the API fails', async ({ page }) => {
 });
 ```
 
+Log the replay seed only when a test fails:
+
+```typescript
+import { formatSeedReproduction, getChaosSeed } from '@chaos-maker/playwright';
+
+test.afterEach(async ({ page }, testInfo) => {
+  if (testInfo.status !== testInfo.expectedStatus) {
+    console.error(formatSeedReproduction(await getChaosSeed(page)));
+  }
+});
+```
+
 ## Trace integration
 
 Pass `testInfo` with tracing enabled to annotate Playwright traces and attach the chaos log.

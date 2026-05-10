@@ -19,10 +19,31 @@ await injectChaos(page, {
 When `seed` is omitted, Chaos Maker auto-generates a 32-bit seed during instance creation. Read it from the adapter and print it on failure.
 
 ```typescript
+import { formatSeedReproduction, getChaosSeed } from '@chaos-maker/playwright';
+
 const seed = await getChaosSeed(page);
-console.info('Replay with seed:', seed);
+console.error(formatSeedReproduction(seed));
 ```
 
-## Boundaries
+See [Reproduce a flaky failure](/chaos-maker/recipes/reproduce-flaky-failure/) for complete `afterEach` examples.
 
-Seeds control Chaos Maker decisions. They do not freeze browser scheduling, server timing, wall-clock `timestamp` fields, or nondeterminism in the application under test. For replay, drive the same user actions in the same order.
+## Replay boundaries
+
+The seed freezes Chaos Maker decisions:
+
+- Which matching rule wins each probability roll.
+- Whether `probability` applies or misses.
+- Which `onNth`, `everyNth`, and `afterN` counter checks pass for the same action order.
+- Which corruption strategy applies when the selected rule has one.
+- The emitted chaos event sequence, ignoring wall-clock `timestamp` values.
+
+The seed does not freeze the rest of the world:
+
+- Browser scheduling and task timing.
+- Wall-clock timestamps.
+- App-side state from storage, caches, or previous tests.
+- Network ordering created by the application under test.
+- Third-party services or real backend responses.
+- Assertions that depend on elapsed time instead of observable UI or log state.
+
+For replay, drive the same user actions in the same order and assert the chaos log shape, not exact timestamps. When a rule still does not fire, turn on `debug: true` and follow [Diagnose no chaos](/chaos-maker/recipes/diagnose-no-chaos/).

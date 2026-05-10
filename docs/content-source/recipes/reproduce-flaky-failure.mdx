@@ -1,0 +1,150 @@
+---
+title: Reproduce a Flaky Failure
+description: Capture the chaos seed on failure, hardcode it, and replay the same chaos decisions.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Use this loop when a test fails only sometimes:
+
+1. Log the chaos seed only on failure.
+2. Put that seed into the config.
+3. Re-run the same user actions.
+4. Assert the log shape so the replay proves the same chaos path.
+
+<Tabs>
+  <TabItem label="Playwright">
+
+```typescript
+import { test, expect } from '@playwright/test';
+import {
+  formatSeedReproduction,
+  getChaosLog,
+  getChaosSeed,
+  injectChaos,
+} from '@chaos-maker/playwright';
+
+test.afterEach(async ({ page }, testInfo) => {
+  if (testInfo.status !== testInfo.expectedStatus) {
+    console.error(formatSeedReproduction(await getChaosSeed(page)));
+  }
+});
+
+test('replays checkout failure', async ({ page }) => {
+  await injectChaos(page, {
+    seed: 1234,
+    network: {
+      failures: [{ urlPattern: '/api/payments', statusCode: 503, probability: 0.3 }],
+    },
+  });
+
+  await page.goto('/checkout');
+  await page.click('#pay-now');
+  await expect(page.locator('[data-testid="payment-error"]')).toBeVisible();
+
+  const log = await getChaosLog(page);
+  expect(log.some((event) => event.type === 'network:failure' && event.applied)).toBe(true);
+});
+```
+
+  </TabItem>
+  <TabItem label="Cypress">
+
+```typescript
+import { formatSeedReproduction } from '@chaos-maker/cypress';
+
+afterEach(function () {
+  if (this.currentTest?.state === 'failed') {
+    cy.getChaosSeed().then((seed) => {
+      console.error(formatSeedReproduction(seed));
+    });
+  }
+});
+
+it('replays checkout failure', () => {
+  cy.injectChaos({
+    seed: 1234,
+    network: {
+      failures: [{ urlPattern: '/api/payments', statusCode: 503, probability: 0.3 }],
+    },
+  });
+
+  cy.visit('/checkout');
+  cy.get('#pay-now').click();
+  cy.get('[data-testid="payment-error"]').should('be.visible');
+  cy.getChaosLog().should((log) => {
+    expect(log.some((event) => event.type === 'network:failure' && event.applied)).to.equal(true);
+  });
+});
+```
+
+  </TabItem>
+  <TabItem label="WebdriverIO">
+
+```typescript
+import { browser, expect, $ } from '@wdio/globals';
+import {
+  formatSeedReproduction,
+  getChaosLog,
+  getChaosSeed,
+  injectChaos,
+} from '@chaos-maker/webdriverio';
+
+afterEach(async function () {
+  if (this.currentTest?.state === 'failed') {
+    console.error(formatSeedReproduction(await getChaosSeed(browser)));
+  }
+});
+
+it('replays checkout failure', async () => {
+  await browser.url('/checkout');
+  await injectChaos(browser, {
+    seed: 1234,
+    network: {
+      failures: [{ urlPattern: '/api/payments', statusCode: 503, probability: 0.3 }],
+    },
+  });
+
+  await $('#pay-now').click();
+  await expect($('[data-testid="payment-error"]')).toBeDisplayed();
+
+  const log = await getChaosLog(browser);
+  expect(log.some((event) => event.type === 'network:failure' && event.applied)).toBe(true);
+});
+```
+
+  </TabItem>
+  <TabItem label="Puppeteer">
+
+```typescript
+import {
+  formatSeedReproduction,
+  getChaosLog,
+  getChaosSeed,
+  injectChaos,
+} from '@chaos-maker/puppeteer';
+
+try {
+  await injectChaos(page, {
+    seed: 1234,
+    network: {
+      failures: [{ urlPattern: '/api/payments', statusCode: 503, probability: 0.3 }],
+    },
+  });
+
+  await page.goto('http://localhost:3000/checkout');
+  await page.click('#pay-now');
+  await page.waitForSelector('[data-testid="payment-error"]');
+
+  const log = await getChaosLog(page);
+  if (!log.some((event) => event.type === 'network:failure' && event.applied)) {
+    throw new Error('Expected payment failure chaos');
+  }
+} catch (error) {
+  console.error(formatSeedReproduction(await getChaosSeed(page)));
+  throw error;
+}
+```
+
+  </TabItem>
+</Tabs>

@@ -21,13 +21,44 @@ const log = await getChaosLog(page);
 expect(log.some((event) => event.type === 'network:failure' && event.applied)).toBe(true);
 ```
 
+## Event taxonomy
+
+| Event type | Fires when | Detail keys | Example assertion |
+| --- | --- | --- | --- |
+| `network:failure` | A matching failure rule returns or skips a configured HTTP status. | `url`, `method`, `statusCode`, optional `operationName`, `reason` | `log.some((e) => e.type === 'network:failure' && e.detail.statusCode === 503)` |
+| `network:latency` | A matching latency rule delays or skips a request. | `url`, `method`, `delayMs`, optional `operationName`, `reason` | `log.some((e) => e.type === 'network:latency' && e.detail.delayMs === 800)` |
+| `network:abort` | A matching abort rule aborts, skips, or loses the race to a completed request. | `url`, `method`, `timeoutMs`, optional `operationName`, `reason` | `log.some((e) => e.type === 'network:abort' && e.applied)` |
+| `network:corruption` | A matching corruption rule changes, skips, or cannot change a response body. | `url`, `method`, `strategy`, optional `operationName`, `reason` | `log.some((e) => e.type === 'network:corruption' && e.detail.strategy === 'truncate')` |
+| `network:cors` | A matching CORS rule simulates a browser network failure or skips by probability. | `url`, `method`, optional `operationName`, `reason` | `log.some((e) => e.type === 'network:cors' && e.applied)` |
+| `ui:assault` | A DOM assault rule sees a matching element and applies or skips the action. | `selector`, `action`, optional `groupName` | `log.some((e) => e.type === 'ui:assault' && e.detail.action === 'disable')` |
+| `websocket:drop` | A WebSocket drop rule drops an inbound or outbound frame. | `url`, `direction`, `payloadType`, optional `reason` | `log.some((e) => e.type === 'websocket:drop' && e.detail.direction === 'inbound')` |
+| `websocket:delay` | A WebSocket delay rule delays an inbound or outbound frame. | `url`, `direction`, `payloadType`, `delayMs` | `log.some((e) => e.type === 'websocket:delay' && e.detail.delayMs === 500)` |
+| `websocket:corrupt` | A WebSocket corruption rule changes a compatible frame or records why it could not. | `url`, `direction`, `payloadType`, `strategy`, optional `reason` | `log.some((e) => e.type === 'websocket:corrupt' && e.detail.strategy === 'truncate')` |
+| `websocket:close` | A WebSocket close rule closes the socket. | `url`, `closeCode`, `closeReason` | `log.some((e) => e.type === 'websocket:close' && e.detail.closeCode === 1011)` |
+| `sse:drop` | An SSE drop rule drops a matching event. | `url`, `eventType`, optional `reason` | `log.some((e) => e.type === 'sse:drop' && e.detail.eventType === 'token')` |
+| `sse:delay` | An SSE delay rule delays a matching event. | `url`, `eventType`, `delayMs` | `log.some((e) => e.type === 'sse:delay' && e.detail.delayMs === 800)` |
+| `sse:corrupt` | An SSE corruption rule changes a matching event payload. | `url`, `eventType`, `strategy` | `log.some((e) => e.type === 'sse:corrupt' && e.detail.strategy === 'malformed-json')` |
+| `sse:close` | An SSE close rule closes the stream. | `url`, `reason` | `log.some((e) => e.type === 'sse:close')` |
+| `rule-group:enabled` | `enableGroup()` or an adapter group helper enables a group. | `groupName` | `log.some((e) => e.type === 'rule-group:enabled' && e.detail.groupName === 'payments')` |
+| `rule-group:disabled` | `disableGroup()` or an adapter group helper disables a group. | `groupName` | `log.some((e) => e.type === 'rule-group:disabled' && e.detail.groupName === 'payments')` |
+| `rule-group:gated` | A rule is skipped because its group is disabled. | `groupName`, plus the rule context such as `url`, `method`, `selector`, or `action` | `log.some((e) => e.type === 'rule-group:gated' && e.detail.groupName === 'payments')` |
+| `debug` | `debug: true` records each rule-decision stage and lifecycle event. | `stage`, optional `phase`, `ruleType`, `ruleId`, `ruleName`, `url`, `method`, `selector`, `action`, `groupName`, `enabled` | `log.some((e) => e.type === 'debug' && e.detail.stage === 'rule-skip-probability')` |
+
 ## Seeds
 
-Always log `getChaosSeed()` when a test fails. The seed plus the chaos log gives you the repro input and the observed decision sequence.
+Always log `getChaosSeed()` when a test fails. The seed plus the chaos log gives you the replay input and the observed decision sequence.
+
+```typescript
+import { formatSeedReproduction, getChaosSeed } from '@chaos-maker/playwright';
+
+console.error(formatSeedReproduction(await getChaosSeed(page)));
+```
+
+For a complete loop, see [Reproduce a flaky failure](/chaos-maker/recipes/reproduce-flaky-failure/).
 
 ## Debug Mode
 
-When chaos doesn't fire, you don't have to guess why. Set `debug: true` on your config to make Chaos Maker log every step of its rule decision pipeline.
+When chaos does not fire, set `debug: true` on your config to make Chaos Maker log every step of its rule decision pipeline.
 
 ```typescript
 await injectChaos(page, {
@@ -38,14 +69,14 @@ await injectChaos(page, {
 });
 ```
 
-Two sinks fire on every rule decision:
+Two sinks fire on rule decisions and lifecycle events (e.g. `engine:start`, `sw:config-applied`):
 
-1. **Console mirror** — a single line per stage to `console.debug`. Open browser DevTools to see them; CI loggers hide `console.debug` by default.
-2. **Structured event** — a `type: 'debug'` event through the existing emitter. Lands in `getChaosLog()`, the Playwright `chaos-log.json` attachment, and the SW broadcast bridge.
+1. **Console mirror**: a single line per stage to `console.debug`. Open browser DevTools to see them; CI loggers hide `console.debug` by default.
+2. **Structured event**: a `type: 'debug'` event through the existing emitter. Lands in `getChaosLog()`, the Playwright `chaos-log.json` attachment, and the Service Worker broadcast bridge.
 
 Sample console output:
 
-```
+```text
 [Chaos] rule-evaluating: rule=failure#0 GET /api/payments -> 503
 [Chaos] rule-matched: rule=failure#0 GET /api/payments -> 503
 [Chaos] rule-applied: rule=failure#0 GET /api/payments -> 503
@@ -54,7 +85,7 @@ Sample console output:
 
 Service Worker chaos uses a distinct prefix so you can split the streams when both sinks log to the same console:
 
-```
+```text
 [Chaos SW] lifecycle: sw:config-applied
 [Chaos SW] rule-applied: rule=failure#0 GET /api/payments -> 503
 ```
@@ -69,16 +100,41 @@ instance.on('debug', (event) => {
 });
 ```
 
-The full stage taxonomy is documented on the [Debug API reference](/api/debug/).
+The full stage taxonomy is documented on the [Debug API reference](/chaos-maker/api/debug/).
+
+### Why did chaos not fire?
+
+Start from the `applied: false` events:
+
+```typescript
+const misses = log.filter((event) => event.applied === false);
+```
+
+`type: 'rule-group:gated'` means the rule matched, but its group was disabled. Check `detail.groupName`, then call the matching page or Service Worker group helper before the triggering action.
+
+`detail.reason === 'graphql-body-unparseable'` means a rule with `graphqlOperation` needed the request body, but the body could not be parsed. Match by URL only, remove the GraphQL constraint, or send JSON that contains `operationName` or a parseable `query`.
+
+`detail.reason === 'incompatible-payload-type'` means a corruption strategy expected text, but the WebSocket frame was binary. Use a text payload or choose a rule that supports binary frames.
+
+`type: 'debug'` gives the exact stage:
+
+| Stage | Meaning | Typical fix |
+| --- | --- | --- |
+| `rule-skip-match` | URL, method, selector, event type, direction, or GraphQL operation did not match. | Compare the rule matcher with the emitted `detail` fields. |
+| `rule-skip-counting` | `onNth`, `everyNth`, or `afterN` has not reached an active count. | Trigger the action enough times or adjust the counter. |
+| `rule-skip-group` | The rule's group is disabled. | Enable the group before the action. |
+| `rule-skip-probability` | The seeded probability roll missed. | Replay with the same seed to confirm, or raise `probability`. |
+
+For a step-by-step workflow, see [Diagnose no chaos](/chaos-maker/recipes/diagnose-no-chaos/).
 
 ### Framework-agnostic by design
 
-Debug Mode is **independent** of your test runner's debug flags. It does not read `PWDEBUG`, `--debug`, `DEBUG=cypress:*`, `DEBUG=puppeteer:*`, `DEBUG=wdio:*`, `localStorage.debug`, or any other framework-owned signal. The only switch is `debug` on `ChaosConfig`.
+Debug Mode is independent of your test runner's debug flags. It does not read `PWDEBUG`, `--debug`, `DEBUG=cypress:*`, `DEBUG=puppeteer:*`, `DEBUG=wdio:*`, `localStorage.debug`, or any other framework-owned signal. The only switch is `debug` on `ChaosConfig`.
 
 ### CI guidance
 
-`console.debug` is filtered out by default in Playwright, Cypress, Puppeteer, and Vitest reporters. Even so, prefer to omit `debug` in CI configs unless you are deliberately collecting decision logs — debug events also ride through `getChaosLog()` and inflate the log buffer.
+`console.debug` is filtered out by default in Playwright, Cypress, Puppeteer, and Vitest reporters. Even so, prefer to omit `debug` in CI configs unless you are deliberately collecting decision logs. Debug events also ride through `getChaosLog()` and inflate the log buffer.
 
 ## Playwright traces
 
-The Playwright adapter can add chaos events to the trace viewer and attach `chaos-log.json` at test end. `type: 'debug'` events land in the JSON attachment but never render as inline `test.step` entries — the action timeline stays focused on real chaos decisions.
+The Playwright adapter can add chaos events to the trace viewer and attach `chaos-log.json` at test end. `type: 'debug'` events land in the JSON attachment but never render as inline `test.step` entries, so the action timeline stays focused on real chaos decisions.

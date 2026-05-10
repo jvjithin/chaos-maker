@@ -11,7 +11,7 @@ export { registerSWChaosCommands } from './sw';
 export { Logger } from '@chaos-maker/core';
 // Re-export validation surface so adapter consumers can validate on
 // demand and import the error type.
-export { validateChaosConfig, ChaosConfigError } from '@chaos-maker/core';
+export { validateChaosConfig, ChaosConfigError, formatSeedReproduction } from '@chaos-maker/core';
 export type {
   ValidateChaosConfigOptions,
   ValidationIssue,

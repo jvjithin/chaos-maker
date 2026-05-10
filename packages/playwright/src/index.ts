@@ -298,7 +298,7 @@ export type { TraceReporterOptions, ChaosTraceAttachment } from './trace';
 export { Logger } from '@chaos-maker/core';
 // Re-export the structured validation surface so adapter consumers
 // can validate on demand outside of injectChaos and import the error type.
-export { validateChaosConfig, ChaosConfigError } from '@chaos-maker/core';
+export { validateChaosConfig, ChaosConfigError, formatSeedReproduction } from '@chaos-maker/core';
 
 export {
   injectSWChaos,

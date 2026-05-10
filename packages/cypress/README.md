@@ -238,6 +238,10 @@ Chaos behaviour is identical — both adapters load the same core UMD into the p
 - **CSP `script-src` 'self' only**: appending an inline `<script>` element requires either `unsafe-inline` in the page's Content Security Policy or a CSP-relaxed test mode. If your production CSP is strict, disable it for Cypress runs (e.g., via a dedicated test build).
 - **`cy.intercept` interaction**: Cypress's request interception layer runs above `window.fetch`, so a `cy.intercept` response is delivered to chaos-maker's patched fetch — chaos still applies inside the intercepted response path. Use both together intentionally.
 
+## Cypress Command Log
+
+The support module subscribes to applied chaos events and writes `Cypress.log({ name: 'chaos', ... })` entries. Skipped probability events and `type: 'debug'` events stay in `cy.getChaosLog()` so the Command Log remains focused on visible chaos.
+
 ## Service Worker chaos
 
 ```js
@@ -267,6 +271,8 @@ it('SW fetch fails', () => {
   cy.removeSWChaos();
 });
 ```
+
+Use `cy.getSWChaosLog()` for the page-buffered event log. This is the default assertion surface because it reflects events broadcast from the Service Worker to the page. Use `cy.getSWChaosLogFromSW()` when you need a direct pull from the Service Worker's in-memory log, such as debugging a missed page-side broadcast.
 
 Serve `node_modules/@chaos-maker/core/dist/sw.js` at a URL your SW can reach.
 

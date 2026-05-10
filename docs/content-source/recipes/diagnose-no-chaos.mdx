@@ -1,0 +1,109 @@
+---
+title: Diagnose No Chaos
+description: Use debug events and skipped log entries to explain why a rule did not fire.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Turn on `debug: true`, collect the log, then read `applied: false` entries. A disabled group produces both `rule-group:gated` and a debug `rule-skip-group` stage.
+
+<Tabs>
+  <TabItem label="Playwright">
+
+```typescript
+import { test, expect } from '@playwright/test';
+import { getChaosLog, injectChaos } from '@chaos-maker/playwright';
+
+test('explains a disabled payment group', async ({ page }) => {
+  await injectChaos(page, {
+    debug: true,
+    groups: [{ name: 'payments', enabled: false }],
+    network: {
+      failures: [{ urlPattern: '/api/payments', statusCode: 503, probability: 1, group: 'payments' }],
+    },
+  });
+
+  await page.goto('/checkout');
+  await page.click('#pay-now');
+
+  const misses = (await getChaosLog(page)).filter((event) => event.applied === false);
+  expect(misses.some((event) => event.type === 'rule-group:gated' && event.detail.groupName === 'payments')).toBe(true);
+  expect(misses.some((event) => event.type === 'debug' && event.detail.stage === 'rule-skip-group')).toBe(true);
+});
+```
+
+  </TabItem>
+  <TabItem label="Cypress">
+
+```typescript
+it('explains a disabled payment group', () => {
+  cy.injectChaos({
+    debug: true,
+    groups: [{ name: 'payments', enabled: false }],
+    network: {
+      failures: [{ urlPattern: '/api/payments', statusCode: 503, probability: 1, group: 'payments' }],
+    },
+  });
+
+  cy.visit('/checkout');
+  cy.get('#pay-now').click();
+  cy.getChaosLog().should((log) => {
+    const misses = log.filter((event) => event.applied === false);
+    expect(misses.some((event) => event.type === 'rule-group:gated' && event.detail.groupName === 'payments')).to.equal(true);
+    expect(misses.some((event) => event.type === 'debug' && event.detail.stage === 'rule-skip-group')).to.equal(true);
+  });
+});
+```
+
+  </TabItem>
+  <TabItem label="WebdriverIO">
+
+```typescript
+import { browser, expect, $ } from '@wdio/globals';
+import { getChaosLog, injectChaos } from '@chaos-maker/webdriverio';
+
+it('explains a disabled payment group', async () => {
+  await browser.url('/checkout');
+  await injectChaos(browser, {
+    debug: true,
+    groups: [{ name: 'payments', enabled: false }],
+    network: {
+      failures: [{ urlPattern: '/api/payments', statusCode: 503, probability: 1, group: 'payments' }],
+    },
+  });
+
+  await $('#pay-now').click();
+  const misses = (await getChaosLog(browser)).filter((event) => event.applied === false);
+  expect(misses.some((event) => event.type === 'rule-group:gated' && event.detail.groupName === 'payments')).toBe(true);
+  expect(misses.some((event) => event.type === 'debug' && event.detail.stage === 'rule-skip-group')).toBe(true);
+});
+```
+
+  </TabItem>
+  <TabItem label="Puppeteer">
+
+```typescript
+import { getChaosLog, injectChaos } from '@chaos-maker/puppeteer';
+
+await injectChaos(page, {
+  debug: true,
+  groups: [{ name: 'payments', enabled: false }],
+  network: {
+    failures: [{ urlPattern: '/api/payments', statusCode: 503, probability: 1, group: 'payments' }],
+  },
+});
+
+await page.goto('http://localhost:3000/checkout');
+await page.click('#pay-now');
+
+const misses = (await getChaosLog(page)).filter((event) => event.applied === false);
+if (!misses.some((event) => event.type === 'rule-group:gated' && event.detail.groupName === 'payments')) {
+  throw new Error('Expected a gated group event');
+}
+if (!misses.some((event) => event.type === 'debug' && event.detail.stage === 'rule-skip-group')) {
+  throw new Error('Expected a debug group skip event');
+}
+```
+
+  </TabItem>
+</Tabs>

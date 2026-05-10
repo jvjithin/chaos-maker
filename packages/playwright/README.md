@@ -298,6 +298,7 @@ import {
   injectSWChaos,
   removeSWChaos,
   getSWChaosLog,
+  getSWChaosLogFromSW,
   enableSWGroup,
   disableSWGroup,
 } from '@chaos-maker/playwright';
@@ -320,6 +321,8 @@ test('SW-fetched /api returns 503', async ({ page }) => {
   await removeSWChaos(page);
 });
 ```
+
+Use `getSWChaosLog(page)` for the page-buffered event log. This is the default assertion surface because it reflects events broadcast from the Service Worker to the page. Use `getSWChaosLogFromSW(page)` when you need a direct pull from the Service Worker's in-memory log, such as debugging a missed page-side broadcast.
 
 Two artifacts ship in `@chaos-maker/core`:
 - `dist/sw.js` — IIFE bundle for classic SWs (`importScripts('/chaos-maker-sw.js')`).
