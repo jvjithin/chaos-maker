@@ -49,6 +49,19 @@ describe('orders', () => {
 });
 ```
 
+Log the replay seed only when a test fails:
+
+```typescript
+import { browser } from '@wdio/globals';
+import { formatSeedReproduction, getChaosSeed } from '@chaos-maker/webdriverio';
+
+afterEach(async function () {
+  if (this.currentTest?.state === 'failed') {
+    console.error(formatSeedReproduction(await getChaosSeed(browser)));
+  }
+});
+```
+
 ## Custom commands
 
 Call `registerChaosCommands(browser)` in a WDIO setup hook if you prefer `browser.injectChaos(config)`, `browser.getChaosLog()`, and related commands.

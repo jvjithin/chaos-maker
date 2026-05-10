@@ -248,6 +248,8 @@ await browser.disableSWGroup('payments');
 await browser.removeSWChaos();
 ```
 
+Use `browser.getSWChaosLog()` for the page-buffered event log. This is the default assertion surface because it reflects events broadcast from the Service Worker to the page. Use `browser.getSWChaosLogFromSW()` when you need a direct pull from the Service Worker's in-memory log, such as debugging a missed page-side broadcast.
+
 User's SW must `importScripts('/chaos-maker-sw.js')` (classic) or `import { installChaosSW } from '@chaos-maker/core/sw'` (module).
 
 ## License

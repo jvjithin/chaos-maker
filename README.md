@@ -30,7 +30,7 @@ test('checkout works under degraded mobile network', async ({ page }) => {
 });
 ```
 
-See the full catalog in the [Presets docs](https://chaos-maker-dev.github.io/chaos-maker/concepts/presets/).
+See the full catalog in the [Presets docs](https://chaos-maker-dev.github.io/chaos-maker/concepts/presets/). When a failure only appears under a generated seed, follow the [replay recipe](https://chaos-maker-dev.github.io/chaos-maker/recipes/reproduce-flaky-failure/).
 
 ## 30-second Playwright quickstart
 

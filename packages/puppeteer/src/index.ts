@@ -307,7 +307,7 @@ export type {
 // directly alongside the type re-exports above.
 export { Logger } from '@chaos-maker/core';
 // Validation surface re-exported for adapter consumers.
-export { validateChaosConfig, ChaosConfigError } from '@chaos-maker/core';
+export { validateChaosConfig, ChaosConfigError, formatSeedReproduction } from '@chaos-maker/core';
 export type {
   ValidateChaosConfigOptions,
   ValidationIssue,

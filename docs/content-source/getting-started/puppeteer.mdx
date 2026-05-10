@@ -53,6 +53,19 @@ await removeChaos(page);
 await browser.close();
 ```
 
+Log the replay seed in the failure path:
+
+```typescript
+import { formatSeedReproduction, getChaosSeed } from '@chaos-maker/puppeteer';
+
+try {
+  await page.waitForSelector('[data-testid="error-state"]');
+} catch (error) {
+  console.error(formatSeedReproduction(await getChaosSeed(page)));
+  throw error;
+}
+```
+
 ## UI chaos timing
 
 DOM assaults need `document.body`. For UI chaos, load the bundle before navigation, then start the UI config after `page.goto()`.

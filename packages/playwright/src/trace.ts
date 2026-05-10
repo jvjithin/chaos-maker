@@ -1,6 +1,7 @@
 import type { Page, TestInfo } from '@playwright/test';
 import { test } from '@playwright/test';
 import type { ChaosEvent } from '@chaos-maker/core';
+import { formatStepTitle, shouldEmitStep } from '@chaos-maker/core';
 
 /**
  * Binding name used to bridge in-page chaos events to the Node test runner.
@@ -17,84 +18,7 @@ export interface ChaosTraceAttachment {
   events: ChaosEvent[];
 }
 
-/**
- * Format a chaos event into a compact, human-readable trace step title.
- * Keeps titles under ~80 chars; truncates long URLs from the left to preserve
- * the distinguishing path/query tail.
- *
- * Exported for unit testing.
- */
-export function formatStepTitle(event: ChaosEvent): string {
-  const prefix = `chaos:${event.type}`;
-  const d = event.detail ?? {};
-  const parts: string[] = [];
-
-  // Subject
-  const subject = d.url ?? d.selector;
-  if (subject) parts.push(truncate(subject, 48));
-
-  // Outcome suffix
-  const outcome = formatOutcome(event);
-  if (outcome) parts.push(`→ ${outcome}`);
-
-  // Diagnostic marker for applied:false
-  if (!event.applied) parts.push('(skipped)');
-
-  return parts.length > 0 ? `${prefix} ${parts.join(' ')}` : prefix;
-}
-
-function formatOutcome(event: ChaosEvent): string | null {
-  const d = event.detail ?? {};
-  switch (event.type) {
-    case 'network:failure':
-      return d.statusCode != null ? String(d.statusCode) : null;
-    case 'network:latency':
-      return d.delayMs != null ? `+${d.delayMs}ms` : null;
-    case 'network:abort':
-      return 'abort';
-    case 'network:corruption':
-      return d.strategy ?? 'corrupted';
-    case 'network:cors':
-      return 'cors-block';
-    case 'ui:assault':
-      return d.action ?? null;
-    case 'websocket:drop':
-      return d.direction ? `drop ${d.direction}` : 'drop';
-    case 'websocket:delay':
-      return d.delayMs != null ? `delay ${d.direction ?? ''} +${d.delayMs}ms` : 'delay';
-    case 'websocket:corrupt':
-      return d.strategy ?? 'corrupt';
-    case 'websocket:close':
-      return d.closeCode != null ? `close ${d.closeCode}` : 'close';
-    default:
-      return null;
-  }
-}
-
-function truncate(s: string, max: number): string {
-  if (s.length <= max) return s;
-  // Left-truncate URLs/selectors — the tail is usually the distinguishing bit.
-  return `…${s.slice(-(max - 1))}`;
-}
-
-/**
- * Decide whether an event should emit a live `test.step`.
- * Skipped (applied:false) events only render as steps when `verbose` is set,
- * to avoid drowning the action timeline in no-ops. They always land in the
- * attached JSON log regardless.
- *
- * `type: 'debug'` events never render as `test.step` regardless of
- * `verbose` — debug logging is high-volume by design, so the timeline stays
- * focused on real chaos decisions. Debug events still land in the JSON
- * attachment.
- *
- * Exported for unit testing.
- */
-export function shouldEmitStep(event: ChaosEvent, verbose: boolean): boolean {
-  if (event.type === 'debug') return false;
-  if (event.applied) return true;
-  return verbose;
-}
+export { formatStepTitle, shouldEmitStep } from '@chaos-maker/core';
 
 /**
  * Handle returned from `createTraceReporter` — call `dispose()` on teardown
@@ -119,6 +43,8 @@ export interface TraceReporterOptions {
   attachmentName?: string;
 }
 
+const TRACE_HANDLE_KEY = Symbol.for('chaos-maker.playwright.traceHandle');
+
 /**
  * Wire the Playwright page ↔ Node bridge that ships chaos events from the
  * in-page emitter into the test runner's trace/report surfaces.
@@ -140,6 +66,9 @@ export async function createTraceReporter(
   testInfo: TestInfo,
   opts: TraceReporterOptions = {},
 ): Promise<TraceReporterHandle> {
+  const existing = (page as any)[TRACE_HANDLE_KEY] as TraceReporterHandle | undefined;
+  if (existing) return existing;
+
   const verbose = opts.verbose ?? false;
   const attachmentName = opts.attachmentName ?? 'chaos-log.json';
   const events: ChaosEvent[] = [];
@@ -148,17 +77,20 @@ export async function createTraceReporter(
   const handler = (_source: unknown, event: ChaosEvent): void => {
     events.push(event);
     if (!shouldEmitStep(event, verbose)) return;
-    // Fire-and-forget — the binding callback must not block the page.
+    // Fire-and-forget: the binding callback must not block the page.
     // `test.step` captures the current test async context; the promise is
     // resolved on the Node side once the reporter records it.
     const title = formatStepTitle(event);
-    test.step(title, async () => {
-      // No-op body. The step's existence is the signal; its details live on
-      // the final attachment.
-    }).catch(() => {
-      // Swallow — late steps fired after the test body finished can throw.
-      // The event is still captured in `events` and lands in the attachment.
-    });
+    try {
+      test.step(title, async () => {
+        // No-op body. The step's existence is the signal; its details live on
+        // the final attachment.
+      }).catch(() => {
+        // Swallow late step rejections after the test body has finished.
+      });
+    } catch {
+      // Swallow late synchronous throws after the test body has finished.
+    }
   };
 
   // exposeBinding is per-page and persists across navigations.
@@ -194,7 +126,7 @@ export async function createTraceReporter(
     setTimeout(() => clearInterval(intervalId), 5000);
   }, CHAOS_BINDING);
 
-  return {
+  const handle: TraceReporterHandle = {
     events,
     dispose: async (seed: number | null = null) => {
       const payload: ChaosTraceAttachment = {
@@ -210,6 +142,11 @@ export async function createTraceReporter(
       } catch {
         // Test already finished / attachment not accepted — ignore.
       }
+      if ((page as any)[TRACE_HANDLE_KEY] === handle) {
+        delete (page as any)[TRACE_HANDLE_KEY];
+      }
     },
   };
+  (page as any)[TRACE_HANDLE_KEY] = handle;
+  return handle;
 }
