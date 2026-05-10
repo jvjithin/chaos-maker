@@ -100,4 +100,25 @@ describe('bindCypressCommandLog', () => {
 
     expect(instanceOn).toHaveBeenCalledTimes(1);
   });
+
+  it('binds via the retry interval when chaosUtils.instance is initially missing', () => {
+    const { log, emit, instanceOn, win } = installHarness();
+    (win as unknown as { chaosUtils: Record<string, unknown> }).chaosUtils = {};
+
+    bindCypressCommandLog(win);
+
+    const setInterval = win.setInterval as unknown as ReturnType<typeof vi.fn>;
+    expect(setInterval).toHaveBeenCalledTimes(1);
+    const intervalCallback = setInterval.mock.calls[0][0] as () => void;
+
+    (win as unknown as { chaosUtils: { instance: unknown } }).chaosUtils.instance = {
+      on: instanceOn,
+    };
+    intervalCallback();
+
+    expect(instanceOn).toHaveBeenCalledTimes(1);
+
+    emit(mkEvent());
+    expect(log).toHaveBeenCalledTimes(1);
+  });
 });
