@@ -69,7 +69,7 @@ await injectChaos(page, {
 });
 ```
 
-Two sinks fire on every rule decision:
+Two sinks fire on rule decisions and lifecycle events (e.g. `engine:start`, `sw:config-applied`):
 
 1. **Console mirror**: a single line per stage to `console.debug`. Open browser DevTools to see them; CI loggers hide `console.debug` by default.
 2. **Structured event**: a `type: 'debug'` event through the existing emitter. Lands in `getChaosLog()`, the Playwright `chaos-log.json` attachment, and the Service Worker broadcast bridge.

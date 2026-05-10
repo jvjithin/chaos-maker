@@ -49,17 +49,19 @@ describe('orders', () => {
 });
 ```
 
-Log the replay seed only when a test fails:
+Log the replay seed only when a test fails. WDIO's `afterTest` runner hook (in `wdio.conf.ts`) is the reliable place: `passed` is supplied directly, with no Mocha-internal state to inspect.
 
 ```typescript
-import { browser } from '@wdio/globals';
+// wdio.conf.ts
 import { formatSeedReproduction, getChaosSeed } from '@chaos-maker/webdriverio';
 
-afterEach(async function () {
-  if (this.currentTest?.state === 'failed') {
+export const config = {
+  // …
+  async afterTest(_test, _context, { passed }) {
+    if (passed) return;
     console.error(formatSeedReproduction(await getChaosSeed(browser)));
-  }
-});
+  },
+};
 ```
 
 ## Custom commands
