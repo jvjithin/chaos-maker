@@ -46,7 +46,7 @@ export default defineConfig({
     starlight({
       title: 'Chaos Maker',
       description: 'Frontend chaos engineering toolkit for testing resilience across Playwright, Cypress, WebdriverIO, and Puppeteer.',
-      favicon: '/favicon.svg',
+      favicon: '/favicon.png',
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/chaos-maker-dev/chaos-maker' },
       ],
