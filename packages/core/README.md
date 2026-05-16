@@ -283,7 +283,7 @@ try {
 
 - `unknownFields: 'reject' | 'warn' | 'ignore'` - strict by default. `'warn'` and `'ignore'` strip unknowns from the returned config; `'warn'` emits exactly one aggregated `console.warn` per call.
 - `customValidators: Partial<Record<RuleType, (rule, ctx) => ValidationIssue[] | void>>` - run extra checks per rule type.
-- `onDeprecation: (issue) => void` - receive `ValidationIssue` events for deprecated fields (rails only in v0.5.0).
+- `onDeprecation: (issue) => void` - receive `ValidationIssue` events for deprecated fields. The registry is empty for this release.
 
 A JSON Schema artifact ships at `node_modules/@chaos-maker/core/dist/chaos-config.schema.json` for IDE / `"$schema"` autocomplete plus a sidecar `chaos-config.schema.notes.md` listing parity caveats. The artifact is a tooling approximation - runtime canonical validation is always Zod via `validateChaosConfig`.
 
@@ -348,7 +348,7 @@ installChaosSW({ source: 'message' });
 
 Page-side config is delivered via `postMessage` + `MessageChannel` ack. Use the adapter helpers (`injectSWChaos` / `removeSWChaos` / `getSWChaosLog`) in `@chaos-maker/{playwright,cypress,webdriverio,puppeteer}`.
 
-Limitations: `caches.match` hits bypass chaos (planned for v0.5.0); push/sync events not covered; cross-origin SWs not supported.
+Limitations: `caches.match` hits bypass chaos; push/sync events not covered; cross-origin SWs not supported.
 
 ## License
 
