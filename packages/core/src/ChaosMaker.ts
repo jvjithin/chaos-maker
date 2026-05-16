@@ -124,20 +124,22 @@ export class ChaosMaker {
     });
   }
 
-  private emitInvariant(reason: string, extra: ChaosEvent['detail'] = {}): void {
+  private emitInvariant(
+    phase: 'engine:start' | 'engine:stop',
+    reason: string,
+    extra: ChaosEvent['detail'] = {},
+  ): void {
     this.emitter.debug('lifecycle', {
-      phase: 'engine:stop',
+      phase,
       reason,
       ...extra,
     });
   }
 
+  // Engine `start()` already checked `getActiveRuntimeInstance` and bailed —
+  // by the time this runs the target is owned by this instance, so the
+  // active-instance probe lives at the call site and not here.
   private emitStartInvariantDiagnostics(target: ChaosTarget): void {
-    const active = getActiveRuntimeInstance(target);
-    if (active && active !== this) {
-      this.emitInvariant('active-instance-conflict', { phase: 'engine:start' });
-    }
-
     this.emitPatchDiagnostic(target.fetch, 'fetch', 'target-fetch-already-patched', 'engine:start');
     if (typeof target.XMLHttpRequest === 'function') {
       this.emitPatchDiagnostic(
@@ -160,13 +162,13 @@ export class ChaosMaker {
       this.emitPatchDiagnostic(target.EventSource, 'eventsource', 'target-eventsource-already-patched', 'engine:start');
     }
     if (this.domObserver) {
-      this.emitInvariant('orphaned-dom-observer', { phase: 'engine:start' });
+      this.emitInvariant('engine:start', 'orphaned-dom-observer');
     }
     if (this.webSocketHandle) {
-      this.emitInvariant('stale-websocket-handle', { phase: 'engine:start' });
+      this.emitInvariant('engine:start', 'stale-websocket-handle');
     }
     if (this.eventSourceHandle) {
-      this.emitInvariant('stale-eventsource-handle', { phase: 'engine:start' });
+      this.emitInvariant('engine:start', 'stale-eventsource-handle');
     }
   }
 
@@ -201,7 +203,7 @@ export class ChaosMaker {
     phase: 'engine:start' | 'engine:stop',
   ): void {
     if (getRuntimePatchKind(value) === expected) {
-      this.emitInvariant(reason, { phase });
+      this.emitInvariant(phase, reason);
     }
   }
 
@@ -209,7 +211,7 @@ export class ChaosMaker {
     try {
       fn();
     } catch (err) {
-      this.emitInvariant(`cleanup-step-failed:${reason}`);
+      this.emitInvariant('engine:stop', `cleanup-step-failed:${reason}`);
       emitCleanupWarning(reason, err);
     }
   }
@@ -313,7 +315,7 @@ export class ChaosMaker {
     const target = this.target;
     const activeInstance = getActiveRuntimeInstance(target);
     if (activeInstance && activeInstance !== this) {
-      this.emitInvariant('active-instance-conflict', { phase: 'engine:start' });
+      this.emitInvariant('engine:start', 'active-instance-conflict');
       throw new Error('[chaos-maker] target already has an active runtime instance');
     }
     this.emitStartInvariantDiagnostics(target);

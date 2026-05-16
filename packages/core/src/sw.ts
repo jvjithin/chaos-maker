@@ -206,6 +206,11 @@ function startEngine(state: SWEngineState, config: ChaosConfig): number {
     state.emitter.setRuleIds(undefined);
     state.emitter.setLogger(undefined);
   }
+  // SW scope has exactly one global per registration, so a second engine
+  // patching the same target is rare and we cannot fail-fast without
+  // disrupting an active SW. The page-side engine throws on conflict; here
+  // we surface the same condition as a debug diagnostic and let the new
+  // config take over.
   const active = getActiveRuntimeInstance(state.target);
   if (active && active !== state) {
     state.emitter.debug('lifecycle', {
