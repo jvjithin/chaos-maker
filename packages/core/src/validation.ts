@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { ChaosConfigError } from './errors';
 import type { ChaosConfig } from './config';
 import { PresetRegistry, expandPresets, type PresetConfigSlice } from './presets';
-import type { ProfileConfigSlice } from './profiles';
+import { ProfileRegistry, applyProfile, type ProfileConfigSlice } from './profiles';
 import { formatZodIssue } from './validation-format';
 import type {
   CustomValidatorMap,
@@ -513,12 +513,16 @@ export interface PrepareChaosConfigOptions {
  *
  *  Composes:
  *    1. Zod pass 1 (strict OR passthrough+strip per `opts.unknownFields`).
- *    2. Build per-instance `PresetRegistry`, register customs.
- *    3. `expandPresets` — append rule arrays + groups, strip preset fields.
- *    4. Zod pass 2 (strict, on the merged config).
+ *    2. Build per-instance `ProfileRegistry`, register `customProfiles`,
+ *       resolve `profile` + `profileOverrides` into a flat config (strips
+ *       all three profile fields).
+ *    3. Build per-instance `PresetRegistry`, register `customPresets`.
+ *    4. `expandPresets` — append rule arrays + groups, strip preset fields.
+ *    5. Zod pass 2 (strict, on the merged config).
  *
  *  v0.4.x callers pass no opts and get strict-by-default behavior identical
- *  to before. */
+ *  to before. Configs that omit profile-related fields skip the new
+ *  resolution layer entirely (single fast-path `cloneValue` no-op). */
 export function prepareChaosConfig(
   input: unknown,
   opts: PrepareChaosConfigOptions = {},
@@ -547,11 +551,31 @@ export function prepareChaosConfig(
     validated = stripUnknownKeys(validated);
   }
 
+  let profileResolved: ChaosConfig;
+  try {
+    const profileRegistry = new ProfileRegistry();
+    profileRegistry.registerAll(validated.customProfiles);
+    profileResolved = applyProfile(validated, profileRegistry);
+  } catch (e) {
+    if (e instanceof ChaosConfigError) throw e;
+    const msg = (e as Error).message;
+    let code: ValidationIssueCode = 'custom';
+    if (msg.includes('is not registered')) code = 'unknown_profile';
+    else if (msg.includes('already registered')) code = 'profile_collision';
+    else if (msg.includes('may not contain')) code = 'profile_chain';
+    throw new ChaosConfigError([{
+      path: validated.profile !== undefined ? 'profile' : 'profileOverrides',
+      code,
+      ruleType: 'profile',
+      message: msg,
+    }]);
+  }
+
   let expanded: ChaosConfig;
   try {
     const registry = new PresetRegistry();
-    registry.registerAll(validated.customPresets);
-    expanded = expandPresets(validated, registry);
+    registry.registerAll(profileResolved.customPresets);
+    expanded = expandPresets(profileResolved, registry);
   } catch (e) {
     if (e instanceof ChaosConfigError) throw e;
     const msg = (e as Error).message;
