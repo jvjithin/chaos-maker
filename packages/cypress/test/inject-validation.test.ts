@@ -14,10 +14,14 @@ afterEach(() => {
   }
 });
 
-function installHarness(): { commands: CommandMap; taskSpy: ReturnType<typeof vi.fn>; windowSpy: ReturnType<typeof vi.fn> } {
+function installHarness(
+  win: Record<string, unknown> = {},
+): { commands: CommandMap; taskSpy: ReturnType<typeof vi.fn>; windowSpy: ReturnType<typeof vi.fn> } {
   const commands: CommandMap = {};
   const taskSpy = vi.fn(() => ({ then: () => undefined }));
-  const windowSpy = vi.fn(() => ({ then: () => undefined }));
+  const windowSpy = vi.fn(() => ({
+    then: (fn: (value: unknown) => unknown) => fn(win),
+  }));
   const previousCypress = (globalThis as { Cypress?: unknown }).Cypress;
   const previousCy = (globalThis as { cy?: unknown }).cy;
   (globalThis as { Cypress?: unknown }).Cypress = {
@@ -67,5 +71,46 @@ describe('@chaos-maker/cypress injectSWChaos validation gate', () => {
       } as unknown as Parameters<typeof commands.injectSWChaos>[0]),
     ).toThrow(ChaosConfigError);
     expect(windowSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('@chaos-maker/cypress removeSWChaos cleanup', () => {
+  it('clears page and worker logs after stop', async () => {
+    const stop = vi.fn(async () => undefined);
+    const clearLocalLog = vi.fn();
+    const clearRemoteLog = vi.fn(async () => undefined);
+    const { commands } = installHarness({
+      __chaosMakerSWBridge: {
+        stop,
+        clearLocalLog,
+        clearRemoteLog,
+      },
+    });
+
+    await commands.removeSWChaos({ timeoutMs: 789 });
+
+    expect(stop).toHaveBeenCalledWith(789);
+    expect(clearLocalLog).toHaveBeenCalledTimes(1);
+    expect(clearRemoteLog).toHaveBeenCalledWith(789);
+  });
+
+  it('clears page and worker logs even when stop rejects', async () => {
+    const stop = vi.fn(async () => {
+      throw new Error('stop failed');
+    });
+    const clearLocalLog = vi.fn();
+    const clearRemoteLog = vi.fn(async () => undefined);
+    const { commands } = installHarness({
+      __chaosMakerSWBridge: {
+        stop,
+        clearLocalLog,
+        clearRemoteLog,
+      },
+    });
+
+    await expect(commands.removeSWChaos({ timeoutMs: 789 })).rejects.toThrow('stop failed');
+
+    expect(clearLocalLog).toHaveBeenCalledTimes(1);
+    expect(clearRemoteLog).toHaveBeenCalledWith(789);
   });
 });

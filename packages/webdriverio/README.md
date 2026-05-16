@@ -198,6 +198,8 @@ Inject chaos into the current page. `config` matches `@chaos-maker/core`'s `Chao
 
 Stop chaos and restore the original `fetch` / `XHR` / `WebSocket` / DOM behaviour on the current page.
 
+Call this from `afterEach` when using direct helpers. Cleanup is best-effort if the WebDriver session or page is already gone, so teardown should not hide the original test failure. WebdriverIO injection is post-navigation, so use a fresh page/session when you need startup requests isolated from a prior test.
+
 ### `getChaosLog(browser): Promise<ChaosEvent[]>`
 
 Read every chaos decision emitted since `injectChaos` was called — applied or skipped.
@@ -213,6 +215,19 @@ Toggle a browser-side Rule Group. Requires `registerChaosCommands(browser)`.
 ### `browser.enableSWGroup(name, opts?)` / `browser.disableSWGroup(name, opts?)`
 
 Toggle a Service Worker Rule Group. Requires `registerSWChaosCommands(browser)`. Pass `opts.timeoutMs` to override the Service Worker acknowledgement timeout.
+
+## Leak diagnostics
+
+Pass `debug: true` on the chaos config to surface leaked-runtime diagnostics in the event log. Filter `browser.getChaosLog()` for `type === 'debug'` events with `detail.reason` covering double-patched globals, stale wrapper handles, orphaned observers, or active-instance conflicts. See [`@chaos-maker/core`](../core/README.md#leak-diagnostics) for the full reason list.
+
+```ts
+await browser.url('/');
+await browser.injectChaos({ debug: true, network: { /* ... */ } });
+const log = await browser.getChaosLog();
+const issues = log.filter(
+  (e) => e.type === 'debug' && /already-patched|stale|orphaned|active-instance-conflict/.test(String(e.detail.reason ?? '')),
+);
+```
 
 ## Service Worker chaos
 
@@ -249,6 +264,8 @@ await browser.removeSWChaos();
 ```
 
 Use `browser.getSWChaosLog()` for the page-buffered event log. This is the default assertion surface because it reflects events broadcast from the Service Worker to the page. Use `browser.getSWChaosLogFromSW()` when you need a direct pull from the Service Worker's in-memory log, such as debugging a missed page-side broadcast.
+
+`browser.removeSWChaos()` stops the worker engine and clears both the page-buffered and worker-side logs. Unregister the app's Service Worker when you need a fresh registration between tests.
 
 User's SW must `importScripts('/chaos-maker-sw.js')` (classic) or `import { installChaosSW } from '@chaos-maker/core/sw'` (module).
 

@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import type { ChaosConfig, ChaosEvent, ValidateChaosConfigOptions } from '@chaos-maker/core';
-import { serializeForTransport, validateChaosConfig } from '@chaos-maker/core';
+import { serializeForTransport, validateChaosConfig, isSessionTeardownError } from '@chaos-maker/core';
 import './types';
 
 /** Options accepted by {@link injectChaos}. */
@@ -122,12 +122,17 @@ export async function removeChaos(browser: ChaosBrowser): Promise<void> {
   // Read state off `window` (the page realm), not `globalThis` — in Firefox
   // geckodriver's executeScript sandbox `globalThis` is the sandbox global,
   // which never sees `chaosUtils` because the UMD attaches it to `window`.
-  await browser.execute(() => {
-    const w = window as unknown as { chaosUtils?: { stop: () => void } };
-    if (w.chaosUtils && typeof w.chaosUtils.stop === 'function') {
-      w.chaosUtils.stop();
-    }
-  });
+  try {
+    await browser.execute(() => {
+      const w = window as unknown as { chaosUtils?: { stop: () => void } };
+      if (w.chaosUtils && typeof w.chaosUtils.stop === 'function') {
+        w.chaosUtils.stop();
+      }
+    });
+  } catch (err) {
+    if (!isSessionTeardownError(err)) throw err;
+    // Session may already be torn down during framework cleanup.
+  }
 }
 
 /**

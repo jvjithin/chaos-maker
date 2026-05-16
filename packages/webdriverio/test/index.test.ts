@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   injectChaos,
   removeChaos,
+  removeSWChaos,
   getChaosLog,
   getChaosSeed,
   registerChaosCommands,
@@ -74,6 +75,20 @@ describe('@chaos-maker/webdriverio', () => {
       expect(fake.executeCalls).toHaveLength(1);
     });
 
+    it('removeChaos swallows closed-session evaluation errors', async () => {
+      const browser: ChaosBrowser = {
+        execute: vi.fn().mockRejectedValue(new Error('Session closed')),
+      };
+      await expect(removeChaos(browser)).resolves.toBeUndefined();
+    });
+
+    it('removeChaos rethrows non-session evaluation errors', async () => {
+      const browser: ChaosBrowser = {
+        execute: vi.fn().mockRejectedValue(new Error('chaos stop failed')),
+      };
+      await expect(removeChaos(browser)).rejects.toThrow('chaos stop failed');
+    });
+
     it('getChaosLog returns browser execute result as-is', async () => {
       const expected = [{ type: 'network:failure', applied: true }];
       const browser: ChaosBrowser = {
@@ -119,6 +134,59 @@ describe('@chaos-maker/webdriverio', () => {
         execute: vi.fn(),
       };
       expect(() => registerChaosCommands(noAddCommand)).toThrow(/addCommand/);
+    });
+  });
+
+  describe('removeSWChaos', () => {
+    it('clears page and worker logs after stop', async () => {
+      const stop = vi.fn(async () => undefined);
+      const clearLocalLog = vi.fn();
+      const clearRemoteLog = vi.fn(async () => undefined);
+      (globalThis as unknown as Record<string, unknown>).window = {
+        __chaosMakerSWBridge: {
+          stop,
+          clearLocalLog,
+          clearRemoteLog,
+        },
+      };
+      const browser: ChaosBrowser = {
+        async execute(fn, ...args) {
+          return (fn as (...innerArgs: unknown[]) => unknown)(...args) as never;
+        },
+      };
+
+      await removeSWChaos(browser, { timeoutMs: 456 });
+
+      expect(stop).toHaveBeenCalledWith(456);
+      expect(clearLocalLog).toHaveBeenCalledTimes(1);
+      expect(clearRemoteLog).toHaveBeenCalledWith(456);
+      delete (globalThis as unknown as Record<string, unknown>).window;
+    });
+
+    it('clears page and worker logs when stop rejects', async () => {
+      const stop = vi.fn(async () => {
+        throw new Error('stop failed');
+      });
+      const clearLocalLog = vi.fn();
+      const clearRemoteLog = vi.fn(async () => undefined);
+      (globalThis as unknown as Record<string, unknown>).window = {
+        __chaosMakerSWBridge: {
+          stop,
+          clearLocalLog,
+          clearRemoteLog,
+        },
+      };
+      const browser: ChaosBrowser = {
+        async execute(fn, ...args) {
+          return (fn as (...innerArgs: unknown[]) => unknown)(...args) as never;
+        },
+      };
+
+      await expect(removeSWChaos(browser, { timeoutMs: 456 })).resolves.toBeUndefined();
+
+      expect(clearLocalLog).toHaveBeenCalledTimes(1);
+      expect(clearRemoteLog).toHaveBeenCalledWith(456);
+      delete (globalThis as unknown as Record<string, unknown>).window;
     });
   });
 });

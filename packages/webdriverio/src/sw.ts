@@ -82,11 +82,16 @@ export async function removeSWChaos(browser: ChaosBrowser, opts: SWChaosOptions 
         __chaosMakerSWBridge?: {
           stop: (t: number) => Promise<unknown>;
           clearLocalLog: () => void;
+          clearRemoteLog?: (t: number) => Promise<void>;
         };
       }).__chaosMakerSWBridge;
       if (!bridge) return;
-      await bridge.stop(t);
-      bridge.clearLocalLog();
+      try {
+        await bridge.stop(t);
+      } finally {
+        bridge.clearLocalLog();
+        await bridge.clearRemoteLog?.(t).catch(() => undefined);
+      }
     }, timeoutMs);
   } catch {
     // Session closed mid-teardown — nothing left to clean up.

@@ -12,7 +12,8 @@
  *  - `toggleGroup(name, enabled, timeoutMs)` — flip a rule group inside the SW
  *    via `__chaosMakerToggleGroup`; resolves on ack with no engine restart.
  *  - `getLocalLog()` / `clearLocalLog()` — page-side buffered event log.
- *  - `getRemoteLog(timeoutMs)` — fetch SW's in-memory log.
+ *  - `getRemoteLog(timeoutMs)` / `clearRemoteLog(timeoutMs)` - inspect or
+ *    clear the SW-side in-memory log.
  *
  * The bridge auto-wires a `controllerchange` listener so SW updates inherit
  * the most recent config. Install is idempotent.
@@ -136,6 +137,13 @@ export const SW_BRIDGE_SOURCE = /* js */ `
         .then(function (reply) {
           return (reply && Array.isArray(reply.log)) ? reply.log : [];
         });
+    },
+    clearRemoteLog: function (timeoutMs) {
+      if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) {
+        return Promise.resolve();
+      }
+      return postViaPort(navigator.serviceWorker.controller, { __chaosMakerClearLog: true }, timeoutMs)
+        .then(function () { return undefined; });
     },
   };
 

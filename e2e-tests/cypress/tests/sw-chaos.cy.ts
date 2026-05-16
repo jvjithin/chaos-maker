@@ -84,4 +84,38 @@ describe('SW chaos — stop restores fetch', () => {
     cy.get('#sw-fetch').click();
     cy.get('#sw-fetch-status').should('have.text', '200');
   });
+
+  it('stop then reinject works on a reused SW registration', () => {
+    registerClassicSW();
+    cy.injectSWChaos({
+      network: { failures: [{ urlPattern: '/api/data.json', statusCode: 503, probability: 1 }] },
+      seed: 4,
+    });
+    cy.get('#sw-fetch').click();
+    cy.get('#sw-fetch-status').should('have.text', '503');
+
+    cy.removeSWChaos();
+    cy.window({ log: false }).then((win) => {
+      win.document.getElementById('sw-fetch-status')!.textContent = '';
+    });
+    cy.get('#sw-fetch').click();
+    cy.get('#sw-fetch-status').should('have.text', '200');
+
+    cy.getSWChaosLog().should((log) => {
+      expect(log).to.deep.equal([]);
+    });
+    cy.getSWChaosLogFromSW().should((log) => {
+      expect(log).to.deep.equal([]);
+    });
+
+    cy.injectSWChaos({
+      network: { failures: [{ urlPattern: '/api/data.json', statusCode: 418, probability: 1 }] },
+      seed: 5,
+    });
+    cy.window({ log: false }).then((win) => {
+      win.document.getElementById('sw-fetch-status')!.textContent = '';
+    });
+    cy.get('#sw-fetch').click();
+    cy.get('#sw-fetch-status').should('have.text', '418');
+  });
 });

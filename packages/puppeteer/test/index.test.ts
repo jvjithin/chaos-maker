@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   injectChaos,
   removeChaos,
+  removeSWChaos,
   getChaosLog,
   getChaosSeed,
   useChaos,
@@ -154,6 +155,68 @@ describe('@chaos-maker/puppeteer', () => {
       const teardown = await useChaos(fake.page, {});
       await teardown();
       expect(fake.evaluateCalls).toHaveLength(1);
+    });
+  });
+
+  describe('removeSWChaos', () => {
+    afterEach(() => {
+      delete (globalThis as unknown as Record<string, unknown>).__chaosMakerSWBridge;
+    });
+
+    it('clears page and worker logs after stop', async () => {
+      const stop = vi.fn(async () => undefined);
+      const clearLocalLog = vi.fn();
+      const clearRemoteLog = vi.fn(async () => undefined);
+      (globalThis as unknown as Record<string, unknown>).__chaosMakerSWBridge = {
+        stop,
+        clearLocalLog,
+        clearRemoteLog,
+      };
+      const page: ChaosPage = {
+        evaluateOnNewDocument: vi.fn(),
+        async evaluate(fn, ...args) {
+          return (fn as (...innerArgs: unknown[]) => unknown)(...args) as never;
+        },
+        goto: vi.fn(),
+      };
+
+      await removeSWChaos(page, { timeoutMs: 321 });
+
+      expect(stop).toHaveBeenCalledWith(321);
+      expect(stop).toHaveBeenCalledTimes(1);
+      expect(clearLocalLog).toHaveBeenCalledTimes(1);
+      expect(clearRemoteLog).toHaveBeenCalledWith(321);
+      expect(stop.mock.invocationCallOrder[0]).toBeLessThan(clearLocalLog.mock.invocationCallOrder[0]);
+      expect(stop.mock.invocationCallOrder[0]).toBeLessThan(clearRemoteLog.mock.invocationCallOrder[0]);
+    });
+
+    it('clears page and worker logs when stop rejects', async () => {
+      const stop = vi.fn(async () => {
+        throw new Error('stop failed');
+      });
+      const clearLocalLog = vi.fn();
+      const clearRemoteLog = vi.fn(async () => undefined);
+      (globalThis as unknown as Record<string, unknown>).__chaosMakerSWBridge = {
+        stop,
+        clearLocalLog,
+        clearRemoteLog,
+      };
+      const page: ChaosPage = {
+        evaluateOnNewDocument: vi.fn(),
+        async evaluate(fn, ...args) {
+          return (fn as (...innerArgs: unknown[]) => unknown)(...args) as never;
+        },
+        goto: vi.fn(),
+      };
+
+      await expect(removeSWChaos(page, { timeoutMs: 321 })).resolves.toBeUndefined();
+
+      expect(stop).toHaveBeenCalledWith(321);
+      expect(stop).toHaveBeenCalledTimes(1);
+      expect(clearLocalLog).toHaveBeenCalledTimes(1);
+      expect(clearRemoteLog).toHaveBeenCalledWith(321);
+      expect(stop.mock.invocationCallOrder[0]).toBeLessThan(clearLocalLog.mock.invocationCallOrder[0]);
+      expect(stop.mock.invocationCallOrder[0]).toBeLessThan(clearRemoteLog.mock.invocationCallOrder[0]);
     });
   });
 });
