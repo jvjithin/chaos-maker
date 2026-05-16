@@ -336,10 +336,18 @@ function main() {
       console.warn(`[docs-versions] ${tag} has no docs source; skipping`);
       continue;
     }
-    const banner = `Archived <strong>${tag}</strong> docs. <a href="${PAGES_BASE}/latest/">Latest</a>.`;
+    // The canonical versioned slug for the current latest stable serves the
+    // same content as /latest/, so it should not wear an "archived" banner
+    // until a newer stable tag supersedes it. The manifest still flags only
+    // the `/latest/` entry as isLatest — the versioned slug stays an archive
+    // entry for URL-identity purposes, even when its banner reads "Latest".
+    const isCurrentLatest = tag === latestTag;
+    const banner = isCurrentLatest
+      ? `Latest stable: <strong>${latestTag}</strong>.`
+      : `Archived <strong>${tag}</strong> docs. <a href="${PAGES_BASE}/latest/">Latest</a>.`;
     rewriteVersionLinks(dest, slug);
     injectBanner(dest, banner);
-    injectEditUrl(dest, slug, 'disabled');
+    injectEditUrl(dest, slug, isCurrentLatest ? 'enabled' : 'disabled');
     archivedEntries.push({
       slug,
       label: tag,
