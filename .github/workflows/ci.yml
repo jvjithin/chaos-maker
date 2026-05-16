@@ -155,22 +155,20 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build, changes]
     if: needs.changes.outputs.code == 'true'
+    # Prebuilt Playwright container ships browsers + system deps + msedge channel,
+    # so we drop the cache + `playwright install` + `install-deps` steps. Pin the
+    # image to the @playwright/test minor in pnpm-lock.yaml; bump this tag in the
+    # same PR as any `@playwright/test` upgrade to avoid version skew.
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble
+      options: --ipc=host
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - project: chromium
-            install: chromium
-          - project: firefox
-            install: firefox
-          - project: webkit
-            install: webkit
-          # devices['Desktop Edge'] resolves to browserName=chromium + channel=msedge.
-          # In headless mode that still launches via chromium_headless_shell, so we
-          # must install both the msedge channel (system Edge) and the chromium
-          # headless shell alongside it.
-          - project: edge
-            install: msedge chromium-headless-shell
+        # Edge is `browserName=chromium + channel=msedge`. The Playwright image
+        # bundles both msedge and chromium-headless-shell, so the project just
+        # works without an extra install step.
+        project: [chromium, firefox, webkit, edge]
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
@@ -187,21 +185,6 @@ jobs:
       - name: Sync SW bundle into fixtures
         run: node scripts/sync-sw-fixtures.mjs
 
-      - name: Cache Playwright Browsers
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ matrix.project }}-${{ hashFiles('e2e-tests/playwright/package.json') }}
-
-      - name: Install Playwright Browser (${{ matrix.install }})
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm --filter e2e-tests-playwright exec playwright install --with-deps ${{ matrix.install }}
-
-      - name: Install Playwright System Dependencies
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: pnpm --filter e2e-tests-playwright exec playwright install-deps ${{ matrix.install }}
-
       - name: Run E2E Tests (${{ matrix.project }})
         run: pnpm --filter e2e-tests-playwright exec playwright test --project ${{ matrix.project }}
 
@@ -210,42 +193,28 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build, changes]
     if: needs.changes.outputs.code == 'true'
+    # cypress/included ships the Cypress binary + Chrome + Electron + Node, so
+    # we drop the cache + `cypress install` postinstall step. Pin the image to
+    # the cypress version in pnpm-lock.yaml; bump in the same PR as any
+    # `cypress` upgrade to avoid version skew.
+    #
+    # Firefox is intentionally excluded: Cypress 13.x's CDP-over-GeckoDriver
+    # bridge is broken against Firefox 140+ ("Failed to spawn CDP with
+    # Firefox"). Playwright's firefox job covers the Firefox engine end-to-end.
+    # Revisit after upgrading to Cypress 14.x.
+    container:
+      image: cypress/included:13.17.0
+      options: --ipc=host
     strategy:
       fail-fast: false
       matrix:
-        # Chrome is pre-installed on ubuntu-latest runners.
-        # Electron ships with the Cypress binary itself — no separate install.
-        #
-        # Firefox is intentionally excluded: Cypress 13.x's CDP-over-GeckoDriver
-        # bridge is broken against Firefox 140+ on ubuntu-latest ("Failed to
-        # spawn CDP with Firefox" → `getWindowHandles` of undefined). This is a
-        # Cypress-infrastructure issue, not a chaos-maker one. Playwright's
-        # firefox job still covers the Firefox browser engine end-to-end, and
-        # chaos-maker core only touches standard Web Platform APIs that behave
-        # identically across engines. Revisit after upgrading to Cypress 14.x,
-        # which has better WebDriver BiDi support.
-        #
-        # WebKit isn't supported by Cypress at all (covered by Playwright).
         browser: [chrome, electron]
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
 
-      # Restore Cypress binary cache before install so the cypress postinstall
-      # hook reuses the cached binary instead of re-downloading.
-      - name: Cache Cypress Binary
-        id: cypress-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/Cypress
-          key: cypress-${{ hashFiles('pnpm-lock.yaml') }}
-
       - name: Setup
         uses: ./.github/actions/setup
-
-      - name: Install Cypress Binary
-        if: steps.cypress-cache.outputs.cache-hit != 'true'
-        run: pnpm --filter e2e-tests-cypress exec cypress install
 
       - name: Download Build Artifact
         uses: actions/download-artifact@v4
