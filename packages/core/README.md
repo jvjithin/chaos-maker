@@ -289,6 +289,45 @@ A JSON Schema artifact ships at `node_modules/@chaos-maker/core/dist/chaos-confi
 
 See the [Rule Validation concept page](https://chaos-maker-dev.github.io/chaos-maker/concepts/validation/) for the full pipeline, brand semantics, and migration notes.
 
+## Lifecycle and isolation
+
+`start()` and `stop()` are the only entry points to the patched runtime. On `stop()` each restore step — `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, and the DOM observer — runs inside its own `try` / `catch`, so one failing step does not block the others from running. The failing step is reported via a `cleanup-step-failed:<step>` debug event and a `console.warn`. Some edge cases (frozen prototypes, third-party code that re-wraps a global between `start()` and `stop()`, host objects that reject property writes) may still leave a global patched; treat the diagnostics surface as the source of truth rather than assuming an absolute restore guarantee.
+
+```ts
+const chaos = new ChaosMaker(config);
+chaos.start();
+try {
+  // ... drive the page ...
+} finally {
+  chaos.stop(); // safe to call twice; idempotent.
+}
+```
+
+Concurrent instances against the same target are rejected. A second `start()` on a target that already has an active instance throws `[chaos-maker] target already has an active runtime instance` so the first instance keeps owning the patched globals. Use one `ChaosMaker` per realm (page, worker, jsdom) and call `stop()` before constructing a replacement.
+
+## Leak diagnostics
+
+When debug mode is enabled, the engine emits structured invariant events whenever it sees signs of a leaked runtime — patched globals on start, stale wrapper handles, or another instance owning the target.
+
+```ts
+const chaos = new ChaosMaker(config, { debug: true });
+chaos.start();
+// ...
+chaos.stop();
+
+const issues = chaos.getLog().filter((event) =>
+  event.type === 'debug' &&
+  (event.detail.reason?.includes('already-patched') ||
+   event.detail.reason?.includes('stale') ||
+   event.detail.reason?.includes('orphaned') ||
+   event.detail.reason === 'active-instance-conflict'),
+);
+```
+
+Reasons emitted include `target-fetch-already-patched`, `target-xhr-open-already-patched`, `target-xhr-send-already-patched`, `target-websocket-already-patched`, `target-eventsource-already-patched`, `stale-websocket-handle`, `stale-eventsource-handle`, `orphaned-dom-observer`, `active-instance-conflict`, and `cleanup-step-failed:<step>`. The same reasons appear with `phase: 'engine:stop'` when a global stays patched after `stop()` runs.
+
+Diagnostics are surfaced through `getLog()` only when `debug: true`; the runtime never throws on these conditions (the active-instance check is the one exception). They are intended for CI noise reduction and bug reports, not control flow.
+
 ## Service Worker chaos
 
 Chaos applies to SW-originated fetches via the `@chaos-maker/core/sw` subpath. Zod + UI + builder are excluded from this bundle so it stays small enough for production SW deploys.

@@ -298,6 +298,7 @@ export function patchWebSocket(
         kind: 'delay',
         handle: setTimeout(() => {
           untrackTimer(socket, timer);
+          if (!running) return;
           try {
             originalSend(payload);
           } catch {
@@ -354,11 +355,12 @@ export function patchWebSocket(
         msgEvt.stopImmediatePropagation();
         emitDelay(emitter, url, direction, payloadType, delayRule.delayMs);
         const timer: PendingDelayTimer = {
-          kind: 'delay',
-          handle: setTimeout(() => {
-            untrackTimer(socket, timer);
-            redispatch(socket, msgEvt, payload);
-          }, delayRule.delayMs),
+        kind: 'delay',
+        handle: setTimeout(() => {
+          untrackTimer(socket, timer);
+          if (!running) return;
+          redispatch(socket, msgEvt, payload);
+        }, delayRule.delayMs),
           url, direction, payloadType,
         };
         trackTimer(socket, timer);

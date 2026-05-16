@@ -185,7 +185,35 @@ describe('installChaosSW', () => {
 
     target.dispatchMessage({ __chaosMakerStop: true });
     expect(handle.isRunning()).toBe(false);
+    expect(handle.getSeed()).toBeNull();
     expect(target.fetch).toBe(originalFetch);
+    handle.uninstall();
+  });
+
+  it('can stop and clear remote state through the message channel', async () => {
+    const target = makeSWTarget([]);
+    const { installChaosSW } = await importSwWithTarget(target);
+    const handle = installChaosSW();
+
+    target.dispatchMessage({
+      __chaosMakerConfig: {
+        network: { failures: [{ urlPattern: '/api', statusCode: 500, probability: 1 }] },
+        seed: 10,
+      } satisfies ChaosConfig,
+    });
+    await target.fetch('/api/x');
+    expect(handle.getLog().length).toBeGreaterThan(0);
+
+    const stopMessages: unknown[] = [];
+    target.dispatchMessage({ __chaosMakerStop: true }, [{ postMessage: (m: unknown) => stopMessages.push(m) }]);
+    expect(handle.isRunning()).toBe(false);
+    expect(handle.getSeed()).toBeNull();
+    expect((stopMessages[0] as { running: boolean }).running).toBe(false);
+
+    const clearMessages: unknown[] = [];
+    target.dispatchMessage({ __chaosMakerClearLog: true }, [{ postMessage: (m: unknown) => clearMessages.push(m) }]);
+    expect(handle.getLog()).toHaveLength(0);
+    expect((clearMessages[0] as { running: boolean }).running).toBe(false);
     handle.uninstall();
   });
 

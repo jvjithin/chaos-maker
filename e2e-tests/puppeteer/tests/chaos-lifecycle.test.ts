@@ -100,4 +100,26 @@ describe('Chaos lifecycle', () => {
     const log = await getChaosLog(page) as ChaosEvent[];
     expect(log.some((e) => e.type === 'network:failure' || e.type === 'network:latency')).toBe(true);
   });
+
+  it('removeChaos prevents reinjection on reload and allows a fresh cycle', async () => {
+    await injectChaos(page, {
+      network: { failures: [{ urlPattern: API_PATTERN, statusCode: 500, probability: 1.0 }] },
+    });
+    await page.goto(BASE_URL);
+    expect(await makeRequest(page)).toBe('Error!');
+
+    await removeChaos(page);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    expect(await makeRequest(page)).toBe('Success!');
+
+    await injectChaos(page, {
+      network: { failures: [{ urlPattern: API_PATTERN, statusCode: 503, probability: 1.0 }] },
+    });
+    await page.goto(BASE_URL);
+    expect(await makeRequest(page)).toBe('Error!');
+
+    await removeChaos(page);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    expect(await makeRequest(page)).toBe('Success!');
+  });
 });

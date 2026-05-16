@@ -19,20 +19,26 @@ import { test, expect } from '@playwright/test';
 import { injectChaos, removeChaos, getChaosLog } from '@chaos-maker/playwright';
 
 test('shows error when API fails', async ({ page }) => {
-  await injectChaos(page, {
-    network: {
-      failures: [{ urlPattern: '/api/data', statusCode: 503, probability: 1.0 }]
-    }
-  });
+  try {
+    await injectChaos(page, {
+      network: {
+        failures: [{ urlPattern: '/api/data', statusCode: 503, probability: 1.0 }]
+      }
+    });
 
-  await page.goto('/dashboard');
-  await expect(page.getByText('Something went wrong')).toBeVisible();
+    await page.goto('/dashboard');
+    await expect(page.getByText('Something went wrong')).toBeVisible();
 
-  // Check what chaos was applied
-  const log = await getChaosLog(page);
-  expect(log.some(e => e.type === 'network:failure' && e.applied)).toBe(true);
+    // Check what chaos was applied
+    const log = await getChaosLog(page);
+    expect(log.some(e => e.type === 'network:failure' && e.applied)).toBe(true);
+  } finally {
+    await removeChaos(page);
+  }
 });
 ```
+
+For direct API calls, use `try` / `finally` when a test can fail before explicit cleanup. `removeChaos(page)` restores the current document and is safe during teardown. Playwright `addInitScript()` entries stay registered on the `Page`, so a later `page.reload()` or `page.goto()` on the same reused page can run prior chaos init scripts again. Prefer the fixture, Playwright's default fresh page per test, or a new page/context when reload isolation matters.
 
 ### Test Fixture
 
@@ -193,6 +199,8 @@ Inject chaos into a Playwright page. **Call before `page.goto()`** to ensure all
 
 Stop chaos and restore original `fetch`/`XHR`/DOM behavior.
 
+This restores the active document. It does not remove Playwright `addInitScript()` registrations from a reused `Page`, because Playwright does not expose a removal API for them.
+
 ### `getChaosLog(page)`
 
 Retrieve the chaos event log from the page. Returns `ChaosEvent[]` — every chaos check emitted since injection, with `applied: true/false`.
@@ -284,6 +292,18 @@ test('with direct API', async ({ page }, testInfo) => {
 });
 ```
 
+## Leak diagnostics
+
+Enable `debug: true` on the chaos config to surface leaked-runtime diagnostics in the event log. Filter `getChaosLog(page)` for `type === 'debug'` events with `detail.reason` covering double-patched globals, stale wrapper handles, orphaned observers, or active-instance conflicts. See [`@chaos-maker/core`](../core/README.md#leak-diagnostics) for the full reason list.
+
+```ts
+await injectChaos(page, { debug: true, network: { /* ... */ } });
+await page.goto('/');
+const issues = (await getChaosLog(page)).filter(
+  (e) => e.type === 'debug' && /already-patched|stale|orphaned|active-instance-conflict/.test(String(e.detail.reason ?? '')),
+);
+```
+
 ## Service Worker chaos
 
 Intercept SW-originated fetches. Requires one line in your service-worker script.
@@ -323,6 +343,8 @@ test('SW-fetched /api returns 503', async ({ page }) => {
 ```
 
 Use `getSWChaosLog(page)` for the page-buffered event log. This is the default assertion surface because it reflects events broadcast from the Service Worker to the page. Use `getSWChaosLogFromSW(page)` when you need a direct pull from the Service Worker's in-memory log, such as debugging a missed page-side broadcast.
+
+`removeSWChaos(page)` stops the worker engine and clears both the page-buffered and worker-side logs. For full browser isolation between tests, unregister the app's Service Worker or use a fresh browser context.
 
 Two artifacts ship in `@chaos-maker/core`:
 - `dist/sw.js` — IIFE bundle for classic SWs (`importScripts('/chaos-maker-sw.js')`).

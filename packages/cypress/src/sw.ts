@@ -26,6 +26,7 @@ interface SWBridge {
   getLocalLog: () => ChaosEvent[];
   clearLocalLog: () => void;
   getRemoteLog: (timeoutMs: number) => Promise<ChaosEvent[]>;
+  clearRemoteLog?: (timeoutMs: number) => Promise<void>;
 }
 
 const DEFAULT_SW_TOGGLE_TIMEOUT = 2_000;
@@ -71,7 +72,11 @@ export function registerSWChaosCommands(): void {
       const bridge = getBridge(win);
       if (!bridge) return;
       return Cypress.Promise.resolve(
-        bridge.stop(timeoutMs).then(() => bridge.clearLocalLog()),
+        bridge.stop(timeoutMs)
+          .finally(() => {
+            bridge.clearLocalLog();
+            return bridge.clearRemoteLog?.(timeoutMs).catch(() => undefined);
+          }),
       ) as unknown as Cypress.Chainable<void>;
     }) as unknown as Cypress.Chainable<void>;
   });

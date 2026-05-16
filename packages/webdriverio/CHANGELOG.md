@@ -1,5 +1,13 @@
 # @chaos-maker/webdriverio Changelog
 
+## Unreleased
+
+### Fixed
+
+- Page cleanup is now best-effort after a WebDriver session or page has already gone away.
+- Service Worker cleanup now clears both page-buffered and worker-side logs after stopping the worker engine.
+- Cleanup documentation now covers `afterEach`, post-navigation injection limits, and Service Worker unregister guidance.
+
 ## 0.4.0 - 2026-04-26
 
 ### Added

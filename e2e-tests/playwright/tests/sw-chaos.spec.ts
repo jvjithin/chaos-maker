@@ -184,5 +184,18 @@ test.describe('SW chaos — stop restores fetch', () => {
     });
     await page.click('#sw-fetch');
     await expect(page.locator('#sw-fetch-status')).toHaveText('200', { timeout: 5_000 });
+
+    expect(await getSWChaosLog(page)).toEqual([]);
+    expect(await getSWChaosLogFromSW(page)).toEqual([]);
+
+    await injectSWChaos(page, {
+      network: { failures: [{ urlPattern: '/api/data.json', statusCode: 418, probability: 1 }] },
+      seed: 6,
+    });
+    await page.evaluate(() => {
+      document.getElementById('sw-fetch-status')!.textContent = '';
+    });
+    await page.click('#sw-fetch');
+    await expect(page.locator('#sw-fetch-status')).toHaveText('418', { timeout: 5_000 });
   });
 });

@@ -44,6 +44,8 @@ Injects chaos into a Puppeteer page via `evaluateOnNewDocument`. Must be called 
 
 Stops chaos and restores original `fetch`, `XMLHttpRequest`, `WebSocket`, and DOM behaviour. Safe to call after page close.
 
+When Puppeteer exposes init-script identifiers, cleanup also removes registered `evaluateOnNewDocument` scripts so a later reload on a reused page does not re-inject old chaos. Fresh pages per test are still the simplest isolation pattern.
+
 ### `getChaosLog(page)`
 
 Returns the full event log (applied + skipped decisions) since `injectChaos` was called.
@@ -85,6 +87,18 @@ beforeEach(async () => {
 afterEach(() => teardown());
 ```
 
+Use `try` / `finally` around direct calls when a test may fail before cleanup:
+
+```ts
+try {
+  await injectChaos(page, config);
+  await page.goto('http://localhost:3000');
+  // assertions
+} finally {
+  await removeChaos(page);
+}
+```
+
 ## Validation
 
 `injectChaos` validates the config from Node before `evaluateOnNewDocument` runs. A malformed config throws `ChaosConfigError` synchronously from the test runner. `ChaosConfigError.issues` is a structured `ValidationIssue[]`. See the [Rule Validation concept page](https://chaos-maker-dev.github.io/chaos-maker/concepts/validation/).
@@ -118,6 +132,18 @@ await injectChaos(page, {
 
 Built-in catalog and validation rules are documented in [`@chaos-maker/core`](../core/README.md#presets).
 
+## Leak diagnostics
+
+Set `debug: true` on the chaos config to surface leaked-runtime diagnostics in the event log. Filter `getChaosLog(page)` for `type === 'debug'` events with `detail.reason` covering double-patched globals, stale wrapper handles, orphaned observers, or active-instance conflicts. See [`@chaos-maker/core`](../core/README.md#leak-diagnostics) for the full reason list.
+
+```ts
+await injectChaos(page, { debug: true, network: { /* ... */ } });
+await page.goto('http://localhost:3000');
+const issues = (await getChaosLog(page)).filter(
+  (e) => e.type === 'debug' && /already-patched|stale|orphaned|active-instance-conflict/.test(String(e.detail.reason ?? '')),
+);
+```
+
 ## Service Worker chaos
 
 ```ts
@@ -147,6 +173,8 @@ await removeSWChaos(page);
 ```
 
 Use `getSWChaosLog(page)` for the page-buffered event log. This is the default assertion surface because it reflects events broadcast from the Service Worker to the page. Use `getSWChaosLogFromSW(page)` when you need a direct pull from the Service Worker's in-memory log, such as debugging a missed page-side broadcast.
+
+`removeSWChaos(page)` stops the worker engine and clears both the page-buffered and worker-side logs. Unregister the app's Service Worker when you need a completely fresh registration between tests.
 
 User's SW must `importScripts('/chaos-maker-sw.js')` (classic) or `import { installChaosSW } from '@chaos-maker/core/sw'` (module).
 
