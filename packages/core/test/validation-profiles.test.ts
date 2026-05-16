@@ -3,6 +3,16 @@ import type { ChaosConfig } from '../src/config';
 import { prepareChaosConfig, validateChaosConfig } from '../src/validation';
 import { ChaosConfigError } from '../src/errors';
 
+function captureThrow(fn: () => unknown): ChaosConfigError {
+  try {
+    fn();
+  } catch (e) {
+    if (e instanceof ChaosConfigError) return e;
+    throw e;
+  }
+  throw new Error('expected the call to throw ChaosConfigError');
+}
+
 describe('prepareChaosConfig with scenario profiles', () => {
   it('resolves the built-in mobileCheckout profile before preset expansion', () => {
     const out = prepareChaosConfig({ profile: 'mobile-checkout', seed: 1 });
@@ -17,48 +27,30 @@ describe('prepareChaosConfig with scenario profiles', () => {
   });
 
   it('throws unknown_profile when profile name is not registered', () => {
-    expect.assertions(3);
-    try {
-      prepareChaosConfig({ profile: 'nope' });
-    } catch (e) {
-      expect(e).toBeInstanceOf(ChaosConfigError);
-      const err = e as ChaosConfigError;
-      expect(err.issues[0].code).toBe('unknown_profile');
-      expect(err.issues[0].ruleType).toBe('profile');
-    }
+    const err = captureThrow(() => prepareChaosConfig({ profile: 'nope' }));
+    expect(err.issues[0].code).toBe('unknown_profile');
+    expect(err.issues[0].ruleType).toBe('profile');
   });
 
   it('throws profile_collision when customProfiles name shadows a built-in', () => {
-    expect.assertions(3);
-    try {
-      prepareChaosConfig({
-        customProfiles: { mobileCheckout: { presets: ['mobile-3g'] } },
-        profile: 'mobileCheckout',
-      });
-    } catch (e) {
-      expect(e).toBeInstanceOf(ChaosConfigError);
-      const err = e as ChaosConfigError;
-      expect(err.issues[0].code).toBe('profile_collision');
-      expect(err.issues[0].ruleType).toBe('profile');
-    }
+    const err = captureThrow(() => prepareChaosConfig({
+      customProfiles: { mobileCheckout: { presets: ['mobile-3g'] } },
+      profile: 'mobileCheckout',
+    }));
+    expect(err.issues[0].code).toBe('profile_collision');
+    expect(err.issues[0].ruleType).toBe('profile');
   });
 
-  it('throws profile_chain when customProfiles slice tries to nest profile', () => {
-    expect.assertions(3);
-    try {
-      prepareChaosConfig({
-        customProfiles: { evil: { profile: 'mobileCheckout' } as never },
-        profile: 'evil',
-      });
-    } catch (e) {
-      expect(e).toBeInstanceOf(ChaosConfigError);
-      const err = e as ChaosConfigError;
-      // Zod strict pass 1 catches this as unknown_field before applyProfile.
-      // Either path produces an actionable error — assert the strict
-      // rejection message is informative.
-      expect(['unknown_field', 'profile_chain']).toContain(err.issues[0].code);
-      expect(err.issues.length).toBeGreaterThan(0);
-    }
+  it('throws an actionable error when customProfiles slice tries to nest profile', () => {
+    const err = captureThrow(() => prepareChaosConfig({
+      customProfiles: { evil: { profile: 'mobileCheckout' } as never },
+      profile: 'evil',
+    }));
+    // Zod strict pass 1 catches this as unknown_field before applyProfile gets
+    // the chance to fire profile_chain. Either path produces an actionable
+    // error - assert the strict rejection lists a useful code.
+    expect(['unknown_field', 'profile_chain']).toContain(err.issues[0].code);
+    expect(err.issues.length).toBeGreaterThan(0);
   });
 
   it('profileOverrides applies on top of resolved profile rules', () => {

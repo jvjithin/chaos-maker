@@ -37,12 +37,12 @@ describe('scenario profile determinism', () => {
   it('profile-only config produces same rule event ordering across calls', () => {
     const a = prepareChaosConfig({ profile: 'mobile-checkout', seed: 99 });
     const b = prepareChaosConfig({ profile: 'mobile-checkout', seed: 99 });
-    // Rule arrays must be in identical order — that determines event sequence under PRNG.
+    // Rule arrays must be in identical order - that determines event sequence under PRNG.
+    // mobile-checkout composes mobile-3g + checkout-degraded, so both latencies and
+    // failures slices are guaranteed present in the resolved config.
     expect(a.network!.latencies!.map((l) => l.urlPattern)).toEqual(b.network!.latencies!.map((l) => l.urlPattern));
-    if (a.network!.failures) {
-      expect(a.network!.failures.map((f) => `${f.urlPattern}:${f.statusCode}`))
-        .toEqual(b.network!.failures!.map((f) => `${f.urlPattern}:${f.statusCode}`));
-    }
+    expect(a.network!.failures!.map((f) => `${f.urlPattern}:${f.statusCode}`))
+      .toEqual(b.network!.failures!.map((f) => `${f.urlPattern}:${f.statusCode}`));
   });
 });
 
