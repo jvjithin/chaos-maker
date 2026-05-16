@@ -132,6 +132,18 @@ await injectChaos(page, {
 
 Built-in catalog and validation rules are documented in [`@chaos-maker/core`](../core/README.md#presets).
 
+## Leak diagnostics
+
+Set `debug: true` on the chaos config to surface leaked-runtime diagnostics in the event log. Filter `getChaosLog(page)` for `type === 'debug'` events with `detail.reason` covering double-patched globals, stale wrapper handles, orphaned observers, or active-instance conflicts. See [`@chaos-maker/core`](../core/README.md#leak-diagnostics) for the full reason list.
+
+```ts
+await injectChaos(page, { debug: true, network: { /* ... */ } });
+await page.goto('http://localhost:3000');
+const issues = (await getChaosLog(page)).filter(
+  (e) => e.type === 'debug' && /already-patched|stale|orphaned|active-instance-conflict/.test(String(e.detail.reason ?? '')),
+);
+```
+
 ## Service Worker chaos
 
 ```ts

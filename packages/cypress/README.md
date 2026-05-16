@@ -244,6 +244,21 @@ Chaos behaviour is identical — both adapters load the same core UMD into the p
 
 The support module subscribes to applied chaos events and writes `Cypress.log({ name: 'chaos', ... })` entries. Skipped probability events and `type: 'debug'` events stay in `cy.getChaosLog()` so the Command Log remains focused on visible chaos.
 
+## Leak diagnostics
+
+Pass `debug: true` to `cy.injectChaos` to surface leaked-runtime diagnostics in the event log. Filter `cy.getChaosLog()` for `type === 'debug'` events with `detail.reason` covering double-patched globals, stale wrapper handles, orphaned observers, or active-instance conflicts. See [`@chaos-maker/core`](../core/README.md#leak-diagnostics) for the full reason list.
+
+```ts
+cy.injectChaos({ debug: true, network: { /* ... */ } });
+cy.visit('/');
+cy.getChaosLog().then((log) => {
+  const issues = log.filter(
+    (e) => e.type === 'debug' && /already-patched|stale|orphaned|active-instance-conflict/.test(String(e.detail.reason ?? '')),
+  );
+  expect(issues).to.have.length(0);
+});
+```
+
 ## Service Worker chaos
 
 ```js

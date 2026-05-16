@@ -216,6 +216,19 @@ Toggle a browser-side Rule Group. Requires `registerChaosCommands(browser)`.
 
 Toggle a Service Worker Rule Group. Requires `registerSWChaosCommands(browser)`. Pass `opts.timeoutMs` to override the Service Worker acknowledgement timeout.
 
+## Leak diagnostics
+
+Pass `debug: true` on the chaos config to surface leaked-runtime diagnostics in the event log. Filter `browser.getChaosLog()` for `type === 'debug'` events with `detail.reason` covering double-patched globals, stale wrapper handles, orphaned observers, or active-instance conflicts. See [`@chaos-maker/core`](../core/README.md#leak-diagnostics) for the full reason list.
+
+```ts
+await browser.url('/');
+await browser.injectChaos({ debug: true, network: { /* ... */ } });
+const log = await browser.getChaosLog();
+const issues = log.filter(
+  (e) => e.type === 'debug' && /already-patched|stale|orphaned|active-instance-conflict/.test(String(e.detail.reason ?? '')),
+);
+```
+
 ## Service Worker chaos
 
 Register the SW commands in `wdio.conf.ts`:
