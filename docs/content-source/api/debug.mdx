@@ -37,7 +37,7 @@ The public type accepts a boolean. Internally Chaos Maker carries a `DebugOption
 |---|---|---|---|
 | `enabled` | `boolean` | `false` | Toggles the dual-sink Logger. |
 
-The fields below are **reserved** and not yet shipped — included only so you can plan ahead:
+The fields below are **reserved** and not yet shipped - included only so you can plan ahead:
 
 | Reserved | Planned use |
 |---|---|
@@ -75,7 +75,7 @@ When `detail.stage === 'lifecycle'`, the concrete moment is on `detail.phase`:
 | `sw:config-stopped` | SW received a `__chaosMakerStop` message |
 | `sw:group-toggled` | SW received a `__chaosMakerToggleGroup` message |
 
-WebSocket / SSE direction stays on `detail.direction` — `phase` is intentionally lifecycle-only.
+WebSocket / SSE direction stays on `detail.direction` - `phase` is intentionally lifecycle-only.
 
 ## Debug event payload
 
@@ -90,7 +90,7 @@ interface ChaosEvent {
     phase?: ChaosLifecyclePhase;
     // Rule context:
     ruleType?: string;       // 'failure' | 'latency' | 'abort' | 'corruption' | 'cors' | 'ui-assault' | 'ws-drop' | 'ws-delay' | 'ws-corrupt' | 'ws-close' | 'sse-drop' | 'sse-delay' | 'sse-corrupt' | 'sse-close'
-    ruleId?: string;         // e.g. 'failure#0' — positional within the current config snapshot
+    ruleId?: string;         // e.g. 'failure#0' - positional within the current config snapshot
     ruleName?: string;       // reserved for a future builder field
     groupName?: string;
     // Inherited per rule type (url, method, statusCode, delayMs, strategy, …)
@@ -99,11 +99,11 @@ interface ChaosEvent {
 }
 ```
 
-`applied` is always `false` on debug events — they describe decisions, not chaos. The structured event mirrors a `[Chaos] <stage>: ...` line (or `[Chaos SW] <stage>: ...` from inside a Service Worker) to `console.debug` at emit time. The formatted string is **not** stored on the payload, and the prefix is owned by the Logger so the page and SW prefixes are mutually exclusive.
+`applied` is always `false` on debug events - they describe decisions, not chaos. The structured event mirrors a `[Chaos] <stage>: ...` line (or `[Chaos SW] <stage>: ...` from inside a Service Worker) to `console.debug` at emit time. The formatted string is **not** stored on the payload, and the prefix is owned by the Logger so the page and SW prefixes are mutually exclusive.
 
 ## Rule identifiers
 
-`ruleId` is a **positional** identifier derived from `<ruleType>#<index>` within the current config. Reordering rules between runs changes the IDs — that's acceptable for in-test diagnostics. Persistent IDs across config evolution are out of scope for v0.5.0.
+`ruleId` is a **positional** identifier derived from `<ruleType>#<index>` within the current config. Reordering rules between runs changes the IDs - that's acceptable for in-test diagnostics. Persistent IDs across config evolution are out of scope for v0.5.0.
 
 `ruleName` is reserved for a future builder field (e.g. `.failRequests({ ..., name: 'slow-api' })`). It is undefined today.
 

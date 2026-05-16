@@ -37,15 +37,15 @@ Call before `page.goto()` for network, WebSocket, SSE, and GraphQL chaos. Puppet
 
 SSE chaos and GraphQL operation matching also use `injectChaos()` before navigation. For Service Worker chaos, navigate first, wait for `navigator.serviceWorker.controller`, then call `injectSWChaos()` before the user action that triggers SW fetches.
 
-UI chaos requires the DOM to exist, so do **not** pass a `ui` config into the pre-navigation `injectChaos()` call — the auto-bootstrap would run before `document.body` is available. Instead:
+UI chaos requires the DOM to exist, so do **not** pass a `ui` config into the pre-navigation `injectChaos()` call - the auto-bootstrap would run before `document.body` is available. Instead:
 
 1. Call `injectChaos(page, { network, websocket })` (or `injectChaos(page, {})`) before `page.goto()` to load the UMD bundle and install network/WebSocket interceptors.
 2. Navigate with `page.goto()`.
-3. Start UI chaos after navigation with `page.evaluate((cfg) => (window as any).chaosUtils.start(cfg), uiConfig)` — pass `uiConfig` as an explicit argument because the callback runs in the browser context.
+3. Start UI chaos after navigation with `page.evaluate((cfg) => (window as any).chaosUtils.start(cfg), uiConfig)` - pass `uiConfig` as an explicit argument because the callback runs in the browser context.
 
 ## Debug Mode
 
-Pass `debug: true` to `injectChaos()` to enable [Debug Mode](/api/debug/). It does not interact with `puppeteer.launch({ devtools: true })` or `DEBUG=puppeteer:*` — Chaos Maker never reads them. Capture console mirrors with `page.on('console', msg => …)` filtering on `msg.type() === 'debug'`; structured events ride into `getChaosLog()`.
+Pass `debug: true` to `injectChaos()` to enable [Debug Mode](/api/debug/). It does not interact with `puppeteer.launch({ devtools: true })` or `DEBUG=puppeteer:*` - Chaos Maker never reads them. Capture console mirrors with `page.on('console', msg => …)` filtering on `msg.type() === 'debug'`; structured events ride into `getChaosLog()`.
 
 ## Validation
 

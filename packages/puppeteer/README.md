@@ -19,7 +19,7 @@ import { injectChaos, getChaosLog } from '@chaos-maker/puppeteer';
 const browser = await puppeteer.launch({ headless: true });
 const page = await browser.newPage();
 
-// Inject BEFORE goto — uses evaluateOnNewDocument for full-lifecycle coverage
+// Inject BEFORE goto - uses evaluateOnNewDocument for full-lifecycle coverage
 await injectChaos(page, {
   network: {
     failures: [{ urlPattern: '/api', statusCode: 503, probability: 1.0 }],
@@ -77,7 +77,7 @@ await disableGroup(page, 'payments');
 
 ### `useChaos(page, config)`
 
-Convenience helper for `afterEach`-style cleanup — injects chaos and returns an async teardown:
+Convenience helper for `afterEach`-style cleanup - injects chaos and returns an async teardown:
 
 ```ts
 let teardown: () => Promise<void>;
@@ -205,5 +205,5 @@ SSE chaos and GraphQL operation matching use the same pre-navigation `injectChao
 ## Notes
 
 - **Headless Chromium only** (headless-new mode, Puppeteer 21+). Firefox via `puppeteer-core` is untested.
-- Trace viewer integration (surfacing chaos events in a trace timeline) is not available in this adapter — use `@chaos-maker/playwright` if you need traces.
-- Works with both `puppeteer` and `puppeteer-core` — the type is structural.
+- Trace viewer integration (surfacing chaos events in a trace timeline) is not available in this adapter - use `@chaos-maker/playwright` if you need traces.
+- Works with both `puppeteer` and `puppeteer-core` - the type is structural.

@@ -1,76 +1,160 @@
 # Contributing to Chaos Maker
 
-Thanks for your interest in contributing! This guide will help you get started.
+Thanks for your interest in contributing. This guide gets you from fork to merged PR.
 
 ## Getting Started
 
-1. Fork the repository
+1. Fork the repository on GitHub.
 2. Clone your fork:
    ```bash
    git clone https://github.com/YOUR_USERNAME/chaos-maker.git
    cd chaos-maker
    ```
-3. Install dependencies:
+3. Install dependencies (pnpm + Node from `.nvmrc`):
    ```bash
    pnpm install
    ```
-4. Create a feature branch:
+4. Create a feature branch off `main`:
    ```bash
    git checkout -b feat/your-feature
    ```
 
-## Development
-
-```bash
-pnpm build                # build core + playwright
-pnpm test                 # unit tests
-pnpm lint                 # eslint
-pnpm --filter e2e-tests exec playwright test --project=chromium  # e2e tests
-```
-
-### Project Structure
+## Project structure
 
 ```text
 packages/
-  core/           # @chaos-maker/core — chaos engine (TypeScript, Vite)
-  playwright/     # @chaos-maker/playwright — Playwright adapter (tsup)
-e2e-tests/        # Playwright E2E test suite
+  core/              # @chaos-maker/core, the framework-agnostic chaos engine (Vite, ESM + CJS + UMD + SW bundles)
+  playwright/        # @chaos-maker/playwright adapter (tsup)
+  cypress/           # @chaos-maker/cypress adapter (tsup)
+  webdriverio/       # @chaos-maker/webdriverio adapter (tsup)
+  puppeteer/         # @chaos-maker/puppeteer adapter (tsup)
+
+e2e-tests/
+  fixtures/          # Shared HTTP / WS / SSE / GraphQL fixture servers, SW app
+  playwright/        # e2e-tests-playwright workspace, Playwright specs
+  cypress/           # e2e-tests-cypress workspace, Cypress specs
+  webdriverio/       # e2e-tests-webdriverio workspace, WDIO specs
+  puppeteer/         # e2e-tests-puppeteer workspace, Vitest + Puppeteer specs
+
+docs/
+  content-source/    # Source of truth for the docs site (Astro + Starlight)
+  scripts/           # Versioned-docs generator driven by git tags
+  src/               # Astro site + generated /v0-X-Y/ snapshots (do not hand-edit /src/content/docs)
+
+scripts/             # Repo-wide build helpers (e.g. sync-sw-fixtures.mjs)
 ```
 
-### Before Submitting
+Adapter package names match their leaf directory in `packages/`. E2E workspace names use the `e2e-tests-<framework>` form so root scripts can target them with pnpm filters.
 
-Run the full validation suite:
+## Development
+
+All commands are run from the repo root.
 
 ```bash
-pnpm lint && pnpm test && pnpm build && pnpm --filter e2e-tests exec playwright test --project=chromium
+pnpm install              # install all workspace dependencies
+pnpm lint                 # ESLint across packages, adapters, e2e tests, and scripts
+pnpm test                 # core unit suite (Vitest)
+pnpm build                # build all 5 published packages + sync the SW bundle into fixtures
+pnpm dev:core             # watch-build @chaos-maker/core
+pnpm dev:docs             # local docs dev server (Astro/Starlight)
+pnpm build:docs           # production docs build
 ```
 
-All checks must pass. CI runs these same steps on every PR.
+### Running E2E tests locally
 
-## Pull Requests
+Each adapter has its own workspace and root script. They all consume the dist artifacts produced by `pnpm build`, so build first if you have changed core or an adapter.
 
-- Keep PRs focused — one feature or fix per PR
-- Include tests for new functionality
-- Update documentation if the public API changes
-- Follow existing code style (enforced by ESLint)
+```bash
+pnpm test:playwright                              # all Playwright projects (chromium, firefox, webkit, edge)
+pnpm test:playwright -- --project=chromium        # single project, fastest iteration
 
-## Commit Messages
+pnpm test:cypress                                 # default browser (chrome)
+pnpm test:cypress:chrome
+pnpm test:cypress:electron
+pnpm test:cypress:all                             # chrome + electron sequentially
 
-Use [conventional commits](https://www.conventionalcommits.org/):
+pnpm test:wdio                                    # chrome by default
+pnpm test:wdio:chrome
+pnpm test:wdio:firefox
+
+pnpm test:puppeteer                               # headless-new Chrome via Vitest
+```
+
+First run for Playwright will install browsers (`pnpm --filter e2e-tests-playwright exec playwright install`). Cypress installs its binary on first install. WebdriverIO uses your system Chrome / Firefox.
+
+### Docs site
+
+The Starlight docs site source lives in `docs/content-source/`. Edits there are picked up by `pnpm dev:docs` immediately.
+
+Versioned snapshots in `docs/src/content/docs/{latest,v0-X-Y}/` are **generated artifacts** produced by `docs/scripts/build-versioned-docs.mjs` from git tags. Do not hand-edit them; if you need to change copy that appears on the redirect landing page or in archived versions, edit the script's template literals (around the `index.mdx` writer) and regenerate.
+
+The published site at <https://chaos-maker-dev.github.io/chaos-maker/> is rebuilt from tags only - PR docs builds run with `--dev` so contributors can preview unreleased content under `/main/`.
+
+## CI
+
+CI is split into three workflows under `.github/workflows/`:
+
+- `ci.yml` runs on every push / PR to `main`. Lint + unit tests + build + per-adapter E2E matrix. The `ci-success` aggregator is the single required check for branch protection.
+- `docs.yml` builds and deploys the versioned docs site on tag pushes.
+- `release.yml` runs on `v*` tag pushes. Re-validates, then publishes all 5 packages to npm via OIDC Trusted Publishing.
+
+The Playwright and Cypress E2E jobs in `ci.yml` run inside official upstream container images (`mcr.microsoft.com/playwright` and `cypress/included`) so browsers and system deps come pre-baked. The image pins live next to the `container:` declarations - when you bump `@playwright/test` or `cypress` in a workspace `package.json`, bump the matching image tag in `ci.yml` in the same PR. WebdriverIO and Puppeteer jobs stay on `ubuntu-latest` with cached binaries.
+
+## Adding a new chaos type
+
+A new chaos type touches every layer of the stack. Follow this order:
+
+1. `packages/core/src/config.ts` - add the rule's shape to `ChaosConfig` and the matching slice schema in `packages/core/src/validation.ts` (Zod).
+2. `packages/core/src/interceptors/` - add or extend the interceptor that runs the rule. Route every probability decision through `createPrng(seed)` (Math.random is an ESLint error in `packages/**`).
+3. `packages/core/src/builder.ts` - add fluent builder shortcuts so users do not have to hand-write rule objects.
+4. `packages/core/test/` - add unit tests covering rule evaluation, counting predicates (`onNth` / `everyNth` / `afterN`), and group gating.
+5. Add a preset to `packages/core/src/presets.ts` if the new chaos type composes naturally with existing ones.
+6. Re-export new public types from each adapter's `src/index.ts` (`playwright`, `cypress`, `webdriverio`, `puppeteer`).
+7. Add an E2E spec in **every** adapter under `e2e-tests/<framework>/tests/`. Unit coverage alone is not enough - real browser behavior is the gate.
+8. Update docs: `docs/content-source/concepts/`, `docs/content-source/api/`, and any relevant getting-started example.
+9. Update `CHANGELOG.md` under `[Unreleased]`. Use the same scope conventions as existing entries.
+
+## Before submitting
+
+```bash
+pnpm lint && pnpm test && pnpm build && pnpm build:docs
+pnpm test:playwright -- --project=chromium
+```
+
+For changes that touch a specific adapter, run that adapter's full E2E suite too. PR CI will run the full matrix.
+
+All checks must pass. CI runs the same steps.
+
+## Pull requests
+
+- Keep PRs focused: one feature or fix per PR.
+- Include tests for new functionality. Unit + E2E per the table in "Adding a new chaos type".
+- Update docs if the public API changes.
+- Update `CHANGELOG.md` under `[Unreleased]`.
+- Follow existing code style (enforced by ESLint).
+
+## Commit messages
+
+Use [conventional commits](https://www.conventionalcommits.org/) with scopes that match the existing history.
 
 ```text
 feat(core): add WebSocket chaos support
-fix(playwright): handle page close during injection
-test(core): add abort timeout edge case test
-docs: update README with new preset examples
-chore(ci): bump actions to v5
+feat(playwright): re-export new SSE types
+fix(cypress): handle command log on retried commands
+test(core): cover abort timeout edge case
+docs: document Service Worker chaos toggles
+chore(ci): bump playwright container image to v1.55.0-noble
+chore(deps): bump zod to ^3.25
 ```
 
-## Reporting Issues
+Common scopes: `core`, `playwright`, `cypress`, `webdriverio`, `puppeteer`, `docs`, `ci`, `deps`. Keep the subject line under ~72 chars.
 
-- Check existing issues before opening a new one
-- Include reproduction steps, expected behavior, and actual behavior
-- For bugs, include your Node.js version, browser, and OS
+## Reporting issues
+
+- Search existing issues before opening a new one.
+- Use the bug-report or feature-request issue template under [.github/ISSUE_TEMPLATE/](.github/ISSUE_TEMPLATE/).
+- For bugs: include the adapter, Chaos Maker version, Node version, browser, OS, repro, expected, actual.
+- For security issues: do not open a public issue. Follow [SECURITY.md](SECURITY.md).
 
 ## License
 

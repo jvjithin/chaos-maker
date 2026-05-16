@@ -8,7 +8,7 @@ Playwright adapter for [`@chaos-maker/core`](../core/). One-line chaos injection
 npm install @chaos-maker/core @chaos-maker/playwright
 ```
 
-Both packages are required — `@chaos-maker/playwright` loads the core UMD bundle into the browser page.
+Both packages are required - `@chaos-maker/playwright` loads the core UMD bundle into the browser page.
 
 ## Usage
 
@@ -188,12 +188,12 @@ SSE chaos and GraphQL operation matching use the same pre-navigation `injectChao
 
 Inject chaos into a Playwright page. **Call before `page.goto()`** to ensure all network requests are intercepted from the start.
 
-- `page` — Playwright `Page` instance
-- `config` — `ChaosConfig` object (see [@chaos-maker/core](../core/) for full config reference)
-- `opts` — optional. `InjectChaosOptions`:
-  - `tracing?: boolean | 'auto'` — emit chaos events into the Playwright trace (see [Debugging with trace](#debugging-with-trace)). Requires `testInfo` when `true`.
-  - `testInfo?: TestInfo` — active Playwright `TestInfo` (supplied automatically by the fixture).
-  - `traceOptions?: { verbose?: boolean; attachmentName?: string }` — tune trace output.
+- `page` - Playwright `Page` instance
+- `config` - `ChaosConfig` object (see [@chaos-maker/core](../core/) for full config reference)
+- `opts` - optional. `InjectChaosOptions`:
+  - `tracing?: boolean | 'auto'` - emit chaos events into the Playwright trace (see [Debugging with trace](#debugging-with-trace)). Requires `testInfo` when `true`.
+  - `testInfo?: TestInfo` - active Playwright `TestInfo` (supplied automatically by the fixture).
+  - `traceOptions?: { verbose?: boolean; attachmentName?: string }` - tune trace output.
 
 ### `removeChaos(page)`
 
@@ -203,7 +203,7 @@ This restores the active document. It does not remove Playwright `addInitScript(
 
 ### `getChaosLog(page)`
 
-Retrieve the chaos event log from the page. Returns `ChaosEvent[]` — every chaos check emitted since injection, with `applied: true/false`.
+Retrieve the chaos event log from the page. Returns `ChaosEvent[]` - every chaos check emitted since injection, with `applied: true/false`.
 
 ### `enableGroup(page, name)` / `disableGroup(page, name)`
 
@@ -217,17 +217,17 @@ Toggle a Service Worker Rule Group at runtime. Pass `opts.timeoutMs` to override
 
 Available when importing `test` from `@chaos-maker/playwright/fixture`:
 
-- `chaos.inject(config)` — same as `injectChaos(page, config)`
-- `chaos.remove()` — same as `removeChaos(page)` (also called automatically after each test)
-- `chaos.getLog()` — same as `getChaosLog(page)`
-- `chaos.enableGroup(name)` — same as `enableGroup(page, name)`
-- `chaos.disableGroup(name)` — same as `disableGroup(page, name)`
-- `chaos.enableSWGroup(name, opts?)` — same as `enableSWGroup(page, name, opts)`
-- `chaos.disableSWGroup(name, opts?)` — same as `disableSWGroup(page, name, opts)`
+- `chaos.inject(config)` - same as `injectChaos(page, config)`
+- `chaos.remove()` - same as `removeChaos(page)` (also called automatically after each test)
+- `chaos.getLog()` - same as `getChaosLog(page)`
+- `chaos.enableGroup(name)` - same as `enableGroup(page, name)`
+- `chaos.disableGroup(name)` - same as `disableGroup(page, name)`
+- `chaos.enableSWGroup(name, opts?)` - same as `enableSWGroup(page, name, opts)`
+- `chaos.disableSWGroup(name, opts?)` - same as `disableSWGroup(page, name, opts)`
 
 ## Validation
 
-`injectChaos` validates the config from Node BEFORE any page touch. A malformed config throws `ChaosConfigError` synchronously from the test runner — your test fails before navigation, not in the browser console. `ChaosConfigError.issues` is a structured `ValidationIssue[]` with `path`, `code`, `ruleType`, and optional `expected` / `received`. See the [Rule Validation concept page](https://chaos-maker-dev.github.io/chaos-maker/concepts/validation/).
+`injectChaos` validates the config from Node BEFORE any page touch. A malformed config throws `ChaosConfigError` synchronously from the test runner - your test fails before navigation, not in the browser console. `ChaosConfigError.issues` is a structured `ValidationIssue[]` with `path`, `code`, `ruleType`, and optional `expected` / `received`. See the [Rule Validation concept page](https://chaos-maker-dev.github.io/chaos-maker/concepts/validation/).
 
 ```ts
 import { injectChaos, ChaosConfigError } from '@chaos-maker/playwright';
@@ -246,7 +246,7 @@ try {
 
 ## Debugging with trace
 
-When a chaos test fails, the Playwright trace viewer is the first place to look. Enable tracing in your Playwright config and use the fixture — every applied chaos decision appears inline in the trace action timeline as a `chaos:<type>` step, and the full event log is attached as `chaos-log.json`.
+When a chaos test fails, the Playwright trace viewer is the first place to look. Enable tracing in your Playwright config and use the fixture - every applied chaos decision appears inline in the trace action timeline as a `chaos:<type>` step, and the full event log is attached as `chaos-log.json`.
 
 ```ts
 // playwright.config.ts
@@ -347,8 +347,8 @@ Use `getSWChaosLog(page)` for the page-buffered event log. This is the default a
 `removeSWChaos(page)` stops the worker engine and clears both the page-buffered and worker-side logs. For full browser isolation between tests, unregister the app's Service Worker or use a fresh browser context.
 
 Two artifacts ship in `@chaos-maker/core`:
-- `dist/sw.js` — IIFE bundle for classic SWs (`importScripts('/chaos-maker-sw.js')`).
-- `dist/sw.mjs` — ESM bundle for module SWs (`import { installChaosSW } from '/chaos-maker-sw.mjs'`).
+- `dist/sw.js` - IIFE bundle for classic SWs (`importScripts('/chaos-maker-sw.js')`).
+- `dist/sw.mjs` - ESM bundle for module SWs (`import { installChaosSW } from '/chaos-maker-sw.mjs'`).
 
 Serve whichever your SW type uses at a URL reachable from the service-worker scope.
 

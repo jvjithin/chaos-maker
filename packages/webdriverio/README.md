@@ -122,7 +122,7 @@ Browser-side `browser.enableGroup` and `browser.disableGroup` affect page rules 
 
 WebDriver has no cross-browser pre-navigation hook, so `@chaos-maker/webdriverio` injects chaos **after** `browser.url(...)` completes. Requests issued during the initial page load are not intercepted.
 
-If your app fires its first API call on boot and you need that request to be chaotic too, use [`@chaos-maker/playwright`](../playwright/) or [`@chaos-maker/cypress`](../cypress/) instead — both support pre-navigation injection.
+If your app fires its first API call on boot and you need that request to be chaotic too, use [`@chaos-maker/playwright`](../playwright/) or [`@chaos-maker/cypress`](../cypress/) instead - both support pre-navigation injection.
 
 For requests fired on user interaction (clicks, form submits), the adapter works identically to the Playwright and Cypress ones.
 
@@ -161,7 +161,7 @@ await injectChaos(browser, config, {
 
 ## Content Security Policy
 
-`injectChaos` appends an inline `<script>` to the page. A restrictive `script-src` policy (no `'unsafe-inline'` / no matching nonce) blocks it and `injectChaos` throws `[chaos-maker] injectChaos did not start.` — relax CSP for your test environment (e.g. add `'unsafe-inline'` or a matching nonce) or serve a chaos-friendly CSP from your test fixture.
+`injectChaos` appends an inline `<script>` to the page. A restrictive `script-src` policy (no `'unsafe-inline'` / no matching nonce) blocks it and `injectChaos` throws `[chaos-maker] injectChaos did not start.` - relax CSP for your test environment (e.g. add `'unsafe-inline'` or a matching nonce) or serve a chaos-friendly CSP from your test fixture.
 
 ## API
 
@@ -202,7 +202,7 @@ Call this from `afterEach` when using direct helpers. Cleanup is best-effort if 
 
 ### `getChaosLog(browser): Promise<ChaosEvent[]>`
 
-Read every chaos decision emitted since `injectChaos` was called — applied or skipped.
+Read every chaos decision emitted since `injectChaos` was called - applied or skipped.
 
 ### `getChaosSeed(browser): Promise<number | null>`
 

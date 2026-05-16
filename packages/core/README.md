@@ -75,7 +75,7 @@ chaos.start();
 | `unreliableWebSocket`   |                 | 10% drops, 500ms inbound delay, 5% inbound truncation             |
 | `unreliableEventStream` |                 | 5% drops, 200ms delay, 2% close after 2000ms                      |
 
-Kebab-case aliases (`slow-api`, `flaky-api`, `offline-mode`, `high-latency`) are registry-only. They resolve via `presets: ['slow-api']` and `new PresetRegistry().get('slow-api')`. They are NOT keys on the legacy `presets` record export — `presets['slow-api']` is `undefined` by design. Use the camelCase key (`presets.slowNetwork`) when reading from the record.
+Kebab-case aliases (`slow-api`, `flaky-api`, `offline-mode`, `high-latency`) are registry-only. They resolve via `presets: ['slow-api']` and `new PresetRegistry().get('slow-api')`. They are NOT keys on the legacy `presets` record export - `presets['slow-api']` is `undefined` by design. Use the camelCase key (`presets.slowNetwork`) when reading from the record.
 
 **Custom presets**
 
@@ -94,7 +94,7 @@ new ChaosMaker({
 });
 ```
 
-Custom preset values may carry only rule arrays plus the optional `groups` field — `presets`, `customPresets`, `seed`, and `debug` are rejected at validation. Dependency chains are out of scope.
+Custom preset values may carry only rule arrays plus the optional `groups` field - `presets`, `customPresets`, `seed`, and `debug` are rejected at validation. Dependency chains are out of scope.
 
 **Builder helper**
 
@@ -113,7 +113,7 @@ Unknown preset names, chain attempts, forbidden subfields, duplicate registratio
 
 **Mutability**
 
-Built-in preset configs are deep-frozen — `presets.slowNetwork.network!.latencies![0].delayMs = 1` throws. Your own custom presets passed via `customPresets` are NOT frozen — keep treating them as your data. The engine takes a deep clone at expansion, so any tweaks you make after construction are not observed.
+Built-in preset configs are deep-frozen - `presets.slowNetwork.network!.latencies![0].delayMs = 1` throws. Your own custom presets passed via `customPresets` are NOT frozen - keep treating them as your data. The engine takes a deep clone at expansion, so any tweaks you make after construction are not observed.
 
 **Legacy spread**
 
@@ -281,17 +281,17 @@ try {
 
 `validateChaosConfig(input, opts?)` accepts:
 
-- `unknownFields: 'reject' | 'warn' | 'ignore'` — strict by default. `'warn'` and `'ignore'` strip unknowns from the returned config; `'warn'` emits exactly one aggregated `console.warn` per call.
-- `customValidators: Partial<Record<RuleType, (rule, ctx) => ValidationIssue[] | void>>` — run extra checks per rule type.
-- `onDeprecation: (issue) => void` — receive `ValidationIssue` events for deprecated fields (rails only in v0.5.0).
+- `unknownFields: 'reject' | 'warn' | 'ignore'` - strict by default. `'warn'` and `'ignore'` strip unknowns from the returned config; `'warn'` emits exactly one aggregated `console.warn` per call.
+- `customValidators: Partial<Record<RuleType, (rule, ctx) => ValidationIssue[] | void>>` - run extra checks per rule type.
+- `onDeprecation: (issue) => void` - receive `ValidationIssue` events for deprecated fields (rails only in v0.5.0).
 
-A JSON Schema artifact ships at `node_modules/@chaos-maker/core/dist/chaos-config.schema.json` for IDE / `"$schema"` autocomplete plus a sidecar `chaos-config.schema.notes.md` listing parity caveats. The artifact is a tooling approximation — runtime canonical validation is always Zod via `validateChaosConfig`.
+A JSON Schema artifact ships at `node_modules/@chaos-maker/core/dist/chaos-config.schema.json` for IDE / `"$schema"` autocomplete plus a sidecar `chaos-config.schema.notes.md` listing parity caveats. The artifact is a tooling approximation - runtime canonical validation is always Zod via `validateChaosConfig`.
 
 See the [Rule Validation concept page](https://chaos-maker-dev.github.io/chaos-maker/concepts/validation/) for the full pipeline, brand semantics, and migration notes.
 
 ## Lifecycle and isolation
 
-`start()` and `stop()` are the only entry points to the patched runtime. On `stop()` each restore step — `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, and the DOM observer — runs inside its own `try` / `catch`, so one failing step does not block the others from running. The failing step is reported via a `cleanup-step-failed:<step>` debug event and a `console.warn`. Some edge cases (frozen prototypes, third-party code that re-wraps a global between `start()` and `stop()`, host objects that reject property writes) may still leave a global patched; treat the diagnostics surface as the source of truth rather than assuming an absolute restore guarantee.
+`start()` and `stop()` are the only entry points to the patched runtime. On `stop()` each restore step - `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, and the DOM observer - runs inside its own `try` / `catch`, so one failing step does not block the others from running. The failing step is reported via a `cleanup-step-failed:<step>` debug event and a `console.warn`. Some edge cases (frozen prototypes, third-party code that re-wraps a global between `start()` and `stop()`, host objects that reject property writes) may still leave a global patched; treat the diagnostics surface as the source of truth rather than assuming an absolute restore guarantee.
 
 ```ts
 const chaos = new ChaosMaker(config);
@@ -307,7 +307,7 @@ Concurrent instances against the same target are rejected. A second `start()` on
 
 ## Leak diagnostics
 
-When debug mode is enabled, the engine emits structured invariant events whenever it sees signs of a leaked runtime — patched globals on start, stale wrapper handles, or another instance owning the target.
+When debug mode is enabled, the engine emits structured invariant events whenever it sees signs of a leaked runtime - patched globals on start, stale wrapper handles, or another instance owning the target.
 
 ```ts
 const chaos = new ChaosMaker(config, { debug: true });

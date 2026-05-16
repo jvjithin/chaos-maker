@@ -3,7 +3,7 @@ title: Presets
 description: Built-in Chaos Maker presets for common resilience scenarios.
 ---
 
-Presets are the recommended quick-start path. They wrap realistic scenarios — flaky backend, mobile-3g, degraded checkout — into named bundles you drop into a config:
+Presets are the recommended quick-start path. They wrap realistic scenarios - flaky backend, mobile-3g, degraded checkout - into named bundles you drop into a config:
 
 ```typescript
 import { injectChaos } from '@chaos-maker/playwright';
@@ -31,7 +31,7 @@ Lead with presets for onboarding, smoke coverage, and exploratory resilience tes
 
 ## Built-in catalog
 
-Pick presets the way engineers describe scenarios — flaky backend, bad mobile network, checkout degradation, lossy realtime. Layer multiple presets when a scenario spans transports.
+Pick presets the way engineers describe scenarios - flaky backend, bad mobile network, checkout degradation, lossy realtime. Layer multiple presets when a scenario spans transports.
 
 | camelCase name          | Kebab aliases                       | Transports        | Intent                                                                  |
 | ----------------------- | ----------------------------------- | ----------------- | ----------------------------------------------------------------------- |
@@ -40,7 +40,7 @@ Pick presets the way engineers describe scenarios — flaky backend, bad mobile 
 | `offlineMode`           | `offline-mode`                      | network           | Block all requests like an offline browser.                             |
 | `unstableApi`           | `high-latency`                      | network           | 10% 500s and 20% latency (1000ms) scoped to `/api/`.                    |
 | `mobileThreeG`          | `mobile-3g`                         | network           | All requests get 1500ms latency plus 2% aborts. Approximates 3G round-trip; does not throttle bytes. |
-| `checkoutDegraded`      | `checkout-degraded`                 | network           | Payment instability scoped to `/checkout` and `/api/payments` — 30% latency at 800ms, occasional 503/500. |
+| `checkoutDegraded`      | `checkout-degraded`                 | network           | Payment instability scoped to `/checkout` and `/api/payments` - 30% latency at 800ms, occasional 503/500. |
 | `degradedUi`            |                                     | ui                | Disable buttons (20%) and hide links (10%).                             |
 | `unreliableWebSocket`   | `websocket-instability`             | websocket         | 10% drops, 500ms inbound delays, 5% truncations.                        |
 | `unreliableEventStream` | `realtime-lag`                      | sse               | 5% drops, 200ms delays, 2% close-after-2s on every stream.              |
@@ -49,12 +49,12 @@ Pick presets the way engineers describe scenarios — flaky backend, bad mobile 
 
 The presets fire deterministically given a fixed `seed`. Existence-check, not rate, keeps tests stable across browsers:
 
-- `mobile-3g` — observed elapsed time on a fetch should exceed 1000ms (well below the 1500ms target).
-- `checkout-degraded` — every rule on `/checkout` and `/api/payments` is probabilistic (30% latency, 5% / 10% failure), so a single request is not enough to assert against. Issue a small fixed batch (e.g. 20 sequential requests across `/checkout` and `/api/payments`) under a fixed `seed`, then call `getChaosLog()` and assert at least one event whose `detail.url` matches `/checkout` or `/api/payments` (any of `network:latency`, `network:failure`).
-- `unreliableWebSocket` — chaos log should contain at least one `websocket:delay` event with `applied: true`.
-- `unreliableEventStream` — chaos log should contain at least one `sse:delay` or `sse:close` event.
+- `mobile-3g` - observed elapsed time on a fetch should exceed 1000ms (well below the 1500ms target).
+- `checkout-degraded` - every rule on `/checkout` and `/api/payments` is probabilistic (30% latency, 5% / 10% failure), so a single request is not enough to assert against. Issue a small fixed batch (e.g. 20 sequential requests across `/checkout` and `/api/payments`) under a fixed `seed`, then call `getChaosLog()` and assert at least one event whose `detail.url` matches `/checkout` or `/api/payments` (any of `network:latency`, `network:failure`).
+- `unreliableWebSocket` - chaos log should contain at least one `websocket:delay` event with `applied: true`.
+- `unreliableEventStream` - chaos log should contain at least one `sse:delay` or `sse:close` event.
 
-Kebab-case aliases (`slow-api`, `flaky-api`, `api-flaky`, `offline-mode`, `high-latency`, `mobile-3g`, `checkout-degraded`, `websocket-instability`, `realtime-lag`) are registry-only. They resolve via `presets: ['mobile-3g']` and `new PresetRegistry().get('mobile-3g')`. They are NOT keys on the legacy `presets` record export — `presets['mobile-3g']` is `undefined` by design. Use the camelCase key (`presets.mobileThreeG`) when reading from the record.
+Kebab-case aliases (`slow-api`, `flaky-api`, `api-flaky`, `offline-mode`, `high-latency`, `mobile-3g`, `checkout-degraded`, `websocket-instability`, `realtime-lag`) are registry-only. They resolve via `presets: ['mobile-3g']` and `new PresetRegistry().get('mobile-3g')`. They are NOT keys on the legacy `presets` record export - `presets['mobile-3g']` is `undefined` by design. Use the camelCase key (`presets.mobileThreeG`) when reading from the record.
 
 ## Custom presets
 
@@ -92,15 +92,15 @@ const config = new ChaosConfigBuilder()
 
 Every failure mode surfaces as a `ChaosConfigError` at construction time, never at runtime:
 
-- Unknown preset name in `presets[]` — message names the offending name and lists the registered ones.
-- Custom preset value carrying `presets`, `customPresets`, `seed`, or `debug` — strict-key rejection.
+- Unknown preset name in `presets[]` - message names the offending name and lists the registered ones.
+- Custom preset value carrying `presets`, `customPresets`, `seed`, or `debug` - strict-key rejection.
 - Empty or whitespace-only preset name (in either `presets[]` or `customPresets` keys).
 - Custom preset whose name collides with a built-in (`slowNetwork`, `slow-api`, etc.) or with another custom preset.
 - Group name collision between a preset's `groups` and the user's `groups`. Workaround: copy the preset locally via `customPresets` and rename the colliding group.
 
 ## Mutability
 
-Built-in preset configs are deep-frozen. Attempts to mutate them via `presets.slowNetwork` or `registry.get(...)` throw in strict mode (and are no-ops in sloppy mode). Custom presets passed via `customPresets` are NOT frozen on input — your own preset literals stay mutable in your code. The engine takes a deep clone at expansion time, so any post-construction tweaks you make are not observed.
+Built-in preset configs are deep-frozen. Attempts to mutate them via `presets.slowNetwork` or `registry.get(...)` throw in strict mode (and are no-ops in sloppy mode). Custom presets passed via `customPresets` are NOT frozen on input - your own preset literals stay mutable in your code. The engine takes a deep clone at expansion time, so any post-construction tweaks you make are not observed.
 
 ## Legacy spread
 
