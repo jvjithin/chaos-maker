@@ -77,6 +77,9 @@ const TOP_LEVEL_KEYS = new Set([
   'seed',
   'debug',
   'schemaVersion',
+  'profile',
+  'profileOverrides',
+  'customProfiles',
 ]);
 
 const CATEGORY_KEYS: Record<string, ReadonlySet<string>> = {
@@ -139,6 +142,22 @@ function projectPresetSlice(input: unknown): Record<string, unknown> {
   return out;
 }
 
+/** ProfileConfigSlice differs from PresetConfigSlice by carrying `presets`,
+ *  `seed`, and `debug` on top of the four rule categories + `groups`. Mirrors
+ *  `projectPresetSlice` plus those three extras; same strict-key projection
+ *  semantics. */
+function projectProfileSlice(input: unknown): Record<string, unknown> {
+  const out = projectPresetSlice(input);
+  if (!input || typeof input !== 'object') return out;
+  const src = input as Record<string, unknown>;
+  if (Array.isArray(src.presets)) {
+    out.presets = (src.presets as unknown[]).filter((s) => typeof s === 'string');
+  }
+  if (typeof src.seed === 'number') out.seed = src.seed;
+  if (src.debug !== undefined) out.debug = src.debug;
+  return out;
+}
+
 /** Project `input` to a fresh object containing only the keys recognized by
  *  the strict schema. Never mutates the input. */
 export function stripUnknownKeys(input: unknown): ChaosConfig {
@@ -157,6 +176,17 @@ export function stripUnknownKeys(input: unknown): ChaosConfig {
         const projected: Record<string, unknown> = {};
         for (const [name, slice] of Object.entries(cp as Record<string, unknown>)) {
           projected[name] = projectPresetSlice(slice);
+        }
+        out[k] = projected;
+      }
+    } else if (k === 'profileOverrides') {
+      out[k] = projectProfileSlice(src[k]);
+    } else if (k === 'customProfiles') {
+      const cp = src[k];
+      if (cp && typeof cp === 'object') {
+        const projected: Record<string, unknown> = {};
+        for (const [name, slice] of Object.entries(cp as Record<string, unknown>)) {
+          projected[name] = projectProfileSlice(slice);
         }
         out[k] = projected;
       }
@@ -190,6 +220,10 @@ function walk(value: unknown, prefix: string, out: string[]): void {
         walkGroups(src[k], 'groups', out);
       } else if (k === 'customPresets') {
         walkCustomPresets(src[k], out);
+      } else if (k === 'profileOverrides') {
+        walkProfileSlice(src[k], 'profileOverrides', out);
+      } else if (k === 'customProfiles') {
+        walkCustomProfiles(src[k], out);
       }
     }
   }
@@ -250,5 +284,38 @@ function walkCustomPresets(value: unknown, out: string[]): void {
       }
       walkCategory(src[k], `customPresets.${name}.${k}`, CATEGORY_RULE_KEYS[k], CATEGORY_KEYS[k], out);
     }
+  }
+}
+
+const PROFILE_SLICE_ALLOWED_TOP = new Set([
+  ...Object.keys(CATEGORY_RULE_KEYS),
+  'groups',
+  'presets',
+  'seed',
+  'debug',
+]);
+
+function walkProfileSlice(value: unknown, prefix: string, out: string[]): void {
+  if (!value || typeof value !== 'object') return;
+  const src = value as Record<string, unknown>;
+  for (const k of Object.keys(src)) {
+    if (!PROFILE_SLICE_ALLOWED_TOP.has(k)) {
+      out.push(`${prefix}.${k}`);
+      continue;
+    }
+    if (k === 'groups') {
+      walkGroups(src[k], `${prefix}.groups`, out);
+      continue;
+    }
+    if (k in CATEGORY_RULE_KEYS) {
+      walkCategory(src[k], `${prefix}.${k}`, CATEGORY_RULE_KEYS[k], CATEGORY_KEYS[k], out);
+    }
+  }
+}
+
+function walkCustomProfiles(value: unknown, out: string[]): void {
+  if (!value || typeof value !== 'object') return;
+  for (const [name, slice] of Object.entries(value as Record<string, unknown>)) {
+    walkProfileSlice(slice, `customProfiles.${name}`, out);
   }
 }
