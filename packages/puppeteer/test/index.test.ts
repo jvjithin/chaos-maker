@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   injectChaos,
   removeChaos,
@@ -159,6 +159,10 @@ describe('@chaos-maker/puppeteer', () => {
   });
 
   describe('removeSWChaos', () => {
+    afterEach(() => {
+      delete (globalThis as unknown as Record<string, unknown>).__chaosMakerSWBridge;
+    });
+
     it('clears page and worker logs after stop', async () => {
       const stop = vi.fn(async () => undefined);
       const clearLocalLog = vi.fn();
@@ -179,9 +183,11 @@ describe('@chaos-maker/puppeteer', () => {
       await removeSWChaos(page, { timeoutMs: 321 });
 
       expect(stop).toHaveBeenCalledWith(321);
+      expect(stop).toHaveBeenCalledTimes(1);
       expect(clearLocalLog).toHaveBeenCalledTimes(1);
       expect(clearRemoteLog).toHaveBeenCalledWith(321);
-      delete (globalThis as unknown as Record<string, unknown>).__chaosMakerSWBridge;
+      expect(stop.mock.invocationCallOrder[0]).toBeLessThan(clearLocalLog.mock.invocationCallOrder[0]);
+      expect(stop.mock.invocationCallOrder[0]).toBeLessThan(clearRemoteLog.mock.invocationCallOrder[0]);
     });
 
     it('clears page and worker logs when stop rejects', async () => {
@@ -205,9 +211,12 @@ describe('@chaos-maker/puppeteer', () => {
 
       await expect(removeSWChaos(page, { timeoutMs: 321 })).resolves.toBeUndefined();
 
+      expect(stop).toHaveBeenCalledWith(321);
+      expect(stop).toHaveBeenCalledTimes(1);
       expect(clearLocalLog).toHaveBeenCalledTimes(1);
       expect(clearRemoteLog).toHaveBeenCalledWith(321);
-      delete (globalThis as unknown as Record<string, unknown>).__chaosMakerSWBridge;
+      expect(stop.mock.invocationCallOrder[0]).toBeLessThan(clearLocalLog.mock.invocationCallOrder[0]);
+      expect(stop.mock.invocationCallOrder[0]).toBeLessThan(clearRemoteLog.mock.invocationCallOrder[0]);
     });
   });
 });

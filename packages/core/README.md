@@ -291,7 +291,7 @@ See the [Rule Validation concept page](https://chaos-maker-dev.github.io/chaos-m
 
 ## Lifecycle and isolation
 
-`start()` and `stop()` are the only entry points to the patched runtime. The engine restores `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, and the DOM observer on `stop()`, even when one restore step throws — every step runs in its own `try` / `catch` so a partial failure cannot leave globals patched.
+`start()` and `stop()` are the only entry points to the patched runtime. On `stop()` each restore step — `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, and the DOM observer — runs inside its own `try` / `catch`, so one failing step does not block the others from running. The failing step is reported via a `cleanup-step-failed:<step>` debug event and a `console.warn`. Some edge cases (frozen prototypes, third-party code that re-wraps a global between `start()` and `stop()`, host objects that reject property writes) may still leave a global patched; treat the diagnostics surface as the source of truth rather than assuming an absolute restore guarantee.
 
 ```ts
 const chaos = new ChaosMaker(config);

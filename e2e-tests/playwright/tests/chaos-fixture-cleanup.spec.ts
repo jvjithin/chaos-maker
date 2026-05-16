@@ -13,33 +13,35 @@ const API_PATTERN = '/api/data.json';
 // ---------------------------------------------------------------------------
 baseTest('try/finally completes removeChaos when the body throws after injectChaos', async ({ browser }) => {
   const context = await browser.newContext();
-  const page = await context.newPage();
-  let caught: Error | undefined;
   try {
+    const page = await context.newPage();
+    let caught: Error | undefined;
     try {
-      await injectChaos(page, {
-        network: { failures: [{ urlPattern: API_PATTERN, statusCode: 503, probability: 1.0 }] },
-      });
-      await page.goto(BASE_URL);
-      await page.click('#fetch-data');
-      await expect(page.locator('#status')).toHaveText('Error!');
-      throw new Error('simulated body failure');
-    } finally {
-      await removeChaos(page);
+      try {
+        await injectChaos(page, {
+          network: { failures: [{ urlPattern: API_PATTERN, statusCode: 503, probability: 1.0 }] },
+        });
+        await page.goto(BASE_URL);
+        await page.click('#fetch-data');
+        await expect(page.locator('#status')).toHaveText('Error!');
+        throw new Error('simulated body failure');
+      } finally {
+        await removeChaos(page);
+      }
+    } catch (e) {
+      caught = e as Error;
     }
-  } catch (e) {
-    caught = e as Error;
+    expect(caught?.message).toBe('simulated body failure');
+
+    // removeChaos ran end-to-end even though the body threw.
+    const stillActive = await page.evaluate(() => {
+      const w = window as unknown as { chaosUtils?: { instance: unknown } };
+      return Boolean(w.chaosUtils && w.chaosUtils.instance);
+    });
+    expect(stillActive).toBe(false);
+  } finally {
+    await context.close();
   }
-  expect(caught?.message).toBe('simulated body failure');
-
-  // removeChaos ran end-to-end even though the body threw.
-  const stillActive = await page.evaluate(() => {
-    const w = window as unknown as { chaosUtils?: { instance: unknown } };
-    return Boolean(w.chaosUtils && w.chaosUtils.instance);
-  });
-  expect(stillActive).toBe(false);
-
-  await context.close();
 });
 
 // ---------------------------------------------------------------------------

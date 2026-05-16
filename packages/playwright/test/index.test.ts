@@ -33,8 +33,11 @@ describe('@chaos-maker/playwright cleanup', () => {
     await removeSWChaos(page, { timeoutMs: 123 });
 
     expect(stop).toHaveBeenCalledWith(123);
+    expect(stop).toHaveBeenCalledTimes(1);
     expect(clearLocalLog).toHaveBeenCalledTimes(1);
     expect(clearRemoteLog).toHaveBeenCalledWith(123);
+    expect(stop.mock.invocationCallOrder[0]).toBeLessThan(clearLocalLog.mock.invocationCallOrder[0]);
+    expect(stop.mock.invocationCallOrder[0]).toBeLessThan(clearRemoteLog.mock.invocationCallOrder[0]);
   });
 
   it('removeSWChaos clears page and worker logs when stop rejects', async () => {
@@ -54,7 +57,11 @@ describe('@chaos-maker/playwright cleanup', () => {
 
     await expect(removeSWChaos(page, { timeoutMs: 123 })).resolves.toBeUndefined();
 
+    expect(stop).toHaveBeenCalledWith(123);
+    expect(stop).toHaveBeenCalledTimes(1);
     expect(clearLocalLog).toHaveBeenCalledTimes(1);
     expect(clearRemoteLog).toHaveBeenCalledWith(123);
+    expect(stop.mock.invocationCallOrder[0]).toBeLessThan(clearLocalLog.mock.invocationCallOrder[0]);
+    expect(stop.mock.invocationCallOrder[0]).toBeLessThan(clearRemoteLog.mock.invocationCallOrder[0]);
   });
 });
