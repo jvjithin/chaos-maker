@@ -1,0 +1,90 @@
+name: Bug report
+description: Report unexpected behavior in @chaos-maker/* packages.
+title: "[bug] "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report. Please fill in the fields below so we can reproduce and triage quickly.
+
+        Security issues: do NOT use this template. See [SECURITY.md](https://github.com/chaos-maker-dev/chaos-maker/blob/main/SECURITY.md).
+  - type: dropdown
+    id: adapter
+    attributes:
+      label: Adapter
+      description: Which adapter is involved?
+      options:
+        - "@chaos-maker/core (engine, validation, presets, builder)"
+        - "@chaos-maker/playwright"
+        - "@chaos-maker/cypress"
+        - "@chaos-maker/webdriverio"
+        - "@chaos-maker/puppeteer"
+        - Service Worker chaos (any adapter)
+        - Docs site
+        - Other / not sure
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Chaos Maker version
+      description: Output of `npm ls @chaos-maker/core` (or pnpm equivalent).
+      placeholder: "0.6.0"
+    validations:
+      required: true
+  - type: input
+    id: node-version
+    attributes:
+      label: Node.js version
+      placeholder: "24.14.0"
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser
+      description: Name + version. For Playwright matrix, list the project.
+      placeholder: "Chromium 130 / Firefox 140 / WebKit 18 / Edge 130"
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Linux
+        - Windows
+        - GitHub Actions (ubuntu-latest)
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Minimal config + test code that reproduces the issue. Link to a repo if it's larger.
+      placeholder: |
+        ```ts
+        await injectChaos(page, { /* ... */ });
+        ```
+      render: markdown
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include stack traces, screenshots, and `getChaosLog()` output if relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Workarounds tried, related issues, etc.

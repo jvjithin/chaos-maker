@@ -1,0 +1,52 @@
+name: Feature request
+description: Suggest a new chaos type, builder helper, adapter capability, or DX improvement.
+title: "[feat] "
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion. Concrete proposals (with a use case) move faster than abstract ideas.
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use case
+      description: What test problem would this solve? Why does Chaos Maker today not cover it well?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed API
+      description: Sketch the config / builder / adapter call you'd want to write.
+      placeholder: |
+        ```ts
+        builder.dropFetchHeaders('/api', ['cookie'], 0.1);
+        ```
+      render: markdown
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected surface
+      multiple: true
+      options:
+        - Core (engine, interceptors)
+        - Validation / schema
+        - Config builder
+        - Presets
+        - Playwright adapter
+        - Cypress adapter
+        - WebdriverIO adapter
+        - Puppeteer adapter
+        - Service Worker
+        - Debug Mode / observability
+        - Docs
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you've tried, related libraries that solve a piece of this, why those don't fit.
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
