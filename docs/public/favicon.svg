@@ -1,5 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Chaos Maker">
-  <rect width="64" height="64" rx="12" fill="#111827"/>
-  <path d="M17 38c8-2 9-16 20-16 7 0 11 5 11 11 0 8-6 13-14 13-8 0-12-4-17-8z" fill="#22c55e"/>
-  <path d="M21 29h22M27 22l-5 7 5 7M37 22l5 7-5 7" fill="none" stroke="#f9fafb" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
