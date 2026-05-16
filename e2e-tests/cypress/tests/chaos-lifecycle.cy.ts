@@ -92,6 +92,32 @@ describe('Chaos Lifecycle', () => {
     });
   });
 
+  it('removeChaos survives a reload on a reused page', () => {
+    cy.injectChaos({
+      network: { failures: [{ urlPattern: API_PATTERN, statusCode: 500, probability: 1.0 }] },
+    });
+    cy.visit('/');
+    cy.get('#fetch-data').click();
+    cy.get('#status').should('have.text', 'Error!');
+
+    cy.removeChaos();
+    cy.reload();
+    cy.get('#fetch-data').click();
+    cy.get('#status').should('have.text', 'Success!');
+
+    cy.injectChaos({
+      network: { failures: [{ urlPattern: API_PATTERN, statusCode: 503, probability: 1.0 }] },
+    });
+    cy.visit('/');
+    cy.get('#fetch-data').click();
+    cy.get('#status').should('have.text', 'Error!');
+
+    cy.removeChaos();
+    cy.reload();
+    cy.get('#fetch-data').click();
+    cy.get('#status').should('have.text', 'Success!');
+  });
+
   it('supports repeated inject and remove cycles across visits', () => {
     cy.injectChaos({
       network: { failures: [{ urlPattern: API_PATTERN, statusCode: 500, probability: 1.0 }] },
