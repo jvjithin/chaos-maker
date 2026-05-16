@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { ChaosConfigError } from './errors';
 import type { ChaosConfig } from './config';
 import { PresetRegistry, expandPresets, type PresetConfigSlice } from './presets';
+import type { ProfileConfigSlice } from './profiles';
 import { formatZodIssue } from './validation-format';
 import type {
   CustomValidatorMap,
@@ -336,6 +337,8 @@ const buildSliceSchema = (p: Policy) =>
 
 const presetNameSchema = z.string().trim().min(1, 'preset name must not be empty');
 
+const profileNameSchema = z.string().trim().min(1, 'profile name must not be empty');
+
 const presetsArraySchema = z.array(presetNameSchema).transform((names) => {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -349,6 +352,22 @@ const presetsArraySchema = z.array(presetNameSchema).transform((names) => {
   return out;
 });
 
+/** Shape of a scenario profile slice OR a runtime override slice. A profile
+ *  MAY carry its own `presets[]`, `seed`, `debug`, `groups`, and the four rule
+ *  categories. It MAY NOT carry `customPresets`, `customProfiles`, `profile`,
+ *  `profileOverrides`, or `schemaVersion` — nested profile chaining is
+ *  explicitly out-of-scope and rejected here as unknown keys under strict
+ *  policy. */
+const buildProfileSliceSchema = (p: Policy) =>
+  withPolicy(
+    buildSliceSchema(p).extend({
+      presets: presetsArraySchema.optional(),
+      seed: z.number().int('Seed must be an integer').optional(),
+      debug: buildDebugSchema(p).optional(),
+    }),
+    p,
+  );
+
 const buildChaosConfigSchema = (p: Policy) =>
   withPolicy(
     buildSliceSchema(p).extend({
@@ -357,6 +376,9 @@ const buildChaosConfigSchema = (p: Policy) =>
       seed: z.number().int('Seed must be an integer').optional(),
       debug: buildDebugSchema(p).optional(),
       schemaVersion: z.literal(1).optional(),
+      profile: profileNameSchema.optional(),
+      profileOverrides: buildProfileSliceSchema(p).optional(),
+      customProfiles: z.record(profileNameSchema, buildProfileSliceSchema(p)).optional(),
     }),
     p,
   );
@@ -381,6 +403,17 @@ type _Missing = Exclude<_SliceKeys, _SchemaKeys>;
 const _sliceSchemaCovers: _Missing extends never ? true : never = true;
 void _sliceSchemaCovers;
 
+const chaosProfileSliceSchema = buildProfileSliceSchema('strict');
+
+// DRIFT GUARD — fails to compile if `ProfileConfigSlice` gains a top-level
+// key the profile-slice schema doesn't model. Same coverage scope as the
+// preset slice guard above.
+type _ProfileSliceKeys = keyof Required<ProfileConfigSlice>;
+type _ProfileSchemaKeys = keyof typeof chaosProfileSliceSchema.shape;
+type _MissingProfile = Exclude<_ProfileSliceKeys, _ProfileSchemaKeys>;
+const _profileSliceSchemaCovers: _MissingProfile extends never ? true : never = true;
+void _profileSliceSchemaCovers;
+
 // RuleType drift guard (compile-time, no runtime cost). The `satisfies`
 // clause enforces every `RuleType` is present; the `keyof typeof ...` lets
 // the bidirectional Exclude<...> check catch a stray map key not in the
@@ -403,6 +436,7 @@ const RULE_TYPE_TO_SCHEMA = {
   'sse.close': buildSseClose('strict'),
   group: buildGroupConfig('strict'),
   preset: chaosConfigSliceSchema,
+  profile: chaosProfileSliceSchema,
   'top-level': chaosConfigSchemaStrict,
 } satisfies Record<RuleType, z.ZodTypeAny>;
 type _MissingFromMap = Exclude<RuleType, keyof typeof RULE_TYPE_TO_SCHEMA>;
