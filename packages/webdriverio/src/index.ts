@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import type { ChaosConfig, ChaosEvent, ValidateChaosConfigOptions } from '@chaos-maker/core';
-import { serializeForTransport, validateChaosConfig } from '@chaos-maker/core';
+import { serializeForTransport, validateChaosConfig, isSessionTeardownError } from '@chaos-maker/core';
 import './types';
 
 /** Options accepted by {@link injectChaos}. */
@@ -28,21 +28,6 @@ export interface ChaosBrowser {
     ...args: Args
   ): Promise<ReturnValue>;
   addCommand?: (name: string, fn: (...args: unknown[]) => unknown) => void;
-}
-
-function isSessionTeardownError(err: unknown): boolean {
-  const text = err instanceof Error ? `${err.name} ${err.message}` : String(err);
-  return [
-    /invalid session id/i,
-    /no such window/i,
-    /session closed/i,
-    /session not created/i,
-    /browser has disconnected/i,
-    /browser is closed/i,
-    /target closed/i,
-    /connection closed/i,
-    /browsing context has been discarded/i,
-  ].some((pattern) => pattern.test(text));
 }
 
 let cachedUmdSource: string | null = null;

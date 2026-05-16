@@ -32,6 +32,7 @@ export type { ValidateChaosConfigOptions, PrepareChaosConfigOptions };
 export type { ValidationIssue, ValidationIssueCode, RuleType, CustomRuleValidator, CustomValidatorMap, DeprecationEntry } from './validation-types';
 export type { Preset, PresetConfigSlice } from './presets';
 export { SW_BRIDGE_SOURCE } from './sw-bridge-source';
+export { isSessionTeardownError, SESSION_TEARDOWN_PATTERNS } from './session-errors';
 export { extractGraphQLOperation, parseOperationFromQueryString, operationNameMatches } from './graphql';
 export { serializeForTransport, deserializeForTransport } from './transport';
 export { DEFAULT_GROUP_NAME, RuleGroupRegistry } from './groups';
