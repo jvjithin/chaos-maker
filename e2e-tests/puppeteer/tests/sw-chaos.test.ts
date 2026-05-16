@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import type { Browser, Page } from 'puppeteer';
-import { injectSWChaos, removeSWChaos, getSWChaosLog } from '@chaos-maker/puppeteer';
+import { injectSWChaos, removeSWChaos, getSWChaosLog, getSWChaosLogFromSW } from '@chaos-maker/puppeteer';
 import { launchBrowser, BASE_URL } from './helpers';
 
 const SW_URL = `${BASE_URL}/sw-app/`;
@@ -74,5 +74,43 @@ describe('Puppeteer SW chaos', () => {
     );
     const status = await page.$eval('#sw-fetch-status', (el) => el.textContent);
     expect(status).toBe('200');
+  });
+
+  it('stop then reinject works on a reused SW registration', async () => {
+    await registerClassicSW();
+    await injectSWChaos(page, {
+      network: { failures: [{ urlPattern: '/api/data.json', statusCode: 503, probability: 1 }] },
+      seed: 3,
+    });
+    await page.click('#sw-fetch');
+    await page.waitForFunction(
+      () => document.getElementById('sw-fetch-status')?.textContent === '503',
+      { timeout: 5_000 },
+    );
+
+    await removeSWChaos(page);
+    await page.evaluate(() => {
+      document.getElementById('sw-fetch-status')!.textContent = '';
+    });
+    await page.click('#sw-fetch');
+    await page.waitForFunction(
+      () => document.getElementById('sw-fetch-status')?.textContent === '200',
+      { timeout: 5_000 },
+    );
+    expect(await getSWChaosLog(page)).toEqual([]);
+    expect(await getSWChaosLogFromSW(page)).toEqual([]);
+
+    await injectSWChaos(page, {
+      network: { failures: [{ urlPattern: '/api/data.json', statusCode: 418, probability: 1 }] },
+      seed: 4,
+    });
+    await page.evaluate(() => {
+      document.getElementById('sw-fetch-status')!.textContent = '';
+    });
+    await page.click('#sw-fetch');
+    await page.waitForFunction(
+      () => document.getElementById('sw-fetch-status')?.textContent === '418',
+      { timeout: 5_000 },
+    );
   });
 });

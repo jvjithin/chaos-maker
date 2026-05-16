@@ -64,4 +64,34 @@ describe('WDIO SW chaos', () => {
     await $('#sw-fetch').click();
     await expect($('#sw-fetch-status')).toHaveText('200');
   });
+
+  it('stop then reinject works on a reused SW registration', async () => {
+    await registerClassicSW();
+    await browser.injectSWChaos({
+      network: { failures: [{ urlPattern: '/api/data.json', statusCode: 503, probability: 1 }] },
+      seed: 3,
+    });
+    await $('#sw-fetch').click();
+    await expect($('#sw-fetch-status')).toHaveText('503');
+
+    await browser.removeSWChaos();
+    await browser.execute(() => {
+      document.getElementById('sw-fetch-status')!.textContent = '';
+    });
+    await $('#sw-fetch').click();
+    await expect($('#sw-fetch-status')).toHaveText('200');
+
+    expect((await browser.getSWChaosLog()) as ChaosEvent[]).toEqual([]);
+    expect((await browser.getSWChaosLogFromSW()) as ChaosEvent[]).toEqual([]);
+
+    await browser.injectSWChaos({
+      network: { failures: [{ urlPattern: '/api/data.json', statusCode: 418, probability: 1 }] },
+      seed: 4,
+    });
+    await browser.execute(() => {
+      document.getElementById('sw-fetch-status')!.textContent = '';
+    });
+    await $('#sw-fetch').click();
+    await expect($('#sw-fetch-status')).toHaveText('418');
+  });
 });
