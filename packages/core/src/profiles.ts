@@ -1,4 +1,5 @@
 import type { ChaosConfig } from './config';
+import { cloneValue } from './utils';
 
 /** ChaosConfig slice a scenario profile is allowed to carry. Auto-includes any
  *  new top-level field added to ChaosConfig EXCEPT the keys explicitly forbidden
@@ -116,4 +117,152 @@ export class ProfileRegistry {
   list(): string[] {
     return [...this.map.keys()];
   }
+}
+
+const PROFILE_CHAIN_FORBIDDEN = [
+  'profile',
+  'profileOverrides',
+  'customProfiles',
+  'customPresets',
+  'schemaVersion',
+] as const;
+
+function ensureNoProfileChain(slice: object, source: string): void {
+  for (const k of PROFILE_CHAIN_FORBIDDEN) {
+    if (k in (slice as Record<string, unknown>)) {
+      throw new Error(
+        `[chaos-maker] profile slice '${source}' may not contain '${k}' (recursive profile inheritance is out of scope)`,
+      );
+    }
+  }
+}
+
+/** Append rule arrays + groups from `slice` onto `target`. Walks the four
+ *  rule-bearing categories reflectively so any new sub-key under one of them
+ *  flows through without per-array code. Top-level `groups` is concatenated
+ *  separately.
+ *
+ *  IF a future ChaosConfig category is NOT a `Record<string, ruleArray[]>`,
+ *  the `cat` tuple below MUST be updated AND the new category needs explicit
+ *  handling. */
+function appendProfileSlice(target: ChaosConfig, slice: ProfileConfigSlice): void {
+  for (const cat of ['network', 'ui', 'websocket', 'sse'] as const) {
+    const src = slice[cat] as Record<string, unknown> | undefined;
+    if (!src) continue;
+    const dst = (target[cat] ??= {}) as Record<string, unknown[]>;
+    for (const [k, arr] of Object.entries(src)) {
+      if (!Array.isArray(arr)) {
+        throw new Error(
+          `[chaos-maker] internal: profile slice category '${cat}.${k}' must be an array. Update appendProfileSlice when adding non-array category fields.`,
+        );
+      }
+      (dst[k] ??= []).push(...arr);
+    }
+  }
+  if (slice.groups?.length) {
+    (target.groups ??= []).push(...slice.groups);
+  }
+}
+
+function mergePresetLists(
+  ...lists: Array<readonly string[] | undefined>
+): string[] | undefined {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const list of lists) {
+    if (!list) continue;
+    for (const raw of list) {
+      const norm = raw.trim();
+      if (!norm || seen.has(norm)) continue;
+      seen.add(norm);
+      out.push(norm);
+    }
+  }
+  return out.length ? out : undefined;
+}
+
+/** Resolve `config.profile` + `config.profileOverrides` into a flat
+ *  `ChaosConfig`. Identity + ordering contract:
+ *
+ *  - ALWAYS returns a fresh `ChaosConfig`. Callers own the returned object
+ *    and may mutate it without affecting the input or any registry slice.
+ *    The registered profile slice is deep-cloned before any append.
+ *  - The output ALWAYS has `profile`, `profileOverrides`, and `customProfiles`
+ *    stripped, even when the inputs were undefined. `customPresets` and
+ *    `schemaVersion` are carried through unchanged so `expandPresets` and
+ *    schema validation downstream still see them.
+ *  - Rule append order: profile rules first, then top-level rules, then
+ *    `profileOverrides` rules. Same rule for `groups`.
+ *  - `presets[]` merge order: profile-presets first, then top-level-presets,
+ *    then override-presets. Deduplicated by trimmed name, first occurrence
+ *    preserved.
+ *  - Scalar (`seed`, `debug`) precedence: `profileOverrides` > top-level >
+ *    profile (the highest layer whose value is `!== undefined` wins).
+ *  - Throws when `config.profile` is set but the name is not registered
+ *    (plain `Error` — `prepareChaosConfig` wraps to `unknown_profile`).
+ *  - Throws when a resolved profile or override slice carries a forbidden
+ *    profile-chain field (plain `Error` — wrapped to `profile_chain`). */
+export function applyProfile(
+  config: ChaosConfig,
+  registry: ProfileRegistry,
+): ChaosConfig {
+  const profileName = config.profile;
+  const overrides = config.profileOverrides;
+
+  const inputCopy = cloneValue(config);
+  delete inputCopy.profile;
+  delete inputCopy.profileOverrides;
+  delete inputCopy.customProfiles;
+
+  if (profileName === undefined && overrides === undefined) {
+    return inputCopy;
+  }
+
+  let profileSlice: ProfileConfigSlice | undefined;
+  if (profileName !== undefined) {
+    profileSlice = cloneValue(registry.get(profileName));
+    ensureNoProfileChain(profileSlice, profileName);
+  }
+
+  const overridesSlice = overrides ? cloneValue(overrides) : undefined;
+  if (overridesSlice) {
+    ensureNoProfileChain(overridesSlice, 'profileOverrides');
+  }
+
+  const out: ChaosConfig = {};
+
+  if (profileSlice) {
+    appendProfileSlice(out, profileSlice);
+  }
+
+  const topSlice: ProfileConfigSlice = { ...inputCopy };
+  delete (topSlice as ChaosConfig).presets;
+  delete (topSlice as ChaosConfig).customPresets;
+  delete (topSlice as ChaosConfig).seed;
+  delete (topSlice as ChaosConfig).debug;
+  delete (topSlice as ChaosConfig).schemaVersion;
+  appendProfileSlice(out, topSlice);
+
+  if (overridesSlice) {
+    appendProfileSlice(out, overridesSlice);
+  }
+
+  const mergedPresets = mergePresetLists(
+    profileSlice?.presets,
+    inputCopy.presets,
+    overridesSlice?.presets,
+  );
+  if (mergedPresets) out.presets = mergedPresets;
+
+  if (inputCopy.customPresets) out.customPresets = inputCopy.customPresets;
+
+  const seed = overridesSlice?.seed ?? inputCopy.seed ?? profileSlice?.seed;
+  if (seed !== undefined) out.seed = seed;
+
+  const debug = overridesSlice?.debug ?? inputCopy.debug ?? profileSlice?.debug;
+  if (debug !== undefined) out.debug = debug;
+
+  if (inputCopy.schemaVersion !== undefined) out.schemaVersion = inputCopy.schemaVersion;
+
+  return out;
 }
