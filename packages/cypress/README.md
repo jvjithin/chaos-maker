@@ -8,7 +8,7 @@ Cypress adapter for [`@chaos-maker/core`](../core/). Custom commands for one-lin
 npm install --save-dev @chaos-maker/core @chaos-maker/cypress
 ```
 
-Both packages are required — `@chaos-maker/cypress` ships the browser-side commands and a plugin-side task that loads the core UMD bundle into the application under test.
+Both packages are required - `@chaos-maker/cypress` ships the browser-side commands and a plugin-side task that loads the core UMD bundle into the application under test.
 
 ## Setup
 
@@ -182,8 +182,8 @@ SSE chaos and GraphQL operation matching use the same `cy.injectChaos()` command
 
 Inject chaos into the next `cy.visit()`. **Call before `cy.visit()`** so the browser's `fetch` / `XMLHttpRequest` / `WebSocket` are patched before the application runs.
 
-- `config` — `ChaosConfig` (see [@chaos-maker/core](../core/) for the full reference).
-- `options.persistAcrossNavigations` — `boolean`, default `true`. When true, chaos re-injects on every subsequent `cy.visit()` until `cy.removeChaos()`. When false, chaos applies to the next visit only.
+- `config` - `ChaosConfig` (see [@chaos-maker/core](../core/) for the full reference).
+- `options.persistAcrossNavigations` - `boolean`, default `true`. When true, chaos re-injects on every subsequent `cy.visit()` until `cy.removeChaos()`. When false, chaos applies to the next visit only.
 
 ### `cy.removeChaos()`
 
@@ -193,7 +193,7 @@ The support hook runs only when chaos is active. Direct users should still call 
 
 ### `cy.getChaosLog()`
 
-Resolve to the chaos event log — every chaos check since injection, with `applied: true | false` and full detail for each type.
+Resolve to the chaos event log - every chaos check since injection, with `applied: true | false` and full detail for each type.
 
 ### `cy.getChaosSeed()`
 
@@ -232,13 +232,13 @@ cy.injectChaos(config, {
 | Persists across navigations | Yes (matches `addInitScript`) | Yes by default (configurable) |
 | TypeScript types | Exported | Global `Cypress.Chainable` augmentation |
 
-Chaos behaviour is identical — both adapters load the same core UMD into the page.
+Chaos behaviour is identical - both adapters load the same core UMD into the page.
 
 ## Caveats
 
 - **Cross-origin navigations**: the command chain runs inside a single Cypress origin. If the app navigates to a new origin mid-test, wrap the rest of the chain in `cy.origin(...)` and re-inject inside that block.
 - **CSP `script-src` 'self' only**: appending an inline `<script>` element requires either `unsafe-inline` in the page's Content Security Policy or a CSP-relaxed test mode. If your production CSP is strict, disable it for Cypress runs (e.g., via a dedicated test build).
-- **`cy.intercept` interaction**: Cypress's request interception layer runs above `window.fetch`, so a `cy.intercept` response is delivered to chaos-maker's patched fetch — chaos still applies inside the intercepted response path. Use both together intentionally.
+- **`cy.intercept` interaction**: Cypress's request interception layer runs above `window.fetch`, so a `cy.intercept` response is delivered to chaos-maker's patched fetch - chaos still applies inside the intercepted response path. Use both together intentionally.
 
 ## Cypress Command Log
 

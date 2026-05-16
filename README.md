@@ -6,6 +6,14 @@
 
 Inject controlled chaos into web applications to test frontend resilience. Works with Playwright, Cypress, WebdriverIO, and Puppeteer with no backend changes.
 
+## What's new in v0.6.0
+
+- **Production-ready presets** for the scenarios you'd actually script: `mobile-3g`, `checkout-degraded`. Drop one into a config and run. [Preset catalog](https://chaos-maker-dev.github.io/chaos-maker/concepts/presets/).
+- **Deterministic replay and visibility**: `formatSeedReproduction(seed)` reexported from every adapter, Cypress Command Log writes applied chaos events inline, and Playwright trace step coverage is rock solid. [Replay recipe](https://chaos-maker-dev.github.io/chaos-maker/recipes/reproduce-flaky-failure/).
+- **Cleanup reliability hardening**: stop clears Service Worker seed and counters, cancels delayed WebSocket and EventSource deliveries, frees runtime handles, and fails fast on double-inject. Repeat inject/remove cycles and reused pages are now safe by construction.
+
+Full release notes in [CHANGELOG.md](CHANGELOG.md).
+
 ## Install
 
 ```bash
@@ -17,7 +25,7 @@ npm install @chaos-maker/core @chaos-maker/puppeteer
 
 ## Quick start with presets
 
-Drop a named scenario into the config — flaky backend, mobile network, checkout instability — and run. Layer multiple presets for compound scenarios.
+Drop a named scenario into the config - flaky backend, mobile network, checkout instability - and run. Layer multiple presets for compound scenarios.
 
 ```typescript
 import { test, expect } from '@playwright/test';

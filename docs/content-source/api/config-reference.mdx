@@ -24,7 +24,7 @@ interface ChaosConfig {
 
 `seed` controls probability-driven chaos decisions. The same seed plus the same interaction sequence produces the same normalized event sequence.
 
-`debug` toggles [Debug Mode](/api/debug/) — every rule decision emits a `type: 'debug'` event and mirrors a `[Chaos] ...` line to `console.debug`. Off by default; framework-agnostic, so it does not interact with Playwright's `PWDEBUG`, Cypress's `--browser` debugger, Puppeteer's `devtools: true`, or WDIO's `logLevel`.
+`debug` toggles [Debug Mode](/api/debug/) - every rule decision emits a `type: 'debug'` event and mirrors a `[Chaos] ...` line to `console.debug`. Off by default; framework-agnostic, so it does not interact with Playwright's `PWDEBUG`, Cypress's `--browser` debugger, Puppeteer's `devtools: true`, or WDIO's `logLevel`.
 
 ## NetworkConfig
 

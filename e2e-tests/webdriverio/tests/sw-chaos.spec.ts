@@ -27,6 +27,21 @@ async function unregisterSW(): Promise<void> {
   }
 }
 
+async function waitForAppliedSWFailure(statusCode: number): Promise<void> {
+  await browser.waitUntil(
+    async () => {
+      const log = (await browser.getSWChaosLog()) as ChaosEvent[];
+      return log.some(
+        (e) => e.type === 'network:failure' && e.applied && e.detail.statusCode === statusCode,
+      );
+    },
+    {
+      timeout: 5_000,
+      timeoutMsg: `SW chaos log did not include applied ${statusCode} failure`,
+    },
+  );
+}
+
 describe('WDIO SW chaos', () => {
   afterEach(async () => {
     try { await browser.removeSWChaos(); } catch { /* no-op */ }
@@ -44,8 +59,7 @@ describe('WDIO SW chaos', () => {
     await $('#sw-fetch').click();
     await expect($('#sw-fetch-status')).toHaveText('503');
 
-    const log = (await browser.getSWChaosLog()) as ChaosEvent[];
-    expect(log.some((e) => e.type === 'network:failure' && e.applied)).toBe(true);
+    await waitForAppliedSWFailure(503);
   });
 
   it('removeSWChaos restores normal responses', async () => {

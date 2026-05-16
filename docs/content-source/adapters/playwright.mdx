@@ -50,11 +50,11 @@ SSE chaos and GraphQL operation matching need no extra adapter API. Pass `sse` r
 
 ## Debug Mode
 
-Set `debug: true` on the config passed to `injectChaos()` to enable [Debug Mode](/api/debug/). It is independent of Playwright's own `--debug` mode and `PWDEBUG` env var — Chaos Maker never reads them. Console mirrors land on `page.on('console', …)` with `msg.type() === 'debug'` and a `[Chaos] ...` body. Debug events ride into the `chaos-log.json` attachment but never as inline `test.step` entries.
+Set `debug: true` on the config passed to `injectChaos()` to enable [Debug Mode](/api/debug/). It is independent of Playwright's own `--debug` mode and `PWDEBUG` env var - Chaos Maker never reads them. Console mirrors land on `page.on('console', …)` with `msg.type() === 'debug'` and a `[Chaos] ...` body. Debug events ride into the `chaos-log.json` attachment but never as inline `test.step` entries.
 
 ## Validation
 
-`injectChaos` validates the config from Node before any page touch. A malformed config throws `ChaosConfigError` synchronously from the test runner — the page never sees a bad rule.
+`injectChaos` validates the config from Node before any page touch. A malformed config throws `ChaosConfigError` synchronously from the test runner - the page never sees a bad rule.
 
 ```typescript
 import { injectChaos, ChaosConfigError } from '@chaos-maker/playwright';

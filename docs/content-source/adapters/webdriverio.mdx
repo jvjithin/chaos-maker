@@ -43,7 +43,7 @@ SSE chaos and GraphQL operation matching work when the EventSource or request is
 
 ## Debug Mode
 
-Pass `debug: true` to `injectChaos()` (or `browser.injectChaos()`) to enable [Debug Mode](/api/debug/). It does not affect WDIO's `logLevel` config or `DEBUG=wdio:*` — Chaos Maker never reads them. WDIO has no first-class console-message stream, so capture mirrors by installing a `console.debug` tap inside `browser.execute()` before the action under test. Structured debug events ride into `browser.getChaosLog()`.
+Pass `debug: true` to `injectChaos()` (or `browser.injectChaos()`) to enable [Debug Mode](/api/debug/). It does not affect WDIO's `logLevel` config or `DEBUG=wdio:*` - Chaos Maker never reads them. WDIO has no first-class console-message stream, so capture mirrors by installing a `console.debug` tap inside `browser.execute()` before the action under test. Structured debug events ride into `browser.getChaosLog()`.
 
 ```typescript
 import { injectChaos, getChaosLog } from '@chaos-maker/webdriverio';
